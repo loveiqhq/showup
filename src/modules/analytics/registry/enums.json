@@ -27,12 +27,24 @@
     "gender": {
       "step": 2,
       "sensitivity_class": 2,
-      "values": ["woman", "man", "non_binary", "other"]
+      "values": [
+        "woman",
+        "man",
+        "non_binary",
+        "other"
+      ]
     },
     "orientation": {
       "step": 3,
       "sensitivity_class": 2,
-      "values": ["straight", "gay", "lesbian", "bisexual", "pansexual", "other"]
+      "values": [
+        "straight",
+        "gay",
+        "lesbian",
+        "bisexual",
+        "pansexual",
+        "other"
+      ]
     },
     "dating_language": {
       "step": 4,
@@ -101,31 +113,52 @@
     "diet": {
       "step": 8,
       "sensitivity_class": 1,
-      "values": ["everything", "flexitarian", "vegetarian", "vegan"],
+      "values": [
+        "everything",
+        "flexitarian",
+        "vegetarian",
+        "vegan"
+      ],
       "note": "Interests screen (Profile 21), \"How I live\": single-select, optional, no visibility switch."
     },
     "alcohol": {
       "step": 8,
       "sensitivity_class": 2,
-      "values": ["never", "rarely", "socially", "regularly"],
+      "values": [
+        "never",
+        "rarely",
+        "socially",
+        "regularly"
+      ],
       "note": "Interests screen (Profile 21), \"How I live\": single-select, optional, no visibility switch."
     },
     "smoking": {
       "step": 8,
       "sensitivity_class": 2,
-      "values": ["no", "sometimes", "yes"],
+      "values": [
+        "no",
+        "sometimes",
+        "yes"
+      ],
       "note": "Interests screen (Profile 21), \"How I live\": single-select, optional, no visibility switch."
     },
     "rhythm": {
       "step": 8,
       "sensitivity_class": 0,
-      "values": ["early_bird", "night_owl"],
+      "values": [
+        "early_bird",
+        "night_owl"
+      ],
       "note": "Interests screen (Profile 21), \"How I live\": single-select, optional, no visibility switch."
     },
     "social": {
       "step": 8,
       "sensitivity_class": 0,
-      "values": ["cozy_at_home", "balanced", "always_out"],
+      "values": [
+        "cozy_at_home",
+        "balanced",
+        "always_out"
+      ],
       "note": "Interests screen (Profile 21), \"How I live\": single-select, optional, no visibility switch."
     },
     "age": {
@@ -244,7 +277,9 @@
         "co_parenting",
         "empty_nester"
       ],
-      "exclusive": ["no_children"]
+      "exclusive": [
+        "no_children"
+      ]
     },
     "living": {
       "sensitivity_class": 1,
@@ -260,8 +295,16 @@
   "life_ahead": {
     "family_ahead": {
       "sensitivity_class": 1,
-      "values": ["want_kids", "dont_want_kids", "find_out_together"],
-      "exclusive": ["want_kids", "dont_want_kids", "find_out_together"],
+      "values": [
+        "want_kids",
+        "dont_want_kids",
+        "find_out_together"
+      ],
+      "exclusive": [
+        "want_kids",
+        "dont_want_kids",
+        "find_out_together"
+      ],
       "note": "All three are exclusive: one answer at most."
     },
     "partnership_ahead": {
@@ -272,7 +315,9 @@
         "ethically_non_monogamous",
         "find_out_together"
       ],
-      "exclusive": ["find_out_together"]
+      "exclusive": [
+        "find_out_together"
+      ]
     },
     "living_ahead": {
       "sensitivity_class": 1,
@@ -282,7 +327,9 @@
         "move_abroad",
         "find_out_together"
       ],
-      "exclusive": ["find_out_together"]
+      "exclusive": [
+        "find_out_together"
+      ]
     }
   },
   "topic_id": [
@@ -300,17 +347,63 @@
     "im_proud_of"
   ],
   "shared": {
-    "result": ["pass", "fail"],
-    "rule": ["format", "disposable", "length", "invalid_prefix", "impossible"],
-    "method": ["phone", "apple", "google"],
-    "dismiss_method": ["cta", "swipe", "backdrop"],
-    "channel": ["push", "sms", "whatsapp", "email", "call"],
-    "band": ["trusted", "steady", "at_risk"],
-    "lead_time": ["24h", "2h", "1h", "15m"],
-    "decision": ["wait", "leave"],
-    "outcome": ["confirmed", "deferred", "hung_up"],
-    "placement": ["likes_received", "live_grid", "advanced_filters"],
-    "layout": ["one_up", "grid"],
+    "result": [
+      "pass",
+      "fail"
+    ],
+    "rule": [
+      "format",
+      "disposable",
+      "length",
+      "invalid_prefix",
+      "impossible"
+    ],
+    "method": [
+      "phone",
+      "apple",
+      "google"
+    ],
+    "dismiss_method": [
+      "cta",
+      "swipe",
+      "backdrop"
+    ],
+    "channel": [
+      "push",
+      "sms",
+      "whatsapp",
+      "email",
+      "call"
+    ],
+    "band": [
+      "trusted",
+      "steady",
+      "at_risk"
+    ],
+    "lead_time": [
+      "24h",
+      "2h",
+      "1h",
+      "15m"
+    ],
+    "decision": [
+      "wait",
+      "leave"
+    ],
+    "outcome": [
+      "confirmed",
+      "deferred",
+      "hung_up"
+    ],
+    "placement": [
+      "likes_received",
+      "live_grid",
+      "advanced_filters"
+    ],
+    "layout": [
+      "one_up",
+      "grid"
+    ],
     "form_validation_rule": [
       "required_missing",
       "photos_below_minimum",
@@ -319,12 +412,33 @@
       "format",
       "impossible"
     ],
-    "section": ["prompts", "interests", "habits", "essentials"],
-    "entry_point": ["cold", "push", "sms", "whatsapp", "email", "deeplink"]
+    "section": [
+      "prompts",
+      "interests",
+      "habits",
+      "essentials"
+    ],
+    "entry_point": [
+      "cold",
+      "push",
+      "sms",
+      "whatsapp",
+      "email",
+      "deeplink"
+    ]
   },
   "filter_id": {
-    "meet_gender": ["woman", "man", "non_binary", "other"],
-    "showup_band": ["trusted", "steady", "at_risk"]
+    "meet_gender": [
+      "woman",
+      "man",
+      "non_binary",
+      "other"
+    ],
+    "showup_band": [
+      "trusted",
+      "steady",
+      "at_risk"
+    ]
   },
   "check_in_motivation": [
     "long_term",
