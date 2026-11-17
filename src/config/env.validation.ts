@@ -60,6 +60,10 @@ export const validationSchema = Joi.object({
   CHECK_IN_EXPIRY_LEAD_MINUTES: Joi.number().integer().positive().default(10),
   DEFAULT_LOCALE: Joi.string().valid('en', 'de').default('en'),
 
+  // Google Places API (New), server side only (Date 05, SHOWUP-196). Unset = fixture venues outside
+  // production; unset in production = the change-place routes answer 503.
+  GOOGLE_PLACES_API_KEY: Joi.string().allow('').optional(),
+
   // PostHog EU (Epic 11)
   POSTHOG_ENABLED: Joi.boolean().default(false),
   POSTHOG_API_KEY: Joi.string().allow('').optional(),

@@ -87,7 +87,7 @@ interface LocalParts {
   second: number;
 }
 
-function localParts(instant: Date, zone: string): LocalParts {
+export function localParts(instant: Date, zone: string): LocalParts {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: zone,
     year: 'numeric',

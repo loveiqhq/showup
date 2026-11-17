@@ -88,6 +88,7 @@ const PROTECTED: Route[] = [
   { method: 'post', path: `/dates/${ID}/confirm` },
   { method: 'post', path: `/dates/${ID}/no-show` },
   { method: 'get', path: `/dates/${ID}/chat` },
+  { method: 'get', path: `/dates/${ID}/change/places` },
   { method: 'post', path: `/dates/${ID}/chat` },
   // SHOWUP-193 -- the Date screen: the active date and the match's profile are the viewer's own.
   { method: 'post', path: `/dates/${ID}/chat/read` },

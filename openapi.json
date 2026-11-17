@@ -326,6 +326,29 @@
         },
         "type": "object"
       },
+      "ChangePlacesDto": {
+        "properties": {
+          "attribution": {
+            "description": "'google' only when Google answered, and its terms ask for the attribution line; null for fixtures.",
+            "enum": [
+              "google"
+            ],
+            "nullable": true,
+            "type": "string"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceOptionDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "attribution",
+          "places"
+        ],
+        "type": "object"
+      },
       "ChatMessageDto": {
         "properties": {
           "body": {
@@ -1938,6 +1961,44 @@
           "moderationStatus",
           "position",
           "createdAt"
+        ],
+        "type": "object"
+      },
+      "PlaceOptionDto": {
+        "properties": {
+          "address": {
+            "example": "Lausitzer Platz 9, Kreuzberg",
+            "type": "string"
+          },
+          "distanceMeters": {
+            "description": "Whole metres from the date’s current meet place; the clients format it.",
+            "example": 350,
+            "type": "number"
+          },
+          "name": {
+            "example": "Bar Lenz",
+            "type": "string"
+          },
+          "placeId": {
+            "description": "The provider's stable id for the place.",
+            "example": "ChIJ_bar_lenz",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "cafe",
+              "bar",
+              "restaurant"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "placeId",
+          "name",
+          "type",
+          "address",
+          "distanceMeters"
         ],
         "type": "object"
       },
@@ -5053,6 +5114,80 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DateDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
+    "/dates/{id}/change/places": {
+      "get": {
+        "operationId": "listChangePlaces",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePlacesDto"
                 }
               }
             },

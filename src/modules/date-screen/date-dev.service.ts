@@ -249,12 +249,25 @@ export class DateDevService {
     return partner.id;
   }
 
-  /** Cafe Krone, made if missing. */
+  /**
+   * Cafe Krone, made if missing. Found by name, not by an ON CONFLICT: since Date 05 a venue name is
+   * no longer unique (two Google places can share one), so there is no constraint to conflict on.
+   */
   private async venue(): Promise<string> {
+    const [existing] = await this.db.query<Array<{ id: string }>>(
+      // Wrapped in a CTE so the driver returns rows: a bare UPDATE ... RETURNING comes back as
+      // [rows, count] from pg.
+      `WITH "upd" AS (
+         UPDATE "venues" SET "address" = $2 WHERE "id" =
+           (SELECT "id" FROM "venues" WHERE "name" = $1 ORDER BY "created_at" LIMIT 1)
+         RETURNING "id")
+       SELECT "id" FROM "upd"`,
+      [VENUE.name, VENUE.address],
+    );
+    if (existing) return existing.id;
     const [row] = await this.db.query<Array<{ id: string }>>(
       `INSERT INTO "venues" ("name", "address", "location")
        VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography)
-       ON CONFLICT ("name") DO UPDATE SET "address" = EXCLUDED."address"
        RETURNING "id"`,
       [VENUE.name, VENUE.address, VENUE.lng, VENUE.lat],
     );

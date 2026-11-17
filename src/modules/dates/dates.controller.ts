@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import { EndedInChatDto } from '../date-screen/dto/active-date.dto';
 import {
@@ -15,11 +16,14 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
+import { PlacesService } from '../places/places.service';
+import { ChangePlacesDto } from './dto/change-places.dto';
 import { ArrivalCheckInDto, CreateArrivalCheckInDto } from './dto/arrival.dto';
 import { ArrivalCheckInsService } from './arrival-check-ins.service';
 import {
@@ -38,6 +42,7 @@ export class DatesController {
   constructor(
     private readonly dates: DatesService,
     private readonly arrivals: ArrivalCheckInsService,
+    private readonly places: PlacesService,
   ) {}
 
   /** The dates the user is part of. */
@@ -220,5 +225,23 @@ export class DatesController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     await this.arrivals.commit(id, user.id);
+  }
+
+  /**
+   * Cafes, bars and restaurants a date could move to (Date 05, SHOWUP-196), nearest first, measured
+   * from the date's CURRENT meet place. `q` empty lists what is nearby; otherwise it searches.
+   * `attribution` is `google` only when Google answered. 404 unknown date, 403 not yours, 409 when the
+   * date has no meet place with a location to measure from, 503 when places cannot be fetched.
+   */
+  @Get('dates/:id/change/places')
+  @ApiOperation({ operationId: 'listChangePlaces' })
+  @ApiQuery({ name: 'q', required: false })
+  @ApiOkResponse({ type: ChangePlacesDto })
+  async changePlaces(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('q') q?: string,
+  ): Promise<ChangePlacesDto> {
+    return this.places.listFor(id, user.id, q);
   }
 }
