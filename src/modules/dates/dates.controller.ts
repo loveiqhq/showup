@@ -16,14 +16,13 @@ import {
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { PlacesService } from '../places/places.service';
-import { ChangePlacesDto } from './dto/change-places.dto';
+import { ChangePlacesDto, ChangePlacesQueryDto } from './dto/change-places.dto';
 import { ArrivalCheckInDto, CreateArrivalCheckInDto } from './dto/arrival.dto';
 import { ArrivalCheckInsService } from './arrival-check-ins.service';
 import {
@@ -235,13 +234,12 @@ export class DatesController {
    */
   @Get('dates/:id/change/places')
   @ApiOperation({ operationId: 'listChangePlaces' })
-  @ApiQuery({ name: 'q', required: false })
   @ApiOkResponse({ type: ChangePlacesDto })
   async changePlaces(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('q') q?: string,
+    @Query() query: ChangePlacesQueryDto,
   ): Promise<ChangePlacesDto> {
-    return this.places.listFor(id, user.id, q);
+    return this.places.listFor(id, user.id, query.q);
   }
 }

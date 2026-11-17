@@ -58,6 +58,8 @@ export function changeSlots(
     const first = Math.max(run.start, bindingAt.getTime() + 1);
     const last = Math.min(run.end - MIN_REMAINING_MS, midnight - 1);
     for (
+      // Quarter-hours of the UTC epoch, which are also local quarter-hours: every IANA offset in
+      // use is a multiple of 15 minutes.
       let s = Math.ceil(first / SLOT_MS) * SLOT_MS;
       s <= last;
       s += SLOT_MS

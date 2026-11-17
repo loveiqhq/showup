@@ -1,4 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 import { PLACE_TYPES, type PlaceType } from '../util/change-rules';
 
@@ -39,4 +40,16 @@ export class ChangePlacesDto {
 
   @ApiProperty({ type: [PlaceOptionDto] })
   places: PlaceOptionDto[];
+}
+
+/** Query of the change-places route. */
+export class ChangePlacesQueryDto {
+  @ApiPropertyOptional({
+    maxLength: 100,
+    description: 'Search text; empty or absent lists what is nearby.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  q?: string;
 }

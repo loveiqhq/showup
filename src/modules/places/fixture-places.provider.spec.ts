@@ -1,9 +1,10 @@
 import { FixturePlacesProvider } from './fixture-places.provider';
+import type { PlacesProvider } from './places.provider';
 
 const CENTER = { lat: 52.5016, lng: 13.4186 };
 
 describe('FixturePlacesProvider', () => {
-  const provider = new FixturePlacesProvider();
+  const provider: PlacesProvider = new FixturePlacesProvider();
 
   it('is not Google, so no attribution', () => {
     expect(provider.attribution).toBeNull();

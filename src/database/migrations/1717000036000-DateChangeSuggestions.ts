@@ -83,6 +83,7 @@ export class DateChangeSuggestions1717000036000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // Fails if duplicate venue names exist by now (Google venues can share a name): de-duplicate first.
     await queryRunner.query(
       `ALTER TABLE "venues" ADD CONSTRAINT "venues_name_key" UNIQUE ("name");`,
     );

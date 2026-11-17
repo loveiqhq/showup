@@ -183,6 +183,16 @@ describe('Date 05 foundations (e2e)', () => {
       expect(empty.body.places).toHaveLength(5);
     });
 
+    it('validates q: an array or more than 100 characters is 400, a valid q is 200', async () => {
+      await request(server)
+        .get(`/dates/${dateId}/change/places?q=a&q=b`)
+        .set('Authorization', as('you'))
+        .expect(400);
+      await places('you', 'x'.repeat(101)).expect(400);
+      await places('you', 'x'.repeat(100)).expect(200);
+      await places('you', 'lenz').expect(200);
+    });
+
     it('answers 401 without a token, 403 to a stranger, 404 for an unknown date', async () => {
       await request(server).get(`/dates/${dateId}/change/places`).expect(401);
       await places('stranger').expect(403);

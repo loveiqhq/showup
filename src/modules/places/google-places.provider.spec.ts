@@ -134,6 +134,16 @@ describe('GooglePlacesProvider', () => {
     ).toBeNull();
   });
 
+  it('a 404 from the list calls is unavailable, not an empty list', async () => {
+    const notFound = mockFetch({}, { ok: false, status: 404 });
+    await expect(
+      new GooglePlacesProvider('KEY', notFound).nearby(CENTER),
+    ).rejects.toBeInstanceOf(PlacesUnavailableError);
+    await expect(
+      new GooglePlacesProvider('KEY', notFound).search(CENTER, 'x'),
+    ).rejects.toBeInstanceOf(PlacesUnavailableError);
+  });
+
   it('an empty answer is an empty list', async () => {
     const fetchFn = mockFetch({});
     expect(

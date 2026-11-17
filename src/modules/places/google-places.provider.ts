@@ -88,6 +88,8 @@ export class GooglePlacesProvider implements PlacesProvider {
       `${BASE}/places/${encodeURIComponent(placeId)}`,
       'GET',
       DETAILS_MASK,
+      undefined,
+      true,
     );
     return json ? this.toPlace(json) : null;
   }
@@ -119,12 +121,16 @@ export class GooglePlacesProvider implements PlacesProvider {
     };
   }
 
-  /** One request; null for a 404 (details of an unknown id), PlacesUnavailableError for the rest. */
+  /**
+   * One request. A 404 is null only when `notFoundIsNull` (details of an unknown id); for the list
+   * calls it is a misconfiguration and must surface as unavailable, not as "no places".
+   */
   private async call<T>(
     url: string,
     method: 'GET' | 'POST',
     mask: string,
     body?: unknown,
+    notFoundIsNull = false,
   ): Promise<T | null> {
     let res: Response;
     try {
@@ -142,7 +148,7 @@ export class GooglePlacesProvider implements PlacesProvider {
       // The cause is dropped on purpose: it can echo the URL or the key.
       throw new PlacesUnavailableError('Places request failed');
     }
-    if (res.status === 404) return null;
+    if (res.status === 404 && notFoundIsNull) return null;
     if (!res.ok) {
       throw new PlacesUnavailableError(`Places answered ${res.status}`);
     }

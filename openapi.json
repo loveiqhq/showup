@@ -5174,10 +5174,12 @@
             }
           },
           {
+            "description": "Search text; empty or absent lists what is nearby.",
             "in": "query",
             "name": "q",
             "required": false,
             "schema": {
+              "maxLength": 100,
               "type": "string"
             }
           }
