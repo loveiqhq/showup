@@ -12,6 +12,7 @@
 
         <!-- Every Check-In frame on a real device, for evidence screenshots (dev/CheckInGalleryActivity.kt).
              Exported so `adb shell am start` can reach it; the debug build only. -->
+        <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
         <activity
             android:name="com.showup.dev.CheckInGalleryActivity"
             android:exported="true"

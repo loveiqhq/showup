@@ -1,0 +1,26 @@
+# What the Semgrep scan (.github/workflows/semgrep.yml) skips. A .semgrepignore REPLACES Semgrep's
+# built-in list, so that list is repeated here first.
+:include .gitignore
+node_modules/
+build/
+dist/
+vendor/
+.env/
+.venv/
+.tox/
+*.min.js
+.npm/
+.yarn/
+test/
+tests/
+.semgrep
+.semgrep_logs/
+
+# The OpenAPI generator's Mustache templates write Kotlin source, not HTML: their triple braces are
+# code generation, so the template-escaping rules do not apply (41 false positives, 15 Nov 2026).
+mobile/welcome-screen/android-preview-project/app/openapi-templates/
+
+# Design references and plans: excerpts of the design kit, not code that ships (one excerpt is not a
+# complete module and cannot be parsed).
+docs/
+design_handoff_showup/
