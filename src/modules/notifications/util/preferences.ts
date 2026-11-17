@@ -11,6 +11,9 @@ export type NotificationCategory = 'essential' | 'engagement' | 'marketing';
 export type NotificationType =
   | 'date_reminder'
   | 'date_partner_arrived'
+  | 'date_change_suggested'
+  | 'date_change_agreed'
+  | 'date_change_expired'
   | 'check_in_expiry'
   | 'new_match'
   | 'email_verification'
@@ -37,6 +40,9 @@ export const DEFAULT_PREFERENCES: NotificationPreferenceState = {
 const CATEGORY_BY_TYPE: Record<NotificationType, NotificationCategory> = {
   date_reminder: 'engagement',
   date_partner_arrived: 'engagement',
+  date_change_suggested: 'engagement',
+  date_change_agreed: 'engagement',
+  date_change_expired: 'engagement',
   check_in_expiry: 'engagement',
   new_match: 'engagement',
   email_verification: 'essential',

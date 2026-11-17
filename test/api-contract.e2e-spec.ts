@@ -103,6 +103,13 @@ const PROTECTED: Route[] = [
   { method: 'delete', path: `/dates/${ID}/arrival` },
   { method: 'post', path: `/dates/${ID}/arrival/commit` },
   { method: 'post', path: '/dev/date/arrival' },
+  // SHOWUP-196 -- change meet time / place: suggest, agree, the thread's history, the dev routes.
+  { method: 'post', path: `/dates/${ID}/suggestions` },
+  { method: 'get', path: `/dates/${ID}/suggestions` },
+  { method: 'post', path: `/dates/${ID}/suggestions/${ID}/agree` },
+  { method: 'post', path: '/dev/date/change' },
+  { method: 'post', path: '/dev/date/change/agree' },
+  { method: 'post', path: '/dev/date/change/expire' },
   // matching.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/discovery' },
   { method: 'post', path: '/likes' },

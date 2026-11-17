@@ -11,8 +11,11 @@ import { DataSource } from 'typeorm';
 
 import { DateEntity } from '../dates/entities/date.entity';
 import { PLACE_TYPES } from '../dates/util/change-rules';
+import {
+  isBindingVenue,
+  type VenueIdentity,
+} from '../dates/util/change-suggestions';
 import { haversineMeters } from '../location/location.geo';
-import type { LatLng } from '../location/location.geo';
 import {
   PLACES_PROVIDER,
   Place,
@@ -60,13 +63,14 @@ export class PlacesService {
     if (date.userAId !== userId && date.userBId !== userId) {
       throw new ForbiddenException('You are not part of this date');
     }
-    const origin = await this.bindingLocation(date.venueId);
-    if (!origin) {
+    const binding = await this.bindingVenue(date.venueId);
+    if (!binding) {
       throw new ConflictException(
         'This date has no meeting place to search from',
       );
     }
 
+    const origin = binding.location;
     const query = (q ?? '').trim();
     let found: Place[];
     try {
@@ -82,6 +86,8 @@ export class PlacesService {
 
     const places = found
       .filter((p) => (PLACE_TYPES as readonly string[]).includes(p.type))
+      // The date's current place is not a place to move to; a suggestion of it is refused too.
+      .filter((p) => !isBindingVenue(binding, p))
       .map((p) => ({
         placeId: p.placeId,
         name: p.name,
@@ -93,17 +99,28 @@ export class PlacesService {
     return { attribution: this.provider.attribution, places };
   }
 
-  private async bindingLocation(
+  private async bindingVenue(
     venueId: string | null,
-  ): Promise<LatLng | null> {
+  ): Promise<VenueIdentity | null> {
     if (!venueId) return null;
-    const rows = await this.db.query<Array<{ lat: number; lng: number }>>(
-      `SELECT ST_Y("location"::geometry) AS "lat", ST_X("location"::geometry) AS "lng"
+    const rows = await this.db.query<
+      Array<{
+        name: string;
+        place_id: string | null;
+        lat: number;
+        lng: number;
+      }>
+    >(
+      `SELECT "name", "place_id", ST_Y("location"::geometry) AS "lat", ST_X("location"::geometry) AS "lng"
          FROM "venues" WHERE "id" = $1 AND "location" IS NOT NULL`,
       [venueId],
     );
     return rows[0]
-      ? { lat: Number(rows[0].lat), lng: Number(rows[0].lng) }
+      ? {
+          name: rows[0].name,
+          placeId: rows[0].place_id,
+          location: { lat: Number(rows[0].lat), lng: Number(rows[0].lng) },
+        }
       : null;
   }
 }

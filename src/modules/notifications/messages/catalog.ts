@@ -51,6 +51,46 @@ const CATALOG: Record<NotificationType, Record<Locale, Template>> = {
             body: 'Dein Date ist am Treffpunkt angekommen.',
           },
   },
+  // Interim copy (Date 05, R10): all notification copy is written at the end of the project. Never a
+  // place, a time other than the deadline, or anything else about the suggestion: only that there is one.
+  date_change_suggested: {
+    en: (p) => ({
+      title: p.name
+        ? `${p.name} suggested a change`
+        : 'Your date suggested a change',
+      body: `Answer in Show Up before ${p.deadline}.`,
+    }),
+    de: (p) => ({
+      title: p.name
+        ? `${p.name} schlägt eine Änderung vor`
+        : 'Dein Date schlägt eine Änderung vor',
+      body: `Antworte in Show Up bis ${p.deadline}.`,
+    }),
+  },
+  date_change_agreed: {
+    en: (p) => ({
+      title: p.name
+        ? `${p.name} agreed to your change`
+        : 'Your date agreed to your change',
+      body: "It's now binding for you both.",
+    }),
+    de: (p) => ({
+      title: p.name
+        ? `${p.name} hat deiner Änderung zugestimmt`
+        : 'Dein Date hat deiner Änderung zugestimmt',
+      body: 'Sie gilt jetzt für euch beide.',
+    }),
+  },
+  date_change_expired: {
+    en: () => ({
+      title: "Your change wasn't agreed",
+      body: 'The original time and place stay.',
+    }),
+    de: () => ({
+      title: 'Deine Änderung wurde nicht bestätigt',
+      body: 'Die ursprüngliche Zeit und der Ort bleiben.',
+    }),
+  },
   check_in_expiry: {
     // Deliberately discreet — a check-in is tied to the user's real-world location (privacy/safety).
     en: () => ({

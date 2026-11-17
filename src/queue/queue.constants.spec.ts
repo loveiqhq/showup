@@ -1,5 +1,6 @@
 import {
   DEFAULT_JOB_OPTIONS,
+  QUEUE_CHANGE_EXPIRY,
   QUEUE_CHECK_IN_EXPIRY,
   REDIS_CLIENT,
 } from './queue.constants';
@@ -7,6 +8,10 @@ import {
 describe('queue constants', () => {
   it('names the check-in expiry queue', () => {
     expect(QUEUE_CHECK_IN_EXPIRY).toBe('check-in-expiry');
+  });
+
+  it('names the change expiry queue (Date 05)', () => {
+    expect(QUEUE_CHANGE_EXPIRY).toBe('change-expiry');
   });
 
   it('exposes a Redis client injection token', () => {

@@ -32,7 +32,12 @@ const place = (
 
 function build(opts: {
   date?: object | null;
-  venue?: { lat: number; lng: number } | null;
+  venue?: {
+    lat: number;
+    lng: number;
+    name?: string;
+    place_id?: string | null;
+  } | null;
   provider: Partial<PlacesProvider>;
 }) {
   const date =
@@ -41,9 +46,17 @@ function build(opts: {
       : opts.date;
   const db = {
     getRepository: () => ({ findOne: jest.fn().mockResolvedValue(date) }),
-    query: jest
-      .fn()
-      .mockResolvedValue(opts.venue === null ? [] : [opts.venue ?? BINDING]),
+    query: jest.fn().mockResolvedValue(
+      opts.venue === null
+        ? []
+        : [
+            {
+              name: 'Cafe Krone',
+              place_id: null,
+              ...(opts.venue ?? BINDING),
+            },
+          ],
+    ),
   };
   const provider = { attribution: null, ...opts.provider } as PlacesProvider;
   return { service: new PlacesService(db as never, provider), db };
@@ -93,6 +106,36 @@ describe('PlacesService.listFor', () => {
       },
     });
     expect((await service.listFor('d1', 'u1')).attribution).toBe('google');
+  });
+
+  it('leaves the binding venue out: by place id when it has one', async () => {
+    const nearby = jest
+      .fn()
+      .mockResolvedValue([
+        place('g-here', 52.5, 13.42),
+        place('g-other', 52.5, 13.42),
+      ]);
+    const { service } = build({
+      venue: { ...BINDING, place_id: 'g-here' },
+      provider: { nearby },
+    });
+    expect(
+      (await service.listFor('d1', 'u1')).places.map((p) => p.placeId),
+    ).toEqual(['g-other']);
+  });
+
+  it('leaves the binding venue out: without an id, by the same name within 50 m', async () => {
+    const nearby = jest
+      .fn()
+      .mockResolvedValue([
+        place('same', 52.5001, 13.42, { name: 'Cafe Krone' }),
+        place('namesake-far', 52.51, 13.42, { name: 'Cafe Krone' }),
+        place('neighbour', 52.5001, 13.42, { name: 'Bar Lenz' }),
+      ]);
+    const { service } = build({ provider: { nearby } });
+    expect(
+      (await service.listFor('d1', 'u1')).places.map((p) => p.placeId).sort(),
+    ).toEqual(['namesake-far', 'neighbour']);
   });
 
   it('only keeps the three types', async () => {

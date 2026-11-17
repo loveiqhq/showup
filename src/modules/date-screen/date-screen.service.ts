@@ -3,6 +3,7 @@ import { DataSource, In, IsNull, Not } from 'typeorm';
 
 import { CheckInWindow } from '../check-ins/entities/check-in-window.entity';
 import { ArrivalCheckInsService } from '../dates/arrival-check-ins.service';
+import { ChangeSuggestionsService } from '../dates/change-suggestions.service';
 import { arrivalOf } from '../dates/util/arrival';
 import { DateChatMessage } from '../dates/entities/date-chat-message.entity';
 import { DateEntity } from '../dates/entities/date.entity';
@@ -29,6 +30,7 @@ export class DateScreenService {
     private readonly db: DataSource,
     private readonly search: SearchService,
     private readonly arrivals: ArrivalCheckInsService,
+    private readonly changes: ChangeSuggestionsService,
   ) {}
 
   /** The viewer's active date, newest first if (against the rules) there were two. */
@@ -77,6 +79,13 @@ export class DateScreenService {
     );
     if (!partner) return null;
     const own = windows.get(viewerId);
+    const anyCommittedCheckIn = arrivalRows.some((r) => r.committedAt !== null);
+    const { change, changeRequest } = await this.changes.payloadFor(
+      date,
+      viewerId,
+      tz,
+      anyCommittedCheckIn,
+    );
 
     return toActiveDate({
       dateId: date.id,
@@ -109,7 +118,9 @@ export class DateScreenService {
       chatTutorialSeen:
         (viewerIsA ? date.aChatTutorialAt : date.bChatTutorialAt) !== null,
       coordinateUnlockedAt: date.coordinateUnlockedAt,
-      anyCommittedCheckIn: arrivalRows.some((r) => r.committedAt !== null),
+      anyCommittedCheckIn,
+      change,
+      changeRequest,
       meetDay: meetDay(date.scheduledAt, now, tz),
       now,
     });

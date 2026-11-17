@@ -47,4 +47,50 @@ describe('NotificationsScheduler (date reminders, SHOWUP-69)', () => {
   it('cancelling a non-existent reminder is a no-op', async () => {
     await expect(make().cancelDateReminder('nope')).resolves.toBeUndefined();
   });
+
+  describe('rescheduleDateReminder (Date 05: an agreed time moves the meet time)', () => {
+    const job = (over: Record<string, unknown> = {}) => ({
+      data: {
+        dateId: 'd1',
+        participantUserIds: ['a', 'b'],
+        time: '20:00',
+        venue: 'X',
+      },
+      timestamp: 1_000_000,
+      opts: { delay: 600_000 },
+      remove: jest.fn().mockResolvedValue(undefined),
+      ...over,
+    });
+
+    it('moves the send time by the shift and keeps the job id and recipients', async () => {
+      const j = job();
+      queue.getJob.mockResolvedValue(j);
+      const moved = await make().rescheduleDateReminder('d1', 30 * 60_000);
+      expect(moved).toBe(true);
+      expect(j.remove).toHaveBeenCalled();
+      const [name, payload, opts] = queue.add.mock.calls[0];
+      expect(name).toBe('send');
+      expect(opts.jobId).toBe('date-reminder-d1');
+      expect(payload.participantUserIds).toEqual(['a', 'b']);
+      // The old clock string would now be wrong, so it is dropped.
+      expect(payload.time).toBeUndefined();
+      expect(payload.venue).toBe('X');
+      // Fires at old send time (timestamp + delay) + shift; delay is relative to now (never negative).
+      expect(opts.delay).toBeGreaterThanOrEqual(0);
+    });
+
+    it('does nothing when no reminder is scheduled', async () => {
+      expect(await make().rescheduleDateReminder('d1', 60_000)).toBe(false);
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('leaves a job that is already running alone', async () => {
+      const j = job({
+        remove: jest.fn().mockRejectedValue(new Error('locked')),
+      });
+      queue.getJob.mockResolvedValue(j);
+      expect(await make().rescheduleDateReminder('d1', 60_000)).toBe(false);
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+  });
 });
