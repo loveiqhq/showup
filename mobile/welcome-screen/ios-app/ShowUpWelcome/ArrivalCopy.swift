@@ -24,6 +24,17 @@ enum ArrivalCopy {
     static let locError = "We couldn't find your location. Check your signal, then try again."
     static let tryAgain = "Try again"
 
+    // C2: the location was read and the check-in did not save (16 Nov), the same box and Try again as C
+    static let saveError = "Couldn't check you in. Check your connection and try again."
+
+    /// The error box's words for the sheet's error kind.
+    static func message(for error: ConfirmError) -> String {
+        switch error {
+        case .noFix: return locError
+        case .notSaved: return saveError
+        }
+    }
+
     // D: stored
     static let doneTitle = "You are amazing for showing up!"
     static func doneBody(_ name: String) -> String { "We will let \(name) know that you have arrived. Enjoy your date." }

@@ -38,6 +38,7 @@ import com.showup.arrival.ARRIVAL_YES_TAG
 import com.showup.arrival.ArrivalCopy
 import com.showup.arrival.ArrivalEntry
 import com.showup.arrival.ArrivalOver
+import com.showup.arrival.ConfirmError
 import com.showup.arrival.CheckInBar
 import com.showup.arrival.GatePhase
 import com.showup.arrival.GateUi
@@ -108,8 +109,8 @@ class ArrivalFitTest {
     private fun arrived(ui: DateUi) =
         ui.copy(date = ui.date!!.copy(arrival = DateArrival(ui.now.minusSeconds(10))))
 
-    private fun confirm(locError: Boolean = false, busy: Boolean = false, note: String? = null) =
-        GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, locError, busy, note))
+    private fun confirm(error: ConfirmError? = null, busy: Boolean = false, note: String? = null) =
+        GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, error, busy, note))
 
     private val done = GateUi(phase = GatePhase.Done(ArrivalEntry.DateScreen))
 
@@ -148,8 +149,9 @@ class ArrivalFitTest {
         { sheet("B guard", confirm()) },
         { sheet("B guard + note", confirm(note = ArrivalCopy.REPORT_NOTE)) },
         { sheet("B guard, busy", confirm(busy = true)) },
-        { sheet("C no location fix", confirm(locError = true)) },
-        { sheet("C no location fix + note", confirm(locError = true, note = ArrivalCopy.REPORT_NOTE)) },
+        { sheet("C no location fix", confirm(ConfirmError.NoFix)) },
+        { sheet("C no location fix + note", confirm(ConfirmError.NoFix, note = ArrivalCopy.REPORT_NOTE)) },
+        { sheet("C2 check-in not saved", confirm(ConfirmError.NotSaved)) },
         { sheet("D done", done) },
     )
 
@@ -157,7 +159,7 @@ class ArrivalFitTest {
         {
             Frame("F chat start + B", null) {
                 ArrivalOver(
-                    GateUi(phase = GatePhase.Confirm(ArrivalEntry.ChatChip, locError = false, busy = false, note = null)),
+                    GateUi(phase = GatePhase.Confirm(ArrivalEntry.ChatChip, error = null, busy = false, note = null)),
                     name, onYes = {}, onNotYet = {}, onClose = {}, onUndo = {},
                 ) { ChatScreen(ChatSamples.B, berlin, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}) }
             }
@@ -165,7 +167,7 @@ class ArrivalFitTest {
         {
             Frame("F chat start + C", null) {
                 ArrivalOver(
-                    GateUi(phase = GatePhase.Confirm(ArrivalEntry.ChatChip, locError = true, busy = false, note = null)),
+                    GateUi(phase = GatePhase.Confirm(ArrivalEntry.ChatChip, error = ConfirmError.NoFix, busy = false, note = null)),
                     name, onYes = {}, onNotYet = {}, onClose = {}, onUndo = {},
                 ) { ChatScreen(ChatSamples.B, berlin, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {}) }
             }
@@ -353,7 +355,7 @@ class ArrivalFitTest {
 
     @Test
     fun `B and C over the Date screen are clean on every phone at every type size`() {
-        report(sweep(sheetFrames.take(5), scales), "arrival-fit-confirm.txt")
+        report(sweep(sheetFrames.take(6), scales), "arrival-fit-confirm.txt")
     }
 
     @Test
@@ -372,7 +374,7 @@ class ArrivalFitTest {
     fun `at 375 x 667 the guard's buttons and C's error are fully visible`() {
         val phone = DEVICES.first { it.width == 375 && it.height == 667 }
         val fresh = mutableListOf<String>()
-        for (make in listOf(sheetFrames[0], sheetFrames[1], sheetFrames[3], sheetFrames[4], sheetFrames[5]) + chatFrames) {
+        for (make in listOf(sheetFrames[0], sheetFrames[1], sheetFrames[3], sheetFrames[4], sheetFrames[5], sheetFrames[6]) + chatFrames) {
             fresh += run(phone, make(), 1f)
         }
         report(fresh, "arrival-fit-375.txt")

@@ -386,7 +386,10 @@ describe('The Date screen (e2e)', () => {
       expect(unlocks.map((e) => e.userId).sort()).toEqual(
         [id.you, id.leonie].sort(),
       );
-      expect(unlocks[0].properties).toEqual({ minutes_before_start: 59 });
+      expect(unlocks[0].properties).toEqual({
+        minutes_before_start: 59,
+        cause: 'time',
+      });
       const [row] = await db.query<Array<{ at: Date | null }>>(
         `SELECT coordinate_unlocked_at AS "at" FROM dates WHERE id = $1`,
         [due],

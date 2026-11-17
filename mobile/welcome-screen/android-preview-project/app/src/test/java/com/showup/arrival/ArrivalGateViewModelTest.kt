@@ -131,7 +131,7 @@ class ArrivalGateViewModelTest {
     fun `open shows B and fires arrival_confirm_shown with the registry payload and no coordinate`() = runTest(dispatcher) {
         val vm = ready()
         assertTrue(vm.open(ArrivalEntry.ChatChip, note = "Check in first"))
-        assertEquals(GatePhase.Confirm(ArrivalEntry.ChatChip, locError = false, busy = false, note = "Check in first"), vm.ui.value.phase)
+        assertEquals(GatePhase.Confirm(ArrivalEntry.ChatChip, error = null, busy = false, note = "Check in first"), vm.ui.value.phase)
         val shown = analytics.of("arrival_confirm_shown").single().properties
         assertEquals("d1", shown["date_id"])
         assertEquals("chat_chip", shown["entry"])
@@ -197,7 +197,7 @@ class ArrivalGateViewModelTest {
         val vm = confirmed()
         vm.yes()
         runCurrent()
-        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null, attempt = 1), vm.ui.value.phase)
+        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, error = ConfirmError.NoFix, busy = false, note = null, attempt = 1), vm.ui.value.phase)
         assertEquals(0, store.stored.size)
         readAnswer = { fix }
         vm.yes()
@@ -215,18 +215,77 @@ class ArrivalGateViewModelTest {
         vm.yes()
         advanceTimeBy(LOCATION_FIX_TIMEOUT_MS + 2)
         runCurrent()
-        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null, attempt = 1), vm.ui.value.phase)
+        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, error = ConfirmError.NoFix, busy = false, note = null, attempt = 1), vm.ui.value.phase)
         assertEquals(0, store.stored.size)
     }
 
     @Test
-    fun `a failed store is C and nothing is committed`() = runTest(dispatcher) {
+    fun `a failed store is C2, not C, and nothing is committed`() = runTest(dispatcher) {
         store.checkIns += CheckInResult.Failed(CallFailure.Network)
         val vm = confirmed()
         vm.yes()
         runCurrent()
-        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null, attempt = 1), vm.ui.value.phase)
+        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, error = ConfirmError.NotSaved, busy = false, note = null, attempt = 1), vm.ui.value.phase)
         assertEquals(0, store.commitCalls)
+    }
+
+    @Test
+    fun `a 5xx store is C2 too`() = runTest(dispatcher) {
+        store.checkIns += CheckInResult.Failed(CallFailure.Server)
+        val vm = confirmed()
+        vm.yes()
+        runCurrent()
+        assertEquals(ConfirmError.NotSaved, (vm.ui.value.phase as GatePhase.Confirm).error)
+    }
+
+    @Test
+    fun `C2 then Try again with no fix is C, the last attempt's kind`() = runTest(dispatcher) {
+        store.checkIns += CheckInResult.Failed(CallFailure.Network)
+        val vm = confirmed()
+        vm.yes()
+        runCurrent()
+        readAnswer = { null }
+        vm.yes()
+        runCurrent()
+        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, error = ConfirmError.NoFix, busy = false, note = null, attempt = 2), vm.ui.value.phase)
+        assertEquals(1, store.stored.size)
+    }
+
+    @Test
+    fun `C then Try again with a failed store is C2`() = runTest(dispatcher) {
+        readAnswer = { null }
+        val vm = confirmed()
+        vm.yes()
+        runCurrent()
+        readAnswer = { fix }
+        store.checkIns += CheckInResult.Failed(CallFailure.Network)
+        vm.yes()
+        runCurrent()
+        assertEquals(GatePhase.Confirm(ArrivalEntry.DateScreen, error = ConfirmError.NotSaved, busy = false, note = null, attempt = 2), vm.ui.value.phase)
+    }
+
+    @Test
+    fun `C2 then Try again stored is D`() = runTest(dispatcher) {
+        store.checkIns += CheckInResult.Failed(CallFailure.Network)
+        val vm = confirmed()
+        vm.yes()
+        runCurrent()
+        vm.yes()
+        runCurrent()
+        assertEquals(2, analytics.of("arrival_confirm_submitted").size)
+        assertEquals(GatePhase.Done(ArrivalEntry.DateScreen), vm.ui.value.phase)
+    }
+
+    @Test
+    fun `C2 then Not yet is Idle and nothing is committed`() = runTest(dispatcher) {
+        store.checkIns += CheckInResult.Failed(CallFailure.Network)
+        val vm = confirmed()
+        vm.yes()
+        runCurrent()
+        vm.notYet()
+        assertEquals(GatePhase.Idle, vm.ui.value.phase)
+        assertEquals(0, store.commitCalls)
+        assertFalse(vm.ui.value.committed)
     }
 
     @Test

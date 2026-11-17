@@ -233,21 +233,19 @@ class DateScreenTest {
     fun `H - open, Open chat opens the chat`() = runComposeUiTest {
         val now = unlock.plusSeconds(600)
         var chat = 0
-        var seen = 0
-        setContent { DateScreen(arrivalUi(now, now.minusSeconds(10)), zone = berlin, onOpenChat = { chat++ }, onArrivalSeen = { seen++ }) }
+        setContent { DateScreen(arrivalUi(now, now.minusSeconds(10)), zone = berlin, onOpenChat = { chat++ }) }
         onNodeWithText("Open chat").performClick()
         assertEquals(1, chat)
-        assertEquals(0, seen)
     }
 
     @Test
-    fun `H - locked, Open chat clears the card and does not open the chat (R2)`() = runComposeUiTest {
+    fun `H - still locked on the clock, Open chat opens the chat all the same (16 Nov)`() = runComposeUiTest {
+        // The card can only exist after a committed check-in, and that check-in has opened the chat: there is
+        // no locked-only clear any more.
         var chat = 0
-        var seen = 0
-        setContent { DateScreen(arrivalUi(locked, locked.minusSeconds(10)), zone = berlin, onOpenChat = { chat++ }, onArrivalSeen = { seen++ }) }
+        setContent { DateScreen(arrivalUi(locked, locked.minusSeconds(10)), zone = berlin, onOpenChat = { chat++ }) }
         onNodeWithText("ARRIVED").assertExists()
         onNodeWithText("Open chat").performClick()
-        assertEquals(0, chat)
-        assertEquals(1, seen)
+        assertEquals(1, chat)
     }
 }

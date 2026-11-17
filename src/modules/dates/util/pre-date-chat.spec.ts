@@ -52,6 +52,18 @@ describe('pre-date chat rules (SHOWUP-115)', () => {
       );
     });
 
+    it('is open before the window once an arrival check-in has stamped the date (Date 03, 16 Nov)', () => {
+      const early = new Date('2026-07-14T17:00:00Z');
+      expect(
+        isChatOpen(scheduledAt, early, new Date('2026-07-14T16:59:00Z')),
+      ).toBe(true);
+      expect(isChatOpen(scheduledAt, early, null)).toBe(false);
+      expect(
+        chatWindowError(scheduledAt, early, new Date('2026-07-14T16:59:00Z')),
+      ).toBeNull();
+      expect(chatWindowError(scheduledAt, early, null)).not.toBeNull();
+    });
+
     it('stays open during/after the scheduled time (status ends it, not the clock)', () => {
       expect(isChatOpen(scheduledAt, new Date('2026-07-14T20:30:00Z'))).toBe(
         true,

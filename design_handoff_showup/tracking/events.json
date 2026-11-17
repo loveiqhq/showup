@@ -1,5 +1,13 @@
 {
-  "taxonomy_version": "1.4.27",
+  "taxonomy_version": "1.4.31",
+  "changed_in_1_4_31": [
+    "Date 03 (Arrival check-in) build questions, 16 Nov 2026 — registry 1.4.38.",
+    "location_gate_shown — NEW optional payload screen_id (§11): date_location_gate when the gate blocks the Date screen (context=date). Absent = search_location_gate, so a Search 04 emitter built without it stays correct.",
+    "permission_settings_opened — screen_id also date_location_gate. Trigger unchanged.",
+    "No new events. A check-in that was not stored (Date 03 C2) fires no arrival_confirmed.",
+    "coordinate_unlocked — RESPECIFIED: the chat also opens on the first committed arrival check-in. NEW payload cause: time | arrival_check_in. Still once per date, whichever comes first."
+  ],
+  "merge_note_1_4_31": "1.4.28–1.4.30 (Date 05 / 06 / 07) are not merged here: their tickets carry them.",
   "changed_in_1_4_24": [
     "Search 01 decisions, 27 Oct 2026: filters_active compares saved genders with checkinGenderDefault on the viewer's current profile and lists true dealbreakers; gender values are never sent. Search filter saves add opened_from: search to check_in_filters_changed without Check-In funnel events. Returning from Filters is a new Search visit, position resets to 1, and the coach remains suppressed. The no-results state emits search_empty_shown with reason no_results."
   ],
@@ -2578,13 +2586,13 @@
             },
             {
               "name": "screen_id",
-              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate. Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
+              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate, or date_location_gate on the Date screen (16 Nov 2026). Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
               "required": false
             }
           ],
           "sensitivity_class": 1,
           "backend_status": "Client only",
-          "trigger": "Deep-link to OS App Settings tapped. Location: Profile 12 B/C and the location gate B/C (gate sends screen_id: \"search_location_gate\").",
+          "trigger": "Deep-link to OS App Settings tapped. Location: Profile 12 B/C and the location gate B/C (gate sends screen_id: \"search_location_gate\", or \"date_location_gate\" on the Date screen).",
           "implemented": true
         },
         {
@@ -3598,6 +3606,11 @@
             {
               "name": "reason",
               "type": "str — enums.json §26 location_unavailable_reason (not_determined · denied · services_off). Was inline undetermined|denied|device_off until 5 Oct 2026."
+            },
+            {
+              "name": "screen_id",
+              "type": "str — enums.json §11. OPTIONAL: date_location_gate when the gate blocks the Date screen. Absent means search_location_gate. Added 16 Nov 2026 (Date 03).",
+              "required": false
             }
           ],
           "sensitivity_class": 1,
@@ -4118,11 +4131,15 @@
             {
               "name": "minutes_before_start",
               "type": "int"
+            },
+            {
+              "name": "cause",
+              "type": "\"time\"|\"arrival_check_in\" — what opened the chat. Added 16 Nov 2026 (Date 03)."
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Partial",
-          "trigger": "System unlocks exact venue location",
+          "trigger": "The Coordinate chat opens for both people: at meet − 1:30 of the latest agreed time (cause time), or when either person's arrival check-in is committed, if earlier (cause arrival_check_in). Once per date. Respecified 16 Nov 2026; was \"System unlocks exact venue location\".",
           "implemented": true
         },
         {

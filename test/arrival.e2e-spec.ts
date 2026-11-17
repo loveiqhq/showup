@@ -260,6 +260,83 @@ describe('Arrival check-in (e2e)', () => {
     expect(again.body.committed).toBe(true);
   });
 
+  it('the first commit three hours out opens the chat for both, and only an undone check-in does not', async () => {
+    await dates.update(
+      { id: dateId },
+      { scheduledAt: new Date(Date.now() + 180 * 60_000) },
+    );
+    const chat = (who: string) =>
+      request(server)
+        .post(`/dates/${dateId}/chat`)
+        .set('Authorization', as(who))
+        .send({
+          reason: 'on_my_way',
+          body: 'On my way',
+          clientId: randomUUID(),
+        });
+    const open = async (who: string) =>
+      (
+        await request(server)
+          .get('/me/date')
+          .query({ tz: 'Europe/Berlin' })
+          .set('Authorization', as(who))
+          .expect(200)
+      ).body.date.coordinateOpen;
+
+    // Stored, then taken back: nothing opened.
+    await create('you', body()).expect(201);
+    await undo('you').expect(204);
+    expect(await open('you')).toBe(false);
+    expect(await open('leonie')).toBe(false);
+    await chat('leonie').expect(400);
+    expect(named('coordinate_unlocked')).toHaveLength(0);
+
+    // Stored and committed: open for both, B can send, one event each, then none again.
+    await create('you', body()).expect(201);
+    await commit('you').expect(204);
+    expect(await open('you')).toBe(true);
+    expect(await open('leonie')).toBe(true);
+    await chat('leonie').expect(201);
+    const unlocks = named('coordinate_unlocked');
+    expect(unlocks.map((e) => e.userId).sort()).toEqual(
+      [id.you, id.leonie].sort(),
+    );
+    expect(unlocks[0].properties).toEqual({
+      minutes_before_start: 179,
+      cause: 'arrival_check_in',
+    });
+    await create('leonie', body()).expect(201);
+    await commit('leonie').expect(204);
+    expect(named('coordinate_unlocked')).toHaveLength(2);
+  });
+
+  it('stays open from the committed row when the stamp is lost', async () => {
+    await dates.update(
+      { id: dateId },
+      { scheduledAt: new Date(Date.now() + 180 * 60_000) },
+    );
+    await create('you', body()).expect(201);
+    await commit('you').expect(204);
+    // The swallowed-failure case: the commit landed, the stamp did not.
+    await db.query(
+      `UPDATE dates SET coordinate_unlocked_at = NULL WHERE id = $1`,
+      [dateId],
+    );
+    for (const who of ['you', 'leonie']) {
+      const res = await request(server)
+        .get('/me/date')
+        .query({ tz: 'Europe/Berlin' })
+        .set('Authorization', as(who))
+        .expect(200);
+      expect(res.body.date.coordinateOpen).toBe(true);
+    }
+    await request(server)
+      .post(`/dates/${dateId}/chat`)
+      .set('Authorization', as('leonie'))
+      .send({ reason: 'on_my_way', body: 'On my way', clientId: randomUUID() })
+      .expect(201);
+  });
+
   it('commit after undo is 404', async () => {
     await create('you', body()).expect(201);
     await undo('you').expect(204);

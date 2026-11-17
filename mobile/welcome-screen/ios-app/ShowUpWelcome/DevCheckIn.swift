@@ -151,6 +151,7 @@ let devStates: [DevState] = [
     DevState(id: "195A", ticket: "SHOWUP-195 Arrival check-in", label: "A · Check-in bar"),
     DevState(id: "195B", ticket: "SHOWUP-195 Arrival check-in", label: "B · Guard sheet, Are you at the spot?"),
     DevState(id: "195C", ticket: "SHOWUP-195 Arrival check-in", label: "C · Couldn't find your location"),
+    DevState(id: "195C2", ticket: "SHOWUP-195 Arrival check-in", label: "C2 · Check-in not saved"),
     DevState(id: "195D", ticket: "SHOWUP-195 Arrival check-in", label: "D · Done, Leonie is told on Close"),
     DevState(id: "195E", ticket: "SHOWUP-195 Arrival check-in", label: "E · After Close, footer empty"),
     DevState(id: "195F", ticket: "SHOWUP-195 Arrival check-in", label: "F · Chat chip, guard over the chat"),
@@ -176,7 +177,7 @@ enum DevFrame: Equatable, CaseIterable {
     case searchVoice, searchViewer, searchLoading, searchFailed, searchEmpty
     case chatTutorial, chatStart, chatThread, chatGuide, chatEndCard, chatEndSheet, chatYouEnded, chatMatchEnded
     case chatLoadFailed, chatSendFailed, chatEndFailed
-    case arrivalBar, arrivalGuard, arrivalNoFix, arrivalDone, arrivalAfterClose, arrivalChip, arrivalDateGate, arrivalCard
+    case arrivalBar, arrivalGuard, arrivalNoFix, arrivalNotSaved, arrivalDone, arrivalAfterClose, arrivalChip, arrivalDateGate, arrivalCard
 
     static func of(_ id: String) -> DevFrame? {
         switch id {
@@ -227,6 +228,7 @@ enum DevFrame: Equatable, CaseIterable {
         case "195A": return .arrivalBar
         case "195B": return .arrivalGuard
         case "195C": return .arrivalNoFix
+        case "195C2": return .arrivalNotSaved
         case "195D": return .arrivalDone
         case "195E": return .arrivalAfterClose
         case "195F": return .arrivalChip
@@ -324,7 +326,7 @@ struct CheckInGalleryFrame: View {
         case .chatLoadFailed?: ChatScreen(ui: ChatSamples.i, zone: DateSamples.zone, onBack: leave)
         case .chatSendFailed?: ChatScreen(ui: ChatSamples.j, zone: DateSamples.zone, onBack: leave)
         case .chatEndFailed?: ChatScreen(ui: ChatSamples.k, zone: DateSamples.zone, onBack: leave)
-        case .arrivalBar?, .arrivalGuard?, .arrivalNoFix?, .arrivalDone?, .arrivalAfterClose?, .arrivalChip?,
+        case .arrivalBar?, .arrivalGuard?, .arrivalNoFix?, .arrivalNotSaved?, .arrivalDone?, .arrivalAfterClose?, .arrivalChip?,
              .arrivalDateGate?, .arrivalCard?:
             ArrivalGalleryFrame(state: state, leave: leave)
         case nil:
@@ -359,13 +361,15 @@ private struct ArrivalGalleryFrame: View {
         switch DevFrame.of(state) {
         case .arrivalBar?: dateScreen()
         case .arrivalGuard?:
-            over(.confirm(entry: .dateScreen, locError: false, busy: false, note: nil)) { dateScreen() }
+            over(.confirm(entry: .dateScreen, error: nil, busy: false, note: nil)) { dateScreen() }
         case .arrivalNoFix?:
-            over(.confirm(entry: .dateScreen, locError: true, busy: false, note: nil)) { dateScreen() }
+            over(.confirm(entry: .dateScreen, error: .noFix, busy: false, note: nil)) { dateScreen() }
+        case .arrivalNotSaved?:
+            over(.confirm(entry: .dateScreen, error: .notSaved, busy: false, note: nil)) { dateScreen() }
         case .arrivalDone?: over(.done(entry: .dateScreen)) { dateScreen() }
         case .arrivalAfterClose?: dateScreen { $0.checkedIn = true }
         case .arrivalChip?:
-            over(.confirm(entry: .chatChip, locError: false, busy: false, note: nil)) {
+            over(.confirm(entry: .chatChip, error: nil, busy: false, note: nil)) {
                 ChatScreen(ui: ChatSamples.b, zone: DateSamples.zone, onBack: leave)
             }
         case .arrivalDateGate?:

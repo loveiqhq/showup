@@ -212,3 +212,48 @@ server and both apps. At the end, `implemented: true` for the four events, as 19
 - Philipp: push copy (R6 interim); R5's proposed string; the date gate's tracking (R1); R2.
 - Esma's devices: the recording (Check-in → Yes → Undo → bar → Check-in → Yes → Close, the match's phone showing
   H only after Close); a real iPhone; iOS 17.
+
+## 9. 16 Nov 2026 addendum — Philipp's answers
+
+Philipp answered §8's questions by re-issuing the ticket (description, PNG and zip; the spec-sheet HTML is
+byte-identical to 10 Nov). The ticket copy in `design_handoff_showup/date/tickets/03-arrival-checkin.md` marks every
+change **(16 Nov)**. What it changes here:
+
+- **R2 superseded — `Open chat` on the arrival card always opens the chat.** A committed check-in opens the chat
+  for both people (R16), so the card can only exist with the chat open. The locked-only "clear without opening"
+  branch is gone from both apps; `openChatFromArrivalCard` still clears the card as it opens the chat (tutorial
+  first if not seen).
+- **R5 superseded — C2.** A fix read but not stored (no connection, a server error, any non-409 failure) shows its
+  own message, `Couldn't check you in. Check your connection and try again.`, in C's box with `Not yet` ·
+  `Try again`. Nothing is stored; no cap; every `Try again` reads the location again, and the error shown is always
+  the last attempt's (no fix → C, failed store → C2, stored → D). `ConfirmError { NoFix, NotSaved }` replaces the
+  Boolean `locError` on both platforms. C2 fires nothing new.
+- **R16 — the first committed check-in opens the chat.** `POST /dates/:id/arrival/commit`, only on the call that
+  set `committed_at`, stamps `dates.coordinate_unlocked_at` (the same once-only column the meet − 1:30 job stamps)
+  with `… WHERE coordinate_unlocked_at IS NULL AND scheduled_at > now + 90 min RETURNING …`, so a chat already
+  open by time is left to the job. The winner fires `coordinate_unlocked` for both people with
+  `cause: "arrival_check_in"`; the job sends `cause: "time"`; the two conditional UPDATEs mean exactly one cause per
+  date. The stamp and its events come **before** the partner push, so the match's push-driven re-read already
+  sees `coordinateOpen: true`. A failed stamp never fails the commit. `coordinateOpen` and the chat send rule read
+  the ticket's rule directly — **time, or the stamp, or either person's committed check-in row** — so the stamp is
+  only the event's once-only guard: a stamp that failed (logged, swallowed) loses its event, never the open chat
+  (the final review's finding; a commit is retried by nobody once it answered 204). The stamp also requires
+  `status = 'confirmed'`. The checker's own phone flips A → B at Close through the session override, which now
+  sets both `checkedIn` and `coordinateOpen`. An undo opens nothing (it deletes only an uncommitted row).
+  `coordinate_unlocked` is sent once per person per date, as Date 01 always has ("once per date" in the registry
+  counts dates, not events).
+- **Known limitation, unchanged by R16 but more visible:** while the checker's commit is still retrying offline,
+  their own phone already shows the open chat (the override), and a send there fails until the commit lands. A
+  commit still retrying when the process dies is lost (§3 R4's crash case): after a restart the bar shows again.
+- **R17 — the date location gate reports two events.** `location_gate_shown` and `permission_settings_opened`
+  with `screen_id: "date_location_gate"` (§11 row, registry 1.4.38), by Search 04's triggers. Every other gate
+  event stays silent on the date. Search's `location_gate_shown` still sends no `screen_id` (absent = Search).
+- **R6 unchanged** — the interim push copy is now the ticket's temporary copy; all pushes are finalised together
+  later.
+- **Approximate location** is accepted and stored with its accuracy, as built; flow 10 decides how a low-accuracy
+  check-in is weighed.
+- **Tracking:** registry 1.4.38 / taxonomy 1.4.31, merged as the Date 03 slice: `enums.json` taken whole (a strict
+  superset, so it also registers Date 05 / 06 / 07 value sets and the §11 row `date_partner_cancelled`);
+  `events.json` keeps the repo's `implemented` marks and takes only `coordinate_unlocked`, `location_gate_shown`
+  and `permission_settings_opened`.
+- **Owed by Philipp:** nothing new. **Owed by devices:** as §8, plus C2 on a real phone (airplane mode after the fix).

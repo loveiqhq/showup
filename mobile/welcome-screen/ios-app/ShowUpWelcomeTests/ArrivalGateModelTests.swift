@@ -179,8 +179,8 @@ final class ArrivalGateModelTests: XCTestCase {
         return m
     }
 
-    private func confirm(_ entry: ArrivalEntry, locError: Bool = false, busy: Bool = false, note: String? = nil) -> GatePhase {
-        .confirm(entry: entry, locError: locError, busy: busy, note: note)
+    private func confirm(_ entry: ArrivalEntry, error: ConfirmError? = nil, busy: Bool = false, note: String? = nil) -> GatePhase {
+        .confirm(entry: entry, error: error, busy: busy, note: note)
     }
 
     // MARK: opening
@@ -261,7 +261,7 @@ final class ArrivalGateModelTests: XCTestCase {
         await reader.setAnswer { nil }
         let m = confirmed()
         m.yes()
-        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, locError: true) }
+        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, error: .noFix) }
         var stored = await store.stored
         XCTAssertEqual(stored.count, 0)
         await reader.setAnswer { arrivalTestFix }
@@ -282,19 +282,76 @@ final class ArrivalGateModelTests: XCTestCase {
         }
         let m = confirmed(timeoutMs: 40)
         m.yes()
-        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, locError: true) }
-        XCTAssertEqual(m.ui.phase, confirm(.dateScreen, locError: true))
+        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, error: .noFix) }
+        XCTAssertEqual(m.ui.phase, confirm(.dateScreen, error: .noFix))
         let stored = await store.stored
         XCTAssertEqual(stored.count, 0)
     }
 
-    func testAFailedStoreIsCAndNothingIsCommitted() async {
+    func testAFailedStoreIsC2NotCAndNothingIsCommitted() async {
         await store.queueCheckIns([.failed(.network)])
         let m = confirmed()
         m.yes()
-        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, locError: true) }
+        await eventually("C2 is up") { m.ui.phase == confirm(.dateScreen, error: .notSaved) }
         let commits = await store.commitCalls
         XCTAssertEqual(commits, 0)
+    }
+
+    func testA5xxStoreIsC2Too() async {
+        await store.queueCheckIns([.failed(.server)])
+        let m = confirmed()
+        m.yes()
+        await eventually("C2 is up") { m.ui.phase == confirm(.dateScreen, error: .notSaved) }
+    }
+
+    func testC2ThenTryAgainWithNoFixIsCTheLastAttemptsKind() async {
+        await store.queueCheckIns([.failed(.network)])
+        let m = confirmed()
+        m.yes()
+        await eventually("C2 is up") { m.ui.phase == confirm(.dateScreen, error: .notSaved) }
+        await reader.setAnswer { nil }
+        m.yes()
+        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, error: .noFix) }
+        let stored = await store.stored
+        XCTAssertEqual(stored.count, 1)
+    }
+
+    func testCThenTryAgainWithAFailedStoreIsC2() async {
+        await reader.setAnswer { nil }
+        let m = confirmed()
+        m.yes()
+        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, error: .noFix) }
+        await reader.setAnswer { arrivalTestFix }
+        await store.queueCheckIns([.failed(.network)])
+        m.yes()
+        await eventually("C2 is up") { m.ui.phase == confirm(.dateScreen, error: .notSaved) }
+    }
+
+    func testC2ThenTryAgainStoredIsDAndFiresSubmittedAgain() async {
+        await store.queueCheckIns([.failed(.network)])
+        let m = confirmed()
+        m.yes()
+        await eventually("C2 is up") { m.ui.phase == confirm(.dateScreen, error: .notSaved) }
+        m.yes()
+        await eventually("D is up") { m.ui.phase == .done(entry: .dateScreen) }
+        XCTAssertEqual(analytics.of("arrival_confirm_submitted").count, 2)
+    }
+
+    func testC2ThenNotYetIsIdleAndNothingIsCommitted() async {
+        await store.queueCheckIns([.failed(.network)])
+        let m = confirmed()
+        m.yes()
+        await eventually("C2 is up") { m.ui.phase == confirm(.dateScreen, error: .notSaved) }
+        m.notYet()
+        XCTAssertEqual(m.ui.phase, .idle)
+        let commits = await store.commitCalls
+        XCTAssertEqual(commits, 0)
+        XCTAssertFalse(m.ui.committed)
+    }
+
+    func testTheSheetDrawsTheSaveErrorForNotSavedAndCsStringForNoFix() {
+        XCTAssertEqual(ArrivalCopy.message(for: .notSaved), "Couldn't check you in. Check your connection and try again.")
+        XCTAssertEqual(ArrivalCopy.message(for: .noFix), "We couldn't find your location. Check your signal, then try again.")
     }
 
     func testAlreadyCheckedInClosesTheSheetAndCountsAsCheckedIn() async {
@@ -310,7 +367,8 @@ final class ArrivalGateModelTests: XCTestCase {
         await store.queueCheckIns([.failed(.server)])
         let m = confirmed()
         m.yes()
-        await eventually("C is up") { m.ui.phase == confirm(.dateScreen, locError: true) }
+        // A failed store is C2 since 16 Nov (it was C under R5).
+        await eventually("C2 is up") { m.ui.phase == confirm(.dateScreen, error: .notSaved) }
         m.yes()
         await eventually("both taps stored") { await store.stored.count == 2 }
         let stored = await store.stored

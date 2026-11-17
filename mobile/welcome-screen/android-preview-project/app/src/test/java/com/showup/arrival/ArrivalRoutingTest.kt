@@ -99,6 +99,25 @@ class ArrivalRoutingTest {
     }
 
     @Test
+    fun `a committed check-in shows the date checked in AND the chat open, never the one without the other (16 Nov)`() {
+        val before = date(checkedIn = false).copy(coordinateOpen = false)
+        assertFalse(before.coordinateOpen)
+        val shown = committedView(before, committed = true)
+        assertTrue(shown.checkedIn)
+        assertTrue("the first check-in opens the chat for the person who made it", shown.coordinateOpen)
+        // Nothing else moves.
+        assertEquals(before.copy(checkedIn = true, coordinateOpen = true), shown)
+    }
+
+    @Test
+    fun `an uncommitted session, or a date already checked in, is left exactly as it is`() {
+        val before = date(checkedIn = false).copy(coordinateOpen = false)
+        assertEquals(before, committedView(before, committed = false))
+        val server = date(checkedIn = true).copy(coordinateOpen = false)
+        assertEquals("the server's word is not rewritten", server, committedView(server, committed = true))
+    }
+
+    @Test
     fun `an undo lands on the Date screen from the chat and stays put elsewhere`() {
         assertEquals(UndoLanding.LeaveChat, undoLanding(undone = true, chatOnTop = true))
         assertEquals(UndoLanding.ConsumeOnly, undoLanding(undone = true, chatOnTop = false))

@@ -318,14 +318,12 @@ struct CoordinateModule: View {
     /// The change tiles under the locked line: `changeTileReasons`, empty until Date 05 ships.
     var changeTiles: [ChatReason] = []
     var onChangeTile: (ChatReason) -> Void = { _ in }
-    /// The locked arrival card's Open chat: the chat is not open yet, so it only clears the card (R2).
-    var onArrivalSeen: () -> Void = {}
 
     var body: some View {
-        // Date 03 H: the match's check-in outranks an unread message (R11), locked or not.
+        // Date 03 H: the match's check-in outranks an unread message (R11), locked or not. Open chat always opens
+        // the chat (16 Nov): the card only exists after a committed check-in, and that check-in has opened it.
         if let arrival = date.arrival {
-            ArrivalCoordinate(match: date.match, arrival: arrival, now: now, zone: zone,
-                              onCta: state == .locked ? onArrivalSeen : onOpenChat)
+            ArrivalCoordinate(match: date.match, arrival: arrival, now: now, zone: zone, onCta: onOpenChat)
         } else if state == .unread, let unread = date.unread {
             UnreadCoordinate(match: date.match, unread: unread, now: now, zone: zone, onOpenChat: onOpenChat)
         } else {
@@ -489,7 +487,7 @@ private struct UnreadCoordinate: View {
 /// Date 03 H: the match has checked in. The unread card's frame in orange with a count of 1 and the pulse ring,
 /// `ARRIVED`, `checked in · {time}` (R10, the unread card's formatter), and one line in the panel: `map-pin` 17 /
 /// 2.2 in the tone, gap 9, `{name} has arrived at the meeting location.` (Manrope 600 14 / 1.4). `onCta` is the
-/// host's: it opens the chat, or while the chat is still locked only clears the card (R2).
+/// host's: it opens the chat, in every state (16 Nov: the card only exists after a committed check-in).
 private struct ArrivalCoordinate: View {
     let match: DateMatch
     let arrival: DateArrival

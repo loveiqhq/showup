@@ -22,7 +22,7 @@
             "type": "boolean"
           },
           "coordinateOpen": {
-            "description": "True from unlockAt on",
+            "description": "True from unlockAt on, or once either person's arrival check-in is committed (Date 03, 16 Nov 2026).",
             "type": "boolean"
           },
           "id": {

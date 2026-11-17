@@ -97,7 +97,7 @@ function ChatBubble({ msg, mine, name = 'Leonie', showAvatar }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '0 4px' }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--liq-fg-subtle)' }}>{msg.time}</span>
-          {mine && (
+          {mine && !msg.failed && (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11, fontWeight: 600, color: msg.read ? 'var(--liq-primary-500)' : 'var(--liq-fg-subtle)' }}>
               <Icon name="check" size={12} stroke={3}/>{msg.read ? 'Read' : 'Delivered'}
             </span>
@@ -368,9 +368,10 @@ function BigActionChip({ reason, active = false, layout = 'tile', compact = fals
   }
   return (
     <button onClick={onClick} style={{
+      position: 'relative',
       display: 'flex', alignItems: 'center', gap: compact ? 8 : 12, width: '100%', textAlign: 'left',
       padding: compact ? '4px 10px 4px 5px' : '15px 15px', borderRadius: compact ? 11 : 18,
-      minHeight: compact ? 36 : 68, cursor: 'pointer',
+      minHeight: compact ? 38 : 68, cursor: 'pointer', // compact: 38 visible + 3 px hit slop each side = 44 tap area (9 Nov 2026)
       background: active ? t.bg : '#fff', border: `1.5px solid ${active ? t.fg : t.chipBorder}`,
       boxShadow: 'var(--liq-shadow-sm)',
       transition: 'transform 150ms, box-shadow 150ms, background 150ms, border-color 150ms',
@@ -378,6 +379,7 @@ function BigActionChip({ reason, active = false, layout = 'tile', compact = fals
     onMouseDown={e => e.currentTarget.style.transform = 'scale(0.975)'}
     onMouseUp={e => e.currentTarget.style.transform = ''}
     onMouseLeave={e => e.currentTarget.style.transform = ''}>
+      {compact && <span aria-hidden="true" style={{ position: 'absolute', inset: -3 }}/>}
       <span style={{
         width: compact ? 26 : 42, height: compact ? 26 : 42, borderRadius: compact ? 8 : 13, flex: 'none',
         background: t.bg, color: t.fg,
@@ -481,8 +483,13 @@ function CancelGuide({ name = 'Leonie', acked = false, onAck }) {
   );
 }
 
-function ScreenChatOpen({ name = 'Leonie', time = '17:42', seed = [], initialKey = 'late', checkedIn = false, initialEndSheet = false }) {
+function ScreenChatOpen({ name = 'Leonie', time = '17:42', seed = [], initialKey = 'late', checkedIn = false, initialEndSheet = false, loadFailed = false, initialEndError = false }) {
+  // 9 Nov 2026 — three error states: loadFailed (thread replaced, header stays),
+  // a seed message with failed: true (stays in the thread, tap the line to resend),
+  // initialEndError (End date sheet stays open with the error; End date retries).
   const { gate, sheets } = useArrivedGate(name, checkedIn);
+  const [loadErr, setLoadErr] = useChatState(loadFailed);
+  const [endErr, setEndErr] = useChatState(initialEndError);
   const [changeKey, setChangeKey] = useChatState(null);
   const [messages, setMessages] = useChatState(seed);
   const [selectedKey, setSelectedKey] = useChatState(initialKey);
@@ -519,13 +526,30 @@ function ScreenChatOpen({ name = 'Leonie', time = '17:42', seed = [], initialKey
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <ChatHeader name={name}/>
 
+        {loadErr ? (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '0 32px', textAlign: 'center', background: '#fff' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 18, background: 'rgba(129,42,236,0.10)', color: 'var(--liq-primary-500)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="refresh" size={24} stroke={2.1}/>
+            </div>
+            <p style={{ margin: 0, maxWidth: 290, fontSize: 15, lineHeight: 1.45, fontWeight: 500, color: 'var(--liq-fg-muted)', textWrap: 'pretty' }}>Couldn't load your chat. Check your connection and try again.</p>
+            <div style={{ marginTop: 4 }}><Button variant="primary" size="md" onClick={() => setLoadErr(false)}>Try again</Button></div>
+          </div>
+        ) : (<>
         {/* Thread */}
         <ThreadScroll style={{
           overflow: 'auto', padding: selectedKey === 'cancel' && !cancelAck ? '6px 14px 6px' : '14px 14px 8px',
           display: 'flex', flexDirection: 'column', gap: 12,
           background: '#fff',
         }}>
-          {messages.map((m, i) => (
+          {messages.map((m, i) => m.failed ? (
+            <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+              <div style={{ width: '100%', opacity: 0.6 }}><ChatBubble msg={m} mine name={name}/></div>
+              <button role="alert" onClick={() => setMessages(ms => ms.map(x => x.id === m.id ? { ...x, failed: false } : x))} style={{ minHeight: 44, display: 'inline-flex', alignItems: 'center', gap: 6, padding: '0 2px', maxWidth: 280, textAlign: 'right', fontFamily: 'var(--liq-font-sans)', fontSize: 12, fontWeight: 600, lineHeight: 1.35, color: 'var(--liq-danger-fg)', cursor: 'pointer' }}>
+                <Icon name="alert-circle" size={14} stroke={2.4} style={{ flex: 'none' }}/>
+                <span style={{ textWrap: 'pretty' }}>Couldn't send. Check your connection and try again.</span>
+              </button>
+            </div>
+          ) : (
             <ChatBubble key={m.id} msg={m} mine={m.mine} name={name}
               showAvatar={!m.mine && (i === messages.length - 1 || messages[i + 1]?.mine)}/>
           ))}
@@ -580,7 +604,8 @@ function ScreenChatOpen({ name = 'Leonie', time = '17:42', seed = [], initialKey
         </div>
 
         <FauxKeyboard/>
-        {endSheet && <EndDateSheet name={name} onKeep={() => setEndSheet(false)} onEnd={() => { setEndSheet(false); setEnded(true); }}/>}
+        </>)}
+        {endSheet && <EndDateSheet name={name} error={endErr} onKeep={() => { setEndSheet(false); setEndErr(false); }} onEnd={() => { setEndSheet(false); setEndErr(false); setEnded(true); }}/>}
         {sheets}
       </div>
     </Phone>
@@ -601,7 +626,9 @@ function EndDateCard({ name = 'Leonie', onEnd }) {
   );
 }
 
-function EndDateSheet({ name = 'Leonie', onKeep, onEnd }) {
+// error (9 Nov 2026): End date did not go through — the sheet stays open, the
+// buttons keep their place, End date tries again. Same box as Check-in's locError.
+function EndDateSheet({ name = 'Leonie', onKeep, onEnd, error = false }) {
   const t = REASON_TONES.darkred;
   return (
     <ModalShell onCancel={onKeep}>
@@ -613,6 +640,12 @@ function EndDateSheet({ name = 'Leonie', onKeep, onEnd }) {
         <p style={{ fontSize: 15, color: 'var(--liq-fg-muted)', margin: '0 0 22px', lineHeight: 1.5, maxWidth: 300, textWrap: 'pretty' }}>
           The date won't happen, so there's no review. You can both search again straight away.
         </p>
+        {error && (
+          <div role="alert" style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'flex-start', gap: 9, margin: '-8px 0 16px', padding: '11px 13px', borderRadius: 14, background: 'rgba(251,50,59,0.08)', border: '1px solid rgba(251,50,59,0.20)', textAlign: 'left' }}>
+            <Icon name="alert-circle" size={17} stroke={2.2} style={{ color: 'var(--liq-danger-fg)', flex: 'none', marginTop: 1 }}/>
+            <span style={{ fontSize: 13.5, fontWeight: 600, lineHeight: 1.4, color: 'var(--liq-fg)', textWrap: 'pretty' }}>Couldn't end the date. Check your connection and try again.</span>
+          </div>
+        )}
         <button onClick={onKeep} style={{ width: '100%', height: 50, borderRadius: 16, cursor: 'pointer', background: '#fff', border: '1px solid var(--liq-border-soft)', fontFamily: 'var(--liq-font-sans)', fontWeight: 700, fontSize: 14.5, color: 'var(--liq-fg-muted)' }}>Keep the date</button>
         <button onClick={onEnd} style={{ marginTop: 10, width: '100%', height: 56, borderRadius: 18, border: 'none', cursor: 'pointer', background: t.fg, color: '#fff', fontFamily: 'var(--liq-font-sans)', fontWeight: 700, fontSize: 16.5 }}>End date</button>
       </div>

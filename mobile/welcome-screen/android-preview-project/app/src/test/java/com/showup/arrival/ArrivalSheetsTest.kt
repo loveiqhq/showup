@@ -43,8 +43,8 @@ class ArrivalSheetsTest {
     private var close = 0
     private var undo = 0
 
-    private fun confirm(locError: Boolean = false, busy: Boolean = false, note: String? = null) =
-        GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, locError, busy, note))
+    private fun confirm(error: ConfirmError? = null, busy: Boolean = false, note: String? = null) =
+        GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, error, busy, note))
 
     private val done = GateUi(phase = GatePhase.Done(ArrivalEntry.DateScreen))
 
@@ -89,10 +89,24 @@ class ArrivalSheetsTest {
 
     @Test
     fun `C shows the error between the title and the buttons, and Try again`() = runComposeUiTest {
-        host(confirm(locError = true))
+        host(confirm(ConfirmError.NoFix))
         waitForIdle()
         onNodeWithTag(ARRIVAL_ERROR_TAG).assertExists()
         onNodeWithText("We couldn't find your location. Check your signal, then try again.").assertExists()
+        onNodeWithText("Try again").assertExists()
+        onAllNodesWithText("Yes, I've arrived").assertCountEquals(0)
+        val title = onNodeWithText("Have you arrived at the meeting location for your date with Leonie?").fetchSemanticsNode().boundsInRoot
+        assertTrue(top(ARRIVAL_ERROR_TAG) >= title.bottom)
+        assertTrue(bottom(ARRIVAL_ERROR_TAG) <= top(ARRIVAL_NOT_YET_TAG))
+    }
+
+    @Test
+    fun `C2 draws the save error in the same box, with Try again, and not the C string`() = runComposeUiTest {
+        host(confirm(ConfirmError.NotSaved))
+        waitForIdle()
+        onNodeWithTag(ARRIVAL_ERROR_TAG).assertExists()
+        onNodeWithText("Couldn't check you in. Check your connection and try again.").assertExists()
+        onAllNodesWithText("We couldn't find your location. Check your signal, then try again.").assertCountEquals(0)
         onNodeWithText("Try again").assertExists()
         onAllNodesWithText("Yes, I've arrived").assertCountEquals(0)
         val title = onNodeWithText("Have you arrived at the meeting location for your date with Leonie?").fetchSemanticsNode().boundsInRoot
@@ -138,17 +152,17 @@ class ArrivalSheetsTest {
 
     @Test
     fun `a second failed read re-creates the error's live region so it is announced again`() = runComposeUiTest {
-        var ui by mutableStateOf(GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, true, false, null, attempt = 1)))
+        var ui by mutableStateOf(GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, ConfirmError.NoFix, false, null, attempt = 1)))
         setContent {
             ArrivalSheetHost(ui, "Leonie", onYes = {}, onNotYet = {}, onClose = {}, onUndo = {})
         }
         val first = onNodeWithTag(ARRIVAL_ERROR_TAG).fetchSemanticsNode().id
         // Try again: busy, the error box stays up. Nothing is announced.
-        ui = GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, true, true, null, attempt = 1))
+        ui = GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, ConfirmError.NoFix, true, null, attempt = 1))
         waitForIdle()
         assertEquals(first, onNodeWithTag(ARRIVAL_ERROR_TAG).fetchSemanticsNode().id)
         // It fails again: a new box, a new announcement.
-        ui = GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, true, false, null, attempt = 2))
+        ui = GateUi(phase = GatePhase.Confirm(ArrivalEntry.DateScreen, ConfirmError.NoFix, false, null, attempt = 2))
         waitForIdle()
         assertTrue(first != onNodeWithTag(ARRIVAL_ERROR_TAG).fetchSemanticsNode().id)
     }

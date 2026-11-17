@@ -53,17 +53,26 @@ export function chatOpensAt(scheduledAt: Date): Date {
  * Whether the chat is open at `now` for a date scheduled at `scheduledAt`. The chat opens ~1.5 hours
  * before and stays open through the date itself (people still message "On my way" / "Can't find you"
  * right up to and during the meeting); it is the date's own status that ends the chat, not the clock.
+ * A stamped `unlockedAt` (the date's `coordinate_unlocked_at`) opens it earlier for good: the first
+ * committed arrival check-in does that (Date 03, 16 Nov), and the chat never locks again.
  */
-export function isChatOpen(scheduledAt: Date, now: Date = new Date()): boolean {
-  return now.getTime() >= chatOpensAt(scheduledAt).getTime();
+export function isChatOpen(
+  scheduledAt: Date,
+  now: Date = new Date(),
+  unlockedAt: Date | null = null,
+): boolean {
+  return (
+    unlockedAt != null || now.getTime() >= chatOpensAt(scheduledAt).getTime()
+  );
 }
 
 /** An error message if the chat is not open yet, or null if it is. */
 export function chatWindowError(
   scheduledAt: Date,
   now: Date = new Date(),
+  unlockedAt: Date | null = null,
 ): string | null {
-  if (isChatOpen(scheduledAt, now)) return null;
+  if (isChatOpen(scheduledAt, now, unlockedAt)) return null;
   const opens = chatOpensAt(scheduledAt);
   return `The chat opens about ${CHAT_OPENS_MINUTES_BEFORE} minutes before the date (from ${opens.toISOString()})`;
 }

@@ -69,6 +69,13 @@ final class DateRulesTests: XCTestCase {
         XCTAssertEqual(dateState(now: unlock.addingTimeInterval(-600), unlockAt: unlock, unread: nil, coordinateOpen: false), .locked)
     }
 
+    func testACommittedCheckInOpensTheChatAtMeetMinusThreeHoursForThePartnerToo() {
+        // The server sets coordinateOpen once EITHER person's check-in is committed; the clock has no say (16 Nov).
+        let threeHoursBefore = meet.addingTimeInterval(-3 * 3600)
+        XCTAssertEqual(dateState(now: threeHoursBefore, unlockAt: unlock, unread: nil, coordinateOpen: true), .available)
+        XCTAssertEqual(dateState(now: threeHoursBefore, unlockAt: unlock, unread: nil, coordinateOpen: false), .locked)
+    }
+
     func testTheShareTextIsTheTicketsSentenceAndDropsThePlaceWhenThereIsNone() {
         XCTAssertEqual(shareText(date(place: .some(place)), zone: berlin),
                        "I'm meeting Leonie today at 19:00 at Cafe Krone, Oranienstrasse 42, Kreuzberg.")

@@ -22,6 +22,9 @@ object ArrivalCopy {
     const val LOC_ERROR = "We couldn't find your location. Check your signal, then try again."
     const val TRY_AGAIN = "Try again"
 
+    // C2: the location was read and the check-in did not save (16 Nov), the same box and Try again as C
+    const val SAVE_ERROR = "Couldn't check you in. Check your connection and try again."
+
     // D: stored
     const val DONE_TITLE = "You are amazing for showing up!"
     const val DONE_BODY = "We will let %s know that you have arrived. Enjoy your date."

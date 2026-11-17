@@ -172,8 +172,8 @@ final class ArrivalFitTests: XCTestCase {
                         content: { behind })))
     }
 
-    private func confirm(locError: Bool = false, busy: Bool = false, note: String? = nil) -> GatePhase {
-        .confirm(entry: .dateScreen, locError: locError, busy: busy, note: note)
+    private func confirm(error: ConfirmError? = nil, busy: Bool = false, note: String? = nil) -> GatePhase {
+        .confirm(entry: .dateScreen, error: error, busy: busy, note: note)
     }
 
     private var barFrames: [Frame] {
@@ -189,15 +189,16 @@ final class ArrivalFitTests: XCTestCase {
         [sheet("B guard", confirm()),
          sheet("B guard + note", confirm(note: ArrivalCopy.reportNote)),
          sheet("B guard, busy", confirm(busy: true)),
-         sheet("C no location fix", confirm(locError: true)),
-         sheet("C no location fix + note", confirm(locError: true, note: ArrivalCopy.reportNote)),
+         sheet("C no location fix", confirm(error: .noFix)),
+         sheet("C no location fix + note", confirm(error: .noFix, note: ArrivalCopy.reportNote)),
+         sheet("C2 check-in not saved", confirm(error: .notSaved)),
          sheet("D done", .done(entry: .dateScreen))]
     }
 
-    private func chatSheet(_ label: String, locError: Bool) -> Frame {
+    private func chatSheet(_ label: String, error: ConfirmError?) -> Frame {
         let who = matchName
         return Frame(label: label, scrolls: false, view: AnyView(
-            ArrivalOver(ui: GateUi(phase: .confirm(entry: .chatChip, locError: locError, busy: false, note: nil)),
+            ArrivalOver(ui: GateUi(phase: .confirm(entry: .chatChip, error: error, busy: false, note: nil)),
                         name: who, onYes: {}, onNotYet: {}, onClose: {}, onUndo: {},
                         content: { ChatScreen(ui: ChatSamples.b, zone: DateSamples.zone) })))
     }
@@ -213,8 +214,8 @@ final class ArrivalFitTests: XCTestCase {
 
     private var chatAndGateFrames: [Frame] {
         let meet = DateSamples.date.meetAt
-        return [chatSheet("F chat start + B", locError: false),
-                chatSheet("F chat start + C", locError: true),
+        return [chatSheet("F chat start + B", error: nil),
+                chatSheet("F chat start + C", error: .noFix),
                 gate("G not determined, today", .ask, now: DateSamples.bNow),
                 gate("G denied, today", .denied, now: DateSamples.bNow),
                 gate("G services off, today", .servicesOff, now: DateSamples.bNow),
@@ -352,7 +353,7 @@ final class ArrivalFitTests: XCTestCase {
                         words.append(brokenWord(ArrivalCopy.reportNote, chatFont(PS.manropeRegular, 14, .regular), type: type, within: min(310, wide)))
                     }
                     if label.hasPrefix("C") || label.hasSuffix("+ C") {
-                        words.append(brokenWord(ArrivalCopy.locError, chatFont(PS.manropeSemi, 13.5, .semibold), type: type,
+                        words.append(brokenWord(label.hasPrefix("C2") ? ArrivalCopy.saveError : ArrivalCopy.locError, chatFont(PS.manropeSemi, 13.5, .semibold), type: type,
                                                 within: wide - 54))
                     }
                 }
@@ -365,7 +366,7 @@ final class ArrivalFitTests: XCTestCase {
         if label.hasPrefix("B") || label.hasPrefix("C") || label.hasPrefix("F"), f[FitAnchorID.arrivalNotYet] == nil {
             found.append("\(tag): Not yet is NOT DRAWN")
         }
-        if label.hasPrefix("C") || label.hasSuffix("+ C"), f[FitAnchorID.arrivalError] == nil { found.append("\(tag): C's error box is NOT DRAWN") }
+        if label.hasPrefix("C") || label.hasSuffix("+ C"), f[FitAnchorID.arrivalError] == nil { found.append("\(tag): C's / C2's error box is NOT DRAWN") }
         if label.hasPrefix("D"), f[FitAnchorID.arrivalClose] == nil { found.append("\(tag): Close is NOT DRAWN") }
         if label.hasPrefix("H"), f["date:arrival-card"] == nil { found.append("\(tag): the arrival card is NOT DRAWN") }
 
@@ -459,8 +460,8 @@ final class ArrivalFitTests: XCTestCase {
             return XCTFail("no 375 x 667 phone in the list")
         }
         var found: [String] = []
-        let picked = [sheetFrames[0], sheetFrames[1], sheetFrames[3], sheetFrames[4], sheetFrames[5]]
-            + [chatSheet("F chat start + B", locError: false), chatSheet("F chat start + C", locError: true)]
+        let picked = [sheetFrames[0], sheetFrames[1], sheetFrames[3], sheetFrames[4], sheetFrames[5], sheetFrames[6]]
+            + [chatSheet("F chat start + B", error: nil), chatSheet("F chat start + C", error: .noFix)]
         for frame in picked {
             let shot = layout(frame.view, on: phone, type: .large, settle: 0.6)
             found += failures(shot, frame, on: phone, type: .large, strict: true)
@@ -477,7 +478,7 @@ final class ArrivalFitTests: XCTestCase {
     func testTheArrivalSheetsAreAsTallAsTheirContent() {
         guard let phone = fitDevices.first(where: { $0.width == 390 && $0.height == 844 }) else { return XCTFail("no 390 x 844 phone") }
         var found: [String] = []
-        for frame in [sheetFrames[0], sheetFrames[3], sheetFrames[5], chatSheet("F chat start + B", locError: false)] {
+        for frame in [sheetFrames[0], sheetFrames[3], sheetFrames[6], chatSheet("F chat start + B", error: nil)] {
             let shot = layout(frame.view, on: phone, type: .large, settle: 0.6)
             guard let sheet = shot.frames[FitAnchorID.arrivalSheet], let surface = shot.frames[FitAnchorID.modalShell],
                   let dock = shot.frames[FitAnchorID.modalShellDock] else {

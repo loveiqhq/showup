@@ -12,6 +12,7 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import {
   arrivalConfirmedEvent,
   arrivalUndoneEvent,
+  coordinateUnlockedEvent,
 } from '../analytics/events/date-events';
 import { NotificationDispatchService } from '../notifications/services/notification-dispatch.service';
 import { Profile } from '../profiles/entities/profile.entity';
@@ -19,6 +20,8 @@ import { firstName } from '../search/util/search-profile';
 import { CreateArrivalCheckInDto } from './dto/arrival.dto';
 import { DateArrivalCheckIn } from './entities/date-arrival-check-in.entity';
 import { DateEntity } from './entities/date.entity';
+import { CHAT_OPENS_MINUTES_BEFORE } from './util/pre-date-chat';
+import { minutesBeforeStart } from './util/coordinate-unlock';
 import { minutesVsStart, retentionCutoff, secondsSince } from './util/arrival';
 import { DateStatus } from './util/date-lifecycle';
 
@@ -165,6 +168,8 @@ export class ArrivalCheckInsService {
       ),
     );
     if (committed.length > 0) {
+      // Before the push: the match's re-read on that push must already see the chat open.
+      await this.openChat(date, now);
       // Awaited: notifyPartner swallows its own errors, so the request still cannot fail on a push.
       await this.notifyPartner(date, userId);
       return;
@@ -191,6 +196,49 @@ export class ArrivalCheckInsService {
       ),
     );
     return removed.length;
+  }
+
+  /**
+   * The first committed check-in opens the chat for both people (Date 03, 16 Nov): stamp the date's
+   * `coordinate_unlocked_at` and send `coordinate_unlocked` with cause `arrival_check_in`, once. A
+   * commit inside the time window stamps nothing: the unlock job owns that case and its `time`
+   * event, and an already stamped date is left as it is, so nothing fires twice.
+   */
+  private async openChat(date: DateEntity, now: Date): Promise<void> {
+    try {
+      const opensBy = new Date(
+        now.getTime() + CHAT_OPENS_MINUTES_BEFORE * 60_000,
+      );
+      const stamped = normalise<{
+        user_a_id: string;
+        user_b_id: string;
+        scheduled_at: Date;
+      }>(
+        await this.dates.query(
+          `UPDATE "dates" SET "coordinate_unlocked_at" = $2
+            WHERE "id" = $1 AND "coordinate_unlocked_at" IS NULL AND "scheduled_at" > $3
+              AND "status" = 'confirmed'
+        RETURNING "user_a_id", "user_b_id", "scheduled_at"`,
+          [date.id, now, opensBy],
+        ),
+      );
+      for (const d of stamped) {
+        const event = coordinateUnlockedEvent(
+          minutesBeforeStart(new Date(d.scheduled_at), now),
+          'arrival_check_in',
+        );
+        for (const userId of [d.user_a_id, d.user_b_id]) {
+          void this.analytics.trackServerEvent({ userId, ...event });
+        }
+      }
+    } catch (error) {
+      // The check-in is committed; a failed stamp must not undo or fail it. The name only: no data.
+      this.logger.warn(
+        `Chat unlock failed for date ${date.id}: ${
+          error instanceof Error ? error.name : 'unknown error'
+        }`,
+      );
+    }
   }
 
   /** The push to the match: the checker's first name, the date id, never a place. */

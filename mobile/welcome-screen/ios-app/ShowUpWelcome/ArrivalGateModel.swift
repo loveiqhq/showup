@@ -7,8 +7,8 @@
 //
 //   · NOTHING IS STORED WITHOUT A FRESH FIX. No fix inside `locationFixTimeoutMs` is frame C and the store is not
 //     called; a fix that arrives after the bound is dropped with the read.
-//   · A FAILED STORE IS FRAME C TOO (R5). The person retries with `Try again`, which reads and stores again under a
-//     new client id.
+//   · A FAILED STORE IS FRAME C2, NOT C (16 Nov, replacing R5): the location was read, the server never got it.
+//     The person retries with `Try again`, which reads and stores again under a new client id.
 //   · CLOSE COMMITS, UNDO DELETES, AND NEITHER CAN BECOME THE OTHER (R4, R8). Both are optimistic -- the sheet
 //     closes at once -- and retried on `retryDelayMs` until the server answers. An undo is never followed by a
 //     commit of that record, and a new `Yes` cancels a delete still retrying.
@@ -26,10 +26,18 @@
 
 import Foundation
 
-/// The sheet in front of the person: none, B / C (one sheet, `locError` says which), or D.
+/// Why the sheet shows its error box (C and C2 are one sheet, the box and Try again are the same): the location
+/// could not be read, or it was read and the check-in did not save (16 Nov, replacing R5).
+enum ConfirmError: Equatable, Sendable {
+    case noFix
+    case notSaved
+}
+
+/// The sheet in front of the person: none, B / C / C2 (one sheet, `error` says which: nil is B, `noFix` C, `notSaved`
+/// C2, always the last attempt's), or D.
 enum GatePhase: Equatable, Sendable {
     case idle
-    case confirm(entry: ArrivalEntry, locError: Bool, busy: Bool, note: String?)
+    case confirm(entry: ArrivalEntry, error: ConfirmError?, busy: Bool, note: String?)
     case done(entry: ArrivalEntry)
 }
 
@@ -106,13 +114,13 @@ final class ArrivalGateModel {
         guard let date else { return false }
         if checkedIn() { return false }
         if ui.phase != .idle { return true }
-        ui.phase = .confirm(entry: entry, locError: false, busy: false, note: note)
+        ui.phase = .confirm(entry: entry, error: nil, busy: false, note: note)
         analytics?.report(ArrivalAnalytics.confirmShown(
             dateId: date.id, entry: entry, minutesVsStart: minutesVsStart(date.meetAt, clock())))
         return true
     }
 
-    /// `Not yet`, the scrim or a swipe on B or C. Inert while busy (R7).
+    /// `Not yet`, the scrim or a swipe on B, C or C2. Inert while busy (R7).
     func notYet() {
         guard case .confirm(_, _, let busy, _) = ui.phase, !busy else { return }
         ui.phase = .idle
@@ -120,11 +128,11 @@ final class ArrivalGateModel {
 
     /// `Yes, I've arrived` and `Try again`: read one fresh fix, store it.
     func yes() {
-        guard let date, case .confirm(let entry, let locError, let busy, let note) = ui.phase, !busy else { return }
+        guard let date, case .confirm(let entry, let error, let busy, let note) = ui.phase, !busy else { return }
         analytics?.report(ArrivalAnalytics.confirmSubmitted(
             dateId: date.id, entry: entry, minutesVsStart: minutesVsStart(date.meetAt, clock())))
         away = false
-        ui.phase = .confirm(entry: entry, locError: locError, busy: true, note: note)
+        ui.phase = .confirm(entry: entry, error: error, busy: true, note: note)
         // The new store replaces the server's uncommitted row; a delete still retrying must not land after it.
         undoTask?.cancel()
         let clientId = newId()
@@ -136,7 +144,7 @@ final class ArrivalGateModel {
             let fix = await Self.fixWithin(reader, ms: timeout)
             guard !Task.isCancelled else { return }
             guard let fix else {
-                self?.failed(entry: entry, note: note)
+                self?.failed(entry: entry, note: note, error: .noFix)
                 return
             }
             let result = await store.checkIn(dateId: id, fix: fix, entry: entry, clientId: clientId)
@@ -151,7 +159,7 @@ final class ArrivalGateModel {
             case .alreadyCheckedIn:
                 self.ui.phase = .idle
                 self.ui.committed = true
-            case .failed: self.failed(entry: entry, note: note)
+            case .failed: self.failed(entry: entry, note: note, error: .notSaved)
             }
         }
     }
@@ -201,8 +209,9 @@ final class ArrivalGateModel {
     /// The host has acted on `undone`.
     func consumeUndone() { ui.undone = false }
 
-    private func failed(entry: ArrivalEntry, note: String?) {
-        ui.phase = .confirm(entry: entry, locError: true, busy: false, note: note)
+    /// C or C2, by what just failed: the fix was never read, or it was read and the store did not answer.
+    private func failed(entry: ArrivalEntry, note: String?, error: ConfirmError) {
+        ui.phase = .confirm(entry: entry, error: error, busy: false, note: note)
     }
 
     /// `call` until it answers, waiting `retryDelayMs` between tries. Holds no model, so it outlives it. Each try

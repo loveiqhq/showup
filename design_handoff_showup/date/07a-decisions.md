@@ -64,7 +64,7 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - **Change requests use the Coordinate card** for the person who has to answer (Change · 10 time, · 11 place): hoisted under the hero like an unread message, tag `Change request`, `{name} suggested {value}` with the old value struck through, `Answer by {deadline}` / `Until you agree, {time} at {place} stays binding. Not being there counts as a no-show.` (explicit — 3 Nov 2026), buttons **`Open chat`** (first, secondary) · **`I agree`** (second, primary) — agreeing is possible right on the card; **Suggest another** lives in the chat (it needs the picker and the conversation). The binding action sits second so a quick tap on the first never agrees. Agreeing on the card posts the same system line in the thread (`Meet time is now {value}`), so the evidence is identical. Outranks an ordinary unread message.
 - **The Coordinate card is always orange when it needs a reaction** — new message, change request, arrival — whatever the reason's tone. Users learn: orange = chat, react. Only the reason badge inside keeps its own tone.
 - **Purple is REAL, orange is change requests and chat.** The time + place card shows only binding values. A suggestion **from the match** appears only on the orange Coordinate card — no line and no binding note on the purple card. **Your own** waiting suggestion keeps its small line (`You suggested {value}` · `Waiting for {name} to agree`) plus the compact binding note, because nothing on the orange card covers it. Agreed → the new value is big with one quiet hint, `Changed · was {original}` — the **original** value only, never a chain (full history is in the chat), no "Agreed" pill (everything on purple is agreed), hidden after the meet time. Applied per field: a time and a place in opposite directions each follow their own rule; two of the same type cannot both be open (rule 3).
-- **To decide:** whether the Change meet time / Change location chips hide after meet − 0:30 (a suggestion sent then could never be agreed).
+- ~~**To decide:** whether the Change meet time / Change location chips hide after meet − 0:30.~~ ⚠ *Decided 10 Nov 2026 (Date 05): hidden for both from binding meet − 0:30.*
 
 ## Decided 3 Nov 2026 (round 5)
 - **Check-in radius 150 m**, circles overlap → together. Grey areas (agreed elsewhere in free text, one arrives and leaves) are accepted for MVP: check-ins + review answers + chat usage give a good-enough guess.
@@ -96,3 +96,44 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - Review deadline: if one person never reviews, when does the Show-up Rate outcome become final?
 - "I was there" claim — decide with flow 10 / Show-up Rate logic. Includes B disputing "You didn't show up" inside the review.
 - Notification copy.
+
+## Decided 10 Nov 2026 (Date 05 — change time and place)
+- **Tiles and change chips are hidden for both** from binding meet − 0:30, once either person has checked in, and (Change meet time only) while there is no later slot. An open suggestion stays answerable until its deadline.
+- **Two requests from the match:** the hoisted card shows the earlier deadline first, time first on a tie; the other follows. Both are in the thread.
+- **Chat unlock:** an agreed later time moves a locked chat's unlock; an open chat never re-locks.
+- **"Nearby" places** are ordered and measured from the binding meet place.
+- **Failure states** use Date 02's patterns: Suggest failed keeps the picker open with the selection · I agree failed shows the red retry line · Places failed → Try again · empty search is not an error. Kit: Change · 16–19.
+- **No Decline, no Withdraw** — written down.
+
+## Decided 10 Nov 2026 (Date 06 — End date and report a problem)
+- **Check in first** for *My date isn't showing up* (End date sheet **and** Report) and for *I don't feel comfortable* — the same gate as Date 03, with its note. *We met* needs no check-in.
+- **No-show end from the binding meet time.** Before it the button is disabled (`You can end the date from {time}`). Nothing measures the 10 minutes. Closes the *Open* "10-min grace" question for the end button; the `screens-score.jsx` line is still open.
+- **One guidance, one copy:** "Please give it at least 10 minutes" · CTA `End date and review` · secondary `Back`.
+- **Head out now ends the date:** ender → flow 10 (review line added to What happens next); match → `date-ended-discomfort`.
+- **Stay for now** stores an internal discomfort flag (evidence for flow 10).
+- **No-show end while the match has checked in** → the match sees the neutral `date-closed-positive`; flow 10 decides.
+- **"This is on them" removed** from Thanks for waiting — only the ender's rate is promised.
+- **Something else** (free text, safety team) — **parked** with *I'm in danger*.
+- **End Date bar "Date complete · Rate" variant deleted** (contradicts rule 5).
+- Not decided: the copy fixes `End Date` → `End date`, C's "Cancel date in the chat menu" note.
+
+## Decided 12 Nov 2026 (Date 07 — Cancel this date)
+- **Two ways to call a date off, two outcomes.** The red `Cancel this date` link + confirm = a clear cancel without reaching out → **penalty**. The chat's *I can't make it today* → End the date (Date 02) = reached out → **no penalty, no review** for either (unchanged).
+- **Canceller (red link):** straight to flow 10 `Rate the date · YOU didn't show up` (`rating-you-noshow`) — locked *No* + penalty. **`CancelDoneSheet` is not shown** (its `Back to search` contradicted the search block).
+- **Cancelled-on (B):** `Cancel this date · 4` (`ScreenPartnerCancelled`, default variant) — rate untouched, **no review**, CTA goes straight to search. ⚠ Exception to epic rule 5 (B does not enter flow 10).
+
+## Decided 16 Nov 2026 (Date 07 — open questions answered)
+- **Canceller (red link, confirmed):** confirms the 12 Nov rule — straight to flow 10 `rating-you-noshow` (locked *No* + penalty), then search opens. **No 24 h search block in MVP.** `CancelDoneSheet` / *Cancel this date · 3* retired. The screen that shows the rate drop is designed later with the Show-up Rate screens.
+- **Clear no-show:** the red link without first using Change meet time / Change location counts as a no-show. When the cancel happens makes no difference — notice is not a mitigation; reaching out is.
+- **Cancelled-on (B):** *Cancel this date · 4*, rate untouched, no review, CTA to search.
+- **Never matched again:** after a red-link cancel the two never appear in each other's search, both directions, permanently. Server-enforced. The guard line "you'll never match {name} again" stays.
+- **Penalty (placeholder until the Show-up Rate screens):** one no-show −10, one attended date +10.
+- **Screen 4 copy:** "are paused" removed → "People who repeatedly cancel or don't show up become less visible, and eventually lose access."
+- **No pause in MVP.** **Account deletion is blocked during an active date** — the option in Settings is unavailable until the date has ended (Settings itself stays open; its full design comes later). So deletion never ends a date and needs no cancel rule. A low Show-up Rate means less visibility, only after at least 4 dates (before that the user is new). Removing access is to be finalised later.
+- **Red link visible** from the match until the user checks in (hidden after check-in).
+- Kit: `rating-you-noshow` tab hint "Search is paused for 24 hrs…" → "Available again once you've submitted your review."
+- **Guard sheet copy (Cancel this date · 2) final.** "her" stays. Typo fixed: "Sometimes life happens — find a solution with {name}!" (was "Sometime… Leonie"). Cost box now states the drop: "lowers your Show-up Rate by 10". Everything else unchanged.
+- **Ticket written 16 Nov 2026** (`tickets/07-cancel.md`). Kit: the link is hidden after this user's check-in · `CancelDateConfirmSheet` gains `error` + `initialSent` · `EndErrorBox` gains `text` · artboards Cancel this date · 2b–2d · `rating-you-noshow` penalty row: 24 h clause removed, "Show-up Rate drops by 10". Tracking: registry 1.4.37 / taxonomy 1.4.30.
+- **Open:** push copy · the solution box body inside meet − 0:30 (tiles hidden).
+- **Push copy deferred (16 Nov 2026):** all notification copy is written at the end of the project, in one pass, so it isn't reworked repeatedly. Tickets build the triggers with placeholder strings.
+- **Guard sheet tiles follow Date 05's cutoff (16 Nov 2026):** from binding meet − 0:30 (and after either check-in) a change could no longer be agreed — only running late matters. The solution box loses its body line and both tiles; the title and `Message {name} instead` stay (closes the cancel flow, opens the chat). Kit: `CancelDateConfirmSheet changeClosed`, Cancel this date · 2e.

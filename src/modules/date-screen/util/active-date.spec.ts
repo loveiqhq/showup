@@ -144,6 +144,8 @@ describe('toActiveDate', () => {
     checkedIn: false,
     arrival: null,
     chatTutorialSeen: false,
+    coordinateUnlockedAt: null as Date | null,
+    anyCommittedCheckIn: false,
     meetDay: 'today' as const,
   };
 
@@ -154,6 +156,28 @@ describe('toActiveDate', () => {
     expect(
       toActiveDate({ ...base, now: at('2026-11-03T16:30:00Z') }).coordinateOpen,
     ).toBe(true);
+  });
+
+  it('opens before meet − 1:30 once an arrival check-in is committed (Date 03, 16 Nov)', () => {
+    const early = at('2026-11-03T15:00:00Z');
+    const stamp = at('2026-11-03T14:59:00Z');
+    expect(
+      toActiveDate({ ...base, now: early, coordinateUnlockedAt: stamp })
+        .coordinateOpen,
+    ).toBe(true);
+    expect(
+      toActiveDate({ ...base, now: early, coordinateUnlockedAt: null })
+        .coordinateOpen,
+    ).toBe(false);
+  });
+
+  it('stays open from a committed check-in alone, when its stamp was lost', () => {
+    const early = at('2026-11-03T15:00:00Z');
+    expect(
+      toActiveDate({ ...base, now: early, anyCommittedCheckIn: true })
+        .coordinateOpen,
+    ).toBe(true);
+    expect(toActiveDate({ ...base, now: early }).coordinateOpen).toBe(false);
   });
 
   it('carries only the shared vibes and interests, in the match’s order', () => {

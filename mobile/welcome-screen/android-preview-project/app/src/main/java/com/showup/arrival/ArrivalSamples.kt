@@ -27,22 +27,25 @@ object ArrivalSamples {
     val bar: @Composable () -> Unit = { CheckInBar(name = DateSamples.DATE.match.name, onCheckIn = {}) }
 
     /** B: the guard, from the Check-in bar. */
-    val B = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = false, busy = false, note = null))
+    val B = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, error = null, busy = false, note = null))
 
     /** B with the report note (Date 06's entry, built here). */
-    val B_NOTE = GateUi(GatePhase.Confirm(ArrivalEntry.Report, locError = false, busy = false, note = ArrivalCopy.REPORT_NOTE))
+    val B_NOTE = GateUi(GatePhase.Confirm(ArrivalEntry.Report, error = null, busy = false, note = ArrivalCopy.REPORT_NOTE))
 
     /** B while the location is read: both buttons wait. */
-    val B_BUSY = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = false, busy = true, note = null))
+    val B_BUSY = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, error = null, busy = true, note = null))
 
     /** C: no location fix. */
-    val C = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, locError = true, busy = false, note = null))
+    val C = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, error = ConfirmError.NoFix, busy = false, note = null))
+
+    /** C2: the location was read, the check-in did not save (16 Nov): C's box with the other string. */
+    val C2 = GateUi(GatePhase.Confirm(ArrivalEntry.DateScreen, error = ConfirmError.NotSaved, busy = false, note = null))
 
     /** D: checked in, with Undo. */
     val D = GateUi(GatePhase.Done(ArrivalEntry.DateScreen))
 
     /** F: the guard from the chat's chip. */
-    val F = GateUi(GatePhase.Confirm(ArrivalEntry.ChatChip, locError = false, busy = false, note = null))
+    val F = GateUi(GatePhase.Confirm(ArrivalEntry.ChatChip, error = null, busy = false, note = null))
 
     /** E: the date once this person has checked in -- the footer slot empty until Date 06. */
     val CHECKED_IN: ActiveDate = DateSamples.DATE.copy(checkedIn = true)

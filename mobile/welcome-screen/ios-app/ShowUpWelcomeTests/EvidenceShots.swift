@@ -139,7 +139,7 @@ final class EvidenceShots: XCTestCase {
         }
     }
 
-    /// SHOWUP-195: A to F and H at the three ticket frames -- 21 images -- and two audit frames at 390 x 844: G
+    /// SHOWUP-195: A to F, C2 and H at the three ticket frames -- 24 images -- and two audit frames at 390 x 844: G
     /// (the date gate, denied) and A with the End date link switched on.
     func testArrivalCheckInEvidence() throws {
         let dir = try folder("195-arrival-checkin")
@@ -156,13 +156,15 @@ final class EvidenceShots: XCTestCase {
         }
         for device in frames {
             try shoot(dateScreen(), "A-check-in-bar", on: device, into: dir)
-            try shoot(over(.confirm(entry: .dateScreen, locError: false, busy: false, note: nil)) { dateScreen() },
+            try shoot(over(.confirm(entry: .dateScreen, error: nil, busy: false, note: nil)) { dateScreen() },
                       "B-guard", on: device, into: dir)
-            try shoot(over(.confirm(entry: .dateScreen, locError: true, busy: false, note: nil)) { dateScreen() },
+            try shoot(over(.confirm(entry: .dateScreen, error: .noFix, busy: false, note: nil)) { dateScreen() },
                       "C-no-fix", on: device, into: dir)
+            try shoot(over(.confirm(entry: .dateScreen, error: .notSaved, busy: false, note: nil)) { dateScreen() },
+                      "C2-not-saved", on: device, into: dir)
             try shoot(over(.done(entry: .dateScreen)) { dateScreen() }, "D-done", on: device, into: dir)
             try shoot(dateScreen({ $0.checkedIn = true }), "E-after-close", on: device, into: dir)
-            try shoot(over(.confirm(entry: .chatChip, locError: false, busy: false, note: nil)) {
+            try shoot(over(.confirm(entry: .chatChip, error: nil, busy: false, note: nil)) {
                 ChatScreen(ui: ChatSamples.b, zone: DateSamples.zone)
             }, "F-chat-guard", on: device, into: dir)
             try shoot(dateScreen({ $0.arrival = DateArrival(checkedInAt: DateSamples.bNow.addingTimeInterval(-120)) }),

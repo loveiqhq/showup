@@ -55,7 +55,7 @@ final class ArrivalRoutingTests: XCTestCase {
         XCTAssertEqual(Array(analytics.names().dropFirst(before)), ["action_chip_used", "arrival_confirm_shown"])
         XCTAssertEqual(chat.ui.draft, "")
         XCTAssertNil(chat.ui.selected)
-        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, locError: false, busy: false, note: nil))
+        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, error: nil, busy: false, note: nil))
     }
 
     func testAnUngatedChipOnlyPicksAndOpensNoSheet() {
@@ -71,10 +71,31 @@ final class ArrivalRoutingTests: XCTestCase {
         var phaseWhenCalled: GatePhase?
         onChatChip(.arrived, .entry, g, pick: { _, _, _ in }, beforeGate: { phaseWhenCalled = g.ui.phase })
         XCTAssertEqual(phaseWhenCalled, .idle)
-        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, locError: false, busy: false, note: nil))
+        XCTAssertEqual(g.ui.phase, .confirm(entry: .chatChip, error: nil, busy: false, note: nil))
         var called = false
         onChatChip(.runningLate, .dock, gate(), pick: { _, _, _ in }, beforeGate: { called = true })
         XCTAssertFalse(called)
+    }
+
+    func testACommittedCheckInShowsTheDateCheckedInAndTheChatOpenNeverTheOneWithoutTheOther() {
+        var before = date(checkedIn: false)
+        before.coordinateOpen = false
+        let shown = committedView(before, committed: true)
+        XCTAssertTrue(shown.checkedIn)
+        XCTAssertTrue(shown.coordinateOpen, "the first check-in opens the chat for the person who made it")
+        var expected = before
+        expected.checkedIn = true
+        expected.coordinateOpen = true
+        XCTAssertEqual(shown, expected, "nothing else moves")
+    }
+
+    func testAnUncommittedSessionOrADateAlreadyCheckedInIsLeftExactlyAsItIs() {
+        var before = date(checkedIn: false)
+        before.coordinateOpen = false
+        XCTAssertEqual(committedView(before, committed: false), before)
+        var server = date(checkedIn: true)
+        server.coordinateOpen = false
+        XCTAssertEqual(committedView(server, committed: true), server, "the server's word is not rewritten")
     }
 
     func testAnUndoLandsOnTheDateScreenFromTheChatAndStaysPutElsewhere() {
