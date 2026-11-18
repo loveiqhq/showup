@@ -26,17 +26,17 @@ actor FakeChangeStore: ChangeStoring {
     private var placesAnswer: @Sendable (String?) -> Result<PlacesList, CallFailure> = { _ in
         .success(PlacesList(google: true, places: nearbyPlaces))
     }
-    private var suggestAnswer: Result<ChangeSuggestion, CallFailure> = .success(sampleSuggestion())
+    private var suggestAnswer: SuggestResult = .sent(sampleSuggestion())
     private var agreeAnswer: Result<ChangeSuggestion, CallFailure> = .success(sampleSuggestion())
 
     func setPlaces(_ answer: @escaping @Sendable (String?) -> Result<PlacesList, CallFailure>) { placesAnswer = answer }
-    func setSuggest(_ answer: Result<ChangeSuggestion, CallFailure>) { suggestAnswer = answer }
+    func setSuggest(_ answer: SuggestResult) { suggestAnswer = answer }
 
     func places(dateId: String, query: String?) async -> Result<PlacesList, CallFailure> {
         placeCalls.append(query)
         return placesAnswer(query)
     }
-    func suggest(dateId: String, request: SuggestRequest) async -> Result<ChangeSuggestion, CallFailure> {
+    func suggest(dateId: String, request: SuggestRequest) async -> SuggestResult {
         suggests.append(request)
         return suggestAnswer
     }
@@ -63,12 +63,18 @@ final class ChangePickerModelTests: XCTestCase {
                    sharedVibes: [], sharedInterests: [], unread: nil, checkedIn: false, chatTutorialSeen: false)
     }
 
-    private func model(_ kind: ChangeKind, _ entry: ChangeEntry = .coordinateTile, _ store: FakeChangeStore,
-                       _ analytics: RecordingAnalytics) -> ChangePickerModel {
+    private func model(_ kind: ChangeKind, _ store: FakeChangeStore, _ analytics: RecordingAnalytics,
+                       entry: ChangeEntry = .coordinateTile, saved: ChangePickerDraft? = nil,
+                       persist: @escaping (String) -> Void = { _ in }) -> ChangePickerModel {
         let counter = IdCounter()
         return ChangePickerModel(kind: kind, entry: entry, store: store, analytics: analytics, clock: { self.now },
                                  newId: { counter.next() },
-                                 zone: { TimeZone(identifier: "Europe/Berlin")! }, debounce: debounce)
+                                 zone: { TimeZone(identifier: "Europe/Berlin")! }, debounce: debounce,
+                                 restoring: saved, persist: persist)
+    }
+
+    private final class DraftBox {
+        var value = ""
     }
 
     private final class IdCounter {
@@ -87,7 +93,7 @@ final class ChangePickerModelTests: XCTestCase {
 
     func testOpeningReportsChangePickerOpenedOnceWithTheEntryAndTheMinutesToTheStart() async {
         let analytics = RecordingAnalytics()
-        let m = model(.time, .counterCard, FakeChangeStore(), analytics)
+        let m = model(.time, FakeChangeStore(), analytics, entry: .counterCard)
         m.open(date())
         m.open(date())
         await settle()
@@ -110,12 +116,12 @@ final class ChangePickerModelTests: XCTestCase {
     func testThePlacePickerLoadsWhatIsNearbyOnOpenWithNoQuery() async {
         let store = FakeChangeStore()
         let m = model(.place, store, RecordingAnalytics())
-        XCTAssertEqual(m.ui.list, .loading)
+        XCTAssertEqual(m.ui.list, PlacesView.loading)
         m.open(date())
         await settle()
         let calls = await store.placeCalls
         XCTAssertEqual(calls, [nil])
-        XCTAssertEqual(m.ui.list, .loaded(places: nearbyPlaces, google: true, forQuery: ""))
+        XCTAssertEqual(m.ui.list, PlacesView.loaded(places: nearbyPlaces, google: true, forQuery: ""))
     }
 
     func testTypingSearchesOnce300msAfterTheLastKeyOnTheTrimmedQuery() async {
@@ -144,7 +150,7 @@ final class ChangePickerModelTests: XCTestCase {
         await settle(0.3)
         let calls = await store.placeCalls
         XCTAssertEqual(calls, [nil, "lenz", nil])
-        XCTAssertEqual(m.ui.list, .loaded(places: nearbyPlaces, google: true, forQuery: ""))
+        XCTAssertEqual(m.ui.list, PlacesView.loaded(places: nearbyPlaces, google: true, forQuery: ""))
     }
 
     func testAQueryWithNoResultIsNNotAFailure() async {
@@ -155,7 +161,7 @@ final class ChangePickerModelTests: XCTestCase {
         await store.setPlaces { _ in .success(PlacesList(google: true, places: [])) }
         m.setQuery("sushi")
         await settle(0.3)
-        XCTAssertEqual(m.ui.list, .loaded(places: [], google: true, forQuery: "sushi"))
+        XCTAssertEqual(m.ui.list, PlacesView.loaded(places: [], google: true, forQuery: "sushi"))
     }
 
     func testAFailedLoadIsMKeepsTheSearchUsableAndTryAgainReadsAgain() async {
@@ -164,12 +170,12 @@ final class ChangePickerModelTests: XCTestCase {
         let m = model(.place, store, RecordingAnalytics())
         m.open(date())
         await settle()
-        XCTAssertEqual(m.ui.list, .failed)
+        XCTAssertEqual(m.ui.list, PlacesView.failed)
         XCTAssertNil(m.ui.place)
         await store.setPlaces { _ in .success(PlacesList(google: true, places: nearbyPlaces)) }
         m.retryPlaces()
         await settle()
-        XCTAssertEqual(m.ui.list, .loaded(places: nearbyPlaces, google: true, forQuery: ""))
+        XCTAssertEqual(m.ui.list, PlacesView.loaded(places: nearbyPlaces, google: true, forQuery: ""))
         let calls = await store.placeCalls
         XCTAssertEqual(calls, [nil, nil])
     }
@@ -182,7 +188,7 @@ final class ChangePickerModelTests: XCTestCase {
         await store.setPlaces { _ in .failure(.server) }
         m.setQuery("bar")
         await settle(0.3)
-        XCTAssertEqual(m.ui.list, .failed)
+        XCTAssertEqual(m.ui.list, PlacesView.failed)
         await store.setPlaces { _ in .success(PlacesList(google: false, places: nearbyPlaces)) }
         m.retryPlaces()
         await settle()
@@ -235,7 +241,7 @@ final class ChangePickerModelTests: XCTestCase {
     func testASuggestedTimeGoesWithTheEntryAFreshIdAndTheZoneAndOnSuccessThePickerIsDone() async {
         let store = FakeChangeStore()
         let analytics = RecordingAnalytics()
-        let m = model(.time, .chatChip, store, analytics)
+        let m = model(.time, store, analytics, entry: .chatChip)
         m.open(date())
         m.selectSlot(slot)
         m.suggest()
@@ -275,7 +281,7 @@ final class ChangePickerModelTests: XCTestCase {
 
     func testAFailedSendIsKThePickerStaysOpenWithTheSelectionAndNothingIsDone() async {
         let store = FakeChangeStore()
-        await store.setSuggest(.failure(.network))
+        await store.setSuggest(.failed(.network))
         let m = model(.time, store, RecordingAnalytics())
         m.open(date())
         m.selectSlot(slot)
@@ -289,7 +295,7 @@ final class ChangePickerModelTests: XCTestCase {
 
     func testTheRetryReusesTheSameClientIdAndADifferentValueGetsANewOne() async {
         let store = FakeChangeStore()
-        await store.setSuggest(.failure(.network))
+        await store.setSuggest(.failed(.network))
         let m = model(.time, store, RecordingAnalytics())
         m.open(date())
         m.selectSlot(slot)
@@ -306,7 +312,7 @@ final class ChangePickerModelTests: XCTestCase {
         sent = await store.suggests
         XCTAssertEqual(sent.last?.clientId, "id-2")
 
-        await store.setSuggest(.success(sampleSuggestion()))
+        await store.setSuggest(.sent(sampleSuggestion()))
         m.suggest()
         await settle()
         sent = await store.suggests
@@ -326,10 +332,125 @@ final class ChangePickerModelTests: XCTestCase {
         XCTAssertEqual(sent.count, 1)
     }
 
+    // MARK: 409, 503
+
+    func testA409IsNotKThePickerIsStaleNothingIsShownAsFailedAndNoEventFires() async {
+        let store = FakeChangeStore()
+        await store.setSuggest(.stale)
+        let analytics = RecordingAnalytics()
+        let m = model(.time, store, analytics)
+        m.open(date())
+        m.selectSlot(slot)
+        m.suggest()
+        await settle()
+        XCTAssertTrue(m.ui.stale, "the host closes the picker and reads the date again")
+        XCTAssertFalse(m.ui.sendFailed, "no K")
+        XCTAssertFalse(m.ui.sending)
+        XCTAssertFalse(m.ui.done)
+        XCTAssertEqual(names(analytics), ["change_picker_opened"])
+        m.cancel()
+        XCTAssertTrue(analytics.entries.filter { $0.event == "change_picker_dismissed" }.isEmpty,
+                      "a stale picker is not dismissed")
+    }
+
+    func testA503StaysKWithTheSelectionKeptAndTheSameClientIdOnTheRetry() async {
+        let store = FakeChangeStore()
+        await store.setSuggest(.failed(.server))
+        let m = model(.time, store, RecordingAnalytics())
+        m.open(date())
+        m.selectSlot(slot)
+        m.suggest()
+        await settle()
+        XCTAssertTrue(m.ui.sendFailed)
+        XCTAssertFalse(m.ui.stale)
+        XCTAssertEqual(m.ui.slot, slot)
+        m.suggest()
+        await settle()
+        let sent = await store.suggests
+        XCTAssertEqual(sent.map(\.clientId), ["id-1", "id-1"])
+    }
+
+    // MARK: process death
+
+    func testTheSelectionTheFieldAndTheRetrysIdComeBackFromTheStoredDraft() async {
+        let store = FakeChangeStore()
+        await store.setSuggest(.failed(.network))
+        let box = DraftBox()
+        let first = model(.time, store, RecordingAnalytics(), persist: { box.value = $0 })
+        first.open(date())
+        first.selectSlot(slot)
+        first.suggest()
+        await settle()
+        XCTAssertFalse(box.value.isEmpty)
+
+        // The process dies: a new model, from what the host kept.
+        let restored = model(.time, store, RecordingAnalytics(), saved: ChangePickerDraft.decode(box.value))
+        XCTAssertEqual(restored.ui.slot, slot)
+        restored.open(date())
+        restored.suggest()
+        await settle()
+        let sent = await store.suggests
+        XCTAssertEqual(sent.map(\.clientId), ["id-1", "id-1"], "the retry is the same send")
+    }
+
+    func testARestoredPlaceAndQueryReloadTheListForThatQueryAndThePlaceStaysOnlyWhileListed() async {
+        let store = FakeChangeStore()
+        let box = DraftBox()
+        let first = model(.place, store, RecordingAnalytics(), persist: { box.value = $0 })
+        first.open(date())
+        await settle()
+        first.setQuery("lenz")
+        await settle(0.3)
+        first.selectPlace(nearbyPlaces[0])
+
+        let restored = model(.place, store, RecordingAnalytics(), saved: ChangePickerDraft.decode(box.value))
+        XCTAssertEqual(restored.ui.query, "lenz")
+        XCTAssertEqual(restored.ui.place, nearbyPlaces[0])
+        restored.open(date())
+        await settle()
+        let calls = await store.placeCalls
+        XCTAssertEqual(calls.last ?? nil, "lenz", "the list answers the restored query")
+        XCTAssertEqual(restored.ui.place, nearbyPlaces[0], "still listed: kept")
+
+        await store.setPlaces { _ in .success(PlacesList(google: true, places: [nearbyPlaces[1]])) }
+        let gone = model(.place, store, RecordingAnalytics(), saved: ChangePickerDraft.decode(box.value))
+        gone.open(date())
+        await settle()
+        XCTAssertNil(gone.ui.place, "no longer listed: dropped (R18)")
+    }
+
+    func testTheDraftIsClearedWhenThePickerEndsAndADraftOfAnotherKindIsNotRestored() async {
+        let box = DraftBox()
+        let m = model(.time, FakeChangeStore(), RecordingAnalytics(), persist: { box.value = $0 })
+        m.open(date())
+        m.selectSlot(slot)
+        let draft = ChangePickerDraft.decode(box.value)
+        XCTAssertNotNil(draft)
+        m.cancel()
+        XCTAssertEqual(box.value, "")
+
+        let other = model(.place, FakeChangeStore(), RecordingAnalytics(), saved: draft)
+        XCTAssertNil(other.ui.slot)
+        XCTAssertEqual(other.ui.query, "")
+        XCTAssertNil(ChangePickerDraft.decode("not json"))
+    }
+
+    func testTheSearchFieldStopsAtTheContractsHundredCharacters() async {
+        let store = FakeChangeStore()
+        let m = model(.place, store, RecordingAnalytics())
+        m.open(date())
+        await settle()
+        m.setQuery(String(repeating: "x", count: 130))
+        await settle(0.3)
+        XCTAssertEqual(m.ui.query.count, 100)
+        let calls = await store.placeCalls
+        XCTAssertEqual((calls.last ?? nil)?.count, 100)
+    }
+
     func testCancelOrBackReportsChangePickerDismissedWithWhetherAnythingWasSelectedAndSendsNothing() async {
         let store = FakeChangeStore()
         let analytics = RecordingAnalytics()
-        let empty = model(.time, .chatChip, store, analytics)
+        let empty = model(.time, store, analytics, entry: .chatChip)
         empty.open(date())
         empty.cancel()
         let p = analytics.entries.first { $0.event == "change_picker_dismissed" }?.properties ?? [:]

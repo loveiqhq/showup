@@ -2867,21 +2867,28 @@ class MainActivity : ComponentActivity() {
                 val kind = ChangeKind.fromWire(route.kind)
                 val from = ChangeEntry.fromWire(route.entry)
                 val d = dateState.date
-                if (d == null || kind == null || from == null) {
+                // A route this build cannot read is popped. A date that is not here YET is waited for: after process
+                // death the route is restored before the launch read has landed, and popping then threw away the
+                // picker. Only a read that has finished with no date (ended elsewhere) leaves.
+                if (kind == null || from == null || (d == null && !dateState.loading)) {
                     LaunchedEffect(Unit) { navController.popBackStack() }
                     return@composable
                 }
+                if (d == null) return@composable
                 val vm: ChangePickerViewModel = viewModel(
-                    factory = viewModelFactory { initializer { ChangePickerViewModel(kind, from, changeStore, analytics = AppAnalytics) } },
+                    factory = viewModelFactory {
+                        initializer { ChangePickerViewModel(kind, from, changeStore, analytics = AppAnalytics, saved = createSavedStateHandle()) }
+                    },
                 )
                 val ui by vm.ui.collectAsStateWithLifecycle()
                 val zone = remember { ZoneId.systemDefault() }
                 // The model keeps the first date it was given and fires its open event once.
                 LaunchedEffect(vm) { vm.open(d) }
-                // The server confirmed: back to where it was opened, with the date read again (the chat reads
-                // itself on return). Nothing was shown as changed before this.
-                LaunchedEffect(ui.done) {
-                    if (ui.done) {
+                // The server confirmed (done), or refused for good (409, stale -- the cutoff passed, a check-in
+                // happened): back to where it was opened, with the date read again (the chat reads itself on
+                // return). Nothing was shown as changed before this, and a 409 shows no error.
+                LaunchedEffect(ui.done, ui.stale) {
+                    if (ui.done || ui.stale) {
                         date.foreground()
                         navController.popBackStack()
                     }

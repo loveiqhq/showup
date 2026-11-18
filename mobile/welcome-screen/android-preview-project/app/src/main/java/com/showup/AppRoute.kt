@@ -76,7 +76,9 @@ sealed interface AppRoute {
     /**
      * The time or place picker (SHOWUP-196, Date 05 A, B, K, M, N), pushed over whatever opened it: the Date
      * screen's locked card, or the chat. [kind] is `time` or `place` and [entry] the §42 `change_entry` wire
-     * value; both ride in the route so a process death restores the same picker. Back is Cancel.
+     * value; both ride in the route, and the selection, the typed query and the send's id are the model's saved state,
+     * so a process death restores the same picker as it was (the host waits for the date to load before it draws,
+     * rather than popping). Back is Cancel.
      */
     @Serializable
     data class ChangePicker(val kind: String, val entry: String) : AppRoute

@@ -64,14 +64,14 @@ class ChangeRepositoryTest {
     fun `the places list maps type, distance and the Google attribution, and sends no q for nearby`() = runTest {
         json(
             """{"attribution":"google","places":[
-                {"placeId":"p1","name":"Bar Lenz","type":"bar","address":"Lausitzer Platz 9, Kreuzberg","distanceMeters":350.4},
+                {"placeId":"p1","name":"Bar Lenz","type":"bar","address":"Lausitzer Platz 9, Kreuzberg","distanceMeters":350.6},
                 {"placeId":"p2","name":"Cafe X","type":"cafe","address":"A 1","distanceMeters":1100}]}""",
         )
         val list = (store.places("d1", null) as Outcome.Ok).value
         assertTrue(list.google)
         assertEquals(
             listOf(
-                PlaceOption("p1", "Bar Lenz", PlaceType.Bar, "Lausitzer Platz 9, Kreuzberg", 350),
+                PlaceOption("p1", "Bar Lenz", PlaceType.Bar, "Lausitzer Platz 9, Kreuzberg", 351),
                 PlaceOption("p2", "Cafe X", PlaceType.Cafe, "A 1", 1100),
             ),
             list.places,
@@ -101,7 +101,7 @@ class ChangeRepositoryTest {
         json(suggestion, code = 201)
         val id = "22222222-2222-4222-8222-222222222222"
         val sent = store.suggest("d1", SuggestRequest(ChangeKind.Time, Instant.parse("2026-11-17T18:30:00Z"), null, ChangeEntry.ChatChip, null, id, "Europe/Berlin"))
-        val result = (sent as Outcome.Ok).value
+        val result = (sent as SuggestResult.Sent).suggestion
         assertEquals(sid, result.id)
         assertEquals(ChangeKind.Time, result.kind)
         assertEquals(Instant.parse("2026-11-17T18:30:00Z"), result.time)
@@ -127,7 +127,7 @@ class ChangeRepositoryTest {
                 "createdAt":"2026-11-17T15:00:00.000Z","status":"pending"}""",
             code = 201,
         )
-        val result = (store.suggest("d1", SuggestRequest(ChangeKind.Place, null, "p1", ChangeEntry.CoordinateTile, true, "22222222-2222-4222-8222-222222222222", "Europe/Berlin")) as Outcome.Ok).value
+        val result = (store.suggest("d1", SuggestRequest(ChangeKind.Place, null, "p1", ChangeEntry.CoordinateTile, true, "22222222-2222-4222-8222-222222222222", "Europe/Berlin")) as SuggestResult.Sent).suggestion
         assertEquals(ChangePlace("p1", "Bar Lenz", PlaceType.Bar, "A 1"), result.place)
         val body = server.takeRequest().body.readUtf8().body()
         assertEquals("p1", body.str("placeId"))
@@ -135,11 +135,22 @@ class ChangeRepositoryTest {
         assertTrue("time" !in body)
     }
 
+    private val timeRequest = SuggestRequest(ChangeKind.Time, Instant.parse("2026-11-17T18:30:00Z"), null, ChangeEntry.ChatChip, null, "22222222-2222-4222-8222-222222222222", "UTC")
+
     @Test
-    fun `a refused suggestion is a failure`() = runTest {
+    fun `a 409 is stale, not a failure the person can retry`() = runTest {
         json("""{"message":"past the cutoff"}""", code = 409)
-        val sent = store.suggest("d1", SuggestRequest(ChangeKind.Time, Instant.parse("2026-11-17T18:30:00Z"), null, ChangeEntry.ChatChip, null, "22222222-2222-4222-8222-222222222222", "UTC"))
-        assertTrue(sent is Outcome.Failed)
+        assertEquals(SuggestResult.Stale, store.suggest("d1", timeRequest))
+    }
+
+    @Test
+    fun `a 503, a 500 and a dropped connection are failures, which K shows`() = runTest {
+        json("""{"message":"places down"}""", code = 503)
+        assertEquals(SuggestResult.Failed(CallFailure.Server), store.suggest("d1", timeRequest))
+        json("""{"message":"boom"}""", code = 500)
+        assertEquals(SuggestResult.Failed(CallFailure.Server), store.suggest("d1", timeRequest))
+        server.shutdown()
+        assertEquals(SuggestResult.Failed(CallFailure.Network), store.suggest("d1", timeRequest))
     }
 
     @Test

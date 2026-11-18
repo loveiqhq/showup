@@ -36,12 +36,12 @@ enum ChangeStatus: String, Hashable, Sendable {
 }
 
 /// The three kinds of public place the picker lists (R4).
-enum PlaceType: String, Hashable, Sendable {
+enum PlaceType: String, Hashable, Sendable, Codable {
     case cafe, bar, restaurant
 }
 
 /// One row of the place picker. `distanceMeters` is from the BINDING meet place, whole metres.
-struct PlaceOption: Equatable, Hashable, Sendable {
+struct PlaceOption: Equatable, Hashable, Sendable, Codable {
     var placeId: String
     var name: String
     var type: PlaceType
@@ -105,12 +105,22 @@ struct SuggestRequest: Equatable, Sendable {
     var tz: String
 }
 
+/// What `Suggest` came back with. `stale` is 409: the server refuses a suggestion that can no longer be made (past
+/// the cutoff, after a check-in, a slot no longer offered, the place now binding), and asking again cannot change
+/// that -- so it is not K: the picker closes and the date is read again. Everything else that is not a success
+/// (`failed`: no response, 503, any other status) is K, and a retry may succeed. Android's `SuggestResult`.
+enum SuggestResult: Equatable, Sendable {
+    case sent(ChangeSuggestion)
+    case stale
+    case failed(CallFailure)
+}
+
 /// Date 05's calls, behind a protocol so the models are tested with no network.
 protocol ChangeStoring: Sendable {
     /// Public places near the binding meet place, or matching `query` (nil or blank: nearby).
     func places(dateId: String, query: String?) async -> Result<PlacesList, CallFailure>
     /// A suggestion; a repeat of the same clientId is answered with the stored one.
-    func suggest(dateId: String, request: SuggestRequest) async -> Result<ChangeSuggestion, CallFailure>
+    func suggest(dateId: String, request: SuggestRequest) async -> SuggestResult
     /// `I agree`: the suggestion becomes binding for both. A refusal (no longer pending) is a failure.
     func agree(dateId: String, suggestionId: String, surface: AgreeSurface) async -> Result<ChangeSuggestion, CallFailure>
     /// Every suggestion of the date, oldest first, all statuses: the thread's cards and system lines.
@@ -135,8 +145,8 @@ struct ChangeRepository: ChangeStoring {
         }
     }
 
-    func suggest(dateId: String, request: SuggestRequest) async -> Result<ChangeSuggestion, CallFailure> {
-        guard let uuid = UUID(uuidString: request.clientId) else { return .failure(.server) }
+    func suggest(dateId: String, request: SuggestRequest) async -> SuggestResult {
+        guard let uuid = UUID(uuidString: request.clientId) else { return .failed(.server) }
         do {
             // By wire value, not case name: a regenerated enum case must not change what is sent.
             let dto = Components.Schemas.SuggestChangeDto(
@@ -147,13 +157,18 @@ struct ChangeRepository: ChangeStoring {
                 placeId: request.placeId,
                 time: request.time,
                 tz: request.tz)
-            if case .created(let created) = try await api.client.suggestDateChange(path: .init(id: dateId), body: .json(dto)),
-               let suggestion = ChangeSuggestion(try created.body.json) {
-                return .success(suggestion)
+            // The contract documents only 201, so a 409 arrives as `.undocumented` (as `endInChat`'s does).
+            switch try await api.client.suggestDateChange(path: .init(id: dateId), body: .json(dto)) {
+            case .created(let created):
+                guard let suggestion = ChangeSuggestion(try created.body.json) else { return .failed(.server) }
+                return .sent(suggestion)
+            case let .undocumented(statusCode, _) where statusCode == 409:
+                return .stale
+            default:
+                return .failed(.server)
             }
-            return .failure(.server)
         } catch {
-            return .failure(Self.failure(error))
+            return .failed(Self.failure(error))
         }
     }
 

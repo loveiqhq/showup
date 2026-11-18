@@ -74,6 +74,8 @@ private struct ChangeSheetHead: View {
                 .font(F.lora(24, bold: true)).tracking(-0.01 * 24)
                 .foregroundColor(.liqFg)
                 .multilineTextAlignment(.center)
+                // Lora 24 in CSS line boxes of 1.15, which only UIKit sets: the title's lines sit as drawn.
+                .cssLineBox(24 * 1.15)
                 .padding(.top, 4).padding(.bottom, 6)
                 .accessibilityAddTraits(.isHeader)
             VStack(alignment: .leading, spacing: 0) {

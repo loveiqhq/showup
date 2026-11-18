@@ -93,10 +93,10 @@ final class ChangeRulesTests: XCTestCase {
     }
 
     func testAChipOrTileOpensThePickerOfItsKindWithTheEntryThatNamesWhereItWasTapped() {
-        XCTAssertEqual(changePickerRoute(.changeTime, surface: .entry), .changePicker(kind: .time, entry: .chatChip))
-        XCTAssertEqual(changePickerRoute(.changePlace, surface: .dock), .changePicker(kind: .place, entry: .chatChip))
+        XCTAssertEqual(changePickerRoute(.changeTime, surface: .entry), AppRoute.changePicker(kind: .time, entry: .chatChip))
+        XCTAssertEqual(changePickerRoute(.changePlace, surface: .dock), AppRoute.changePicker(kind: .place, entry: .chatChip))
         XCTAssertEqual(changePickerRoute(.changeTime, surface: .coordinateCard),
-                       .changePicker(kind: .time, entry: .coordinateTile))
+                       AppRoute.changePicker(kind: .time, entry: .coordinateTile))
         XCTAssertNil(changePickerRoute(.runningLate, surface: .dock))
     }
 }

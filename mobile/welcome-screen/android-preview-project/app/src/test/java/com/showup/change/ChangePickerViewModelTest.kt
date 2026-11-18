@@ -7,6 +7,7 @@
  */
 package com.showup.change
 
+import androidx.lifecycle.SavedStateHandle
 import com.showup.analytics.RecordingAnalytics
 import com.showup.api.CallFailure
 import com.showup.api.Outcome
@@ -41,7 +42,7 @@ class FakeChangeStore : ChangeStore {
     val placeCalls = mutableListOf<String?>()
     var places: (String?) -> Outcome<PlacesList> = { Outcome.Ok(PlacesList(google = true, places = NEARBY)) }
     val suggests = mutableListOf<SuggestRequest>()
-    var suggest: Outcome<ChangeSuggestion> = Outcome.Ok(sampleSuggestion())
+    var suggest: SuggestResult = SuggestResult.Sent(sampleSuggestion())
     val agrees = mutableListOf<Triple<String, String, AgreeSurface>>()
     var agree: Outcome<ChangeSuggestion> = Outcome.Ok(sampleSuggestion())
 
@@ -50,7 +51,7 @@ class FakeChangeStore : ChangeStore {
         return places(query)
     }
 
-    override suspend fun suggest(dateId: String, request: SuggestRequest): Outcome<ChangeSuggestion> {
+    override suspend fun suggest(dateId: String, request: SuggestRequest): SuggestResult {
         suggests += request
         return suggest
     }
@@ -87,9 +88,9 @@ class ChangePickerViewModelTest {
         sharedVibes = emptyList(), sharedInterests = emptyList(), unread = null, checkedIn = false, chatTutorialSeen = false,
     )
 
-    private fun vm(kind: ChangeKind, entry: ChangeEntry = ChangeEntry.CoordinateTile) = ChangePickerViewModel(
+    private fun vm(kind: ChangeKind, entry: ChangeEntry = ChangeEntry.CoordinateTile, saved: SavedStateHandle = SavedStateHandle()) = ChangePickerViewModel(
         kind = kind, entry = entry, store = store, analytics = analytics, clock = { now },
-        newId = { "id-${++ids}" }, zone = { ZoneId.of("Europe/Berlin") },
+        newId = { "id-${++ids}" }, zone = { ZoneId.of("Europe/Berlin") }, saved = saved,
     )
 
     @Before
@@ -300,7 +301,7 @@ class ChangePickerViewModelTest {
 
     @Test
     fun `a failed send is K -- the picker stays open with the selection, and nothing is done`() = runTest(dispatcher) {
-        store.suggest = Outcome.Failed(CallFailure.Network)
+        store.suggest = SuggestResult.Failed(CallFailure.Network)
         val vm = vm(ChangeKind.Time)
         vm.open(date())
         vm.selectSlot(slot)
@@ -315,7 +316,7 @@ class ChangePickerViewModelTest {
 
     @Test
     fun `the retry reuses the same clientId, and a different value gets a new one`() = runTest(dispatcher) {
-        store.suggest = Outcome.Failed(CallFailure.Network)
+        store.suggest = SuggestResult.Failed(CallFailure.Network)
         val vm = vm(ChangeKind.Time)
         vm.open(date())
         vm.selectSlot(slot)
@@ -330,7 +331,7 @@ class ChangePickerViewModelTest {
         advanceUntilIdle()
         assertEquals("id-2", store.suggests.last().clientId)
 
-        store.suggest = Outcome.Ok(sampleSuggestion())
+        store.suggest = SuggestResult.Sent(sampleSuggestion())
         vm.suggest()
         advanceUntilIdle()
         assertEquals("id-2", store.suggests.last().clientId)
@@ -346,6 +347,102 @@ class ChangePickerViewModelTest {
         vm.suggest()
         advanceUntilIdle()
         assertEquals(1, store.suggests.size)
+    }
+
+    // ── 409, 503 ────────────────────────────────────────────────────────────
+
+    @Test
+    fun `a 409 is not K -- the picker is stale, nothing is shown as failed, and no event fires`() = runTest(dispatcher) {
+        store.suggest = SuggestResult.Stale
+        val vm = vm(ChangeKind.Time)
+        vm.open(date())
+        vm.selectSlot(slot)
+        vm.suggest()
+        advanceUntilIdle()
+        val ui = vm.ui.value
+        assertTrue("the host closes the picker and reads the date again", ui.stale)
+        assertFalse("no K", ui.sendFailed)
+        assertFalse(ui.sending)
+        assertFalse(ui.done)
+        assertEquals(listOf("change_picker_opened"), analytics.names())
+        vm.cancel()
+        assertTrue("a stale picker is not dismissed", analytics.of("change_picker_dismissed").isEmpty())
+    }
+
+    @Test
+    fun `a 503 stays K, with the selection kept and the same clientId on the retry`() = runTest(dispatcher) {
+        store.suggest = SuggestResult.Failed(CallFailure.Server)
+        val vm = vm(ChangeKind.Time)
+        vm.open(date())
+        vm.selectSlot(slot)
+        vm.suggest()
+        advanceUntilIdle()
+        assertTrue(vm.ui.value.sendFailed)
+        assertFalse(vm.ui.value.stale)
+        assertEquals(slot, vm.ui.value.slot)
+        vm.suggest()
+        advanceUntilIdle()
+        assertEquals(listOf("id-1", "id-1"), store.suggests.map { it.clientId })
+    }
+
+    // ── process death ───────────────────────────────────────────────────────
+
+    @Test
+    fun `a selected slot, the retry's id and a place with its query come back from the saved state`() = runTest(dispatcher) {
+        store.suggest = SuggestResult.Failed(CallFailure.Network)
+        val handle = SavedStateHandle()
+        val first = vm(ChangeKind.Time, saved = handle)
+        first.open(date())
+        first.selectSlot(slot)
+        first.suggest()
+        advanceUntilIdle()
+
+        // The process dies: a new model over the same saved state.
+        val restored = vm(ChangeKind.Time, saved = handle)
+        assertEquals(slot, restored.ui.value.slot)
+        restored.open(date())
+        restored.suggest()
+        advanceUntilIdle()
+        assertEquals("the retry is the same send", listOf("id-1", "id-1"), store.suggests.map { it.clientId })
+    }
+
+    @Test
+    fun `a restored place and query reload the list for that query, and the place stays only while it is listed`() = runTest(dispatcher) {
+        val handle = SavedStateHandle()
+        val first = vm(ChangeKind.Place, saved = handle)
+        first.open(date())
+        advanceUntilIdle()
+        first.setQuery("lenz")
+        advanceTimeBy(301)
+        advanceUntilIdle()
+        first.selectPlace(NEARBY[0])
+
+        store.placeCalls.clear()
+        val restored = vm(ChangeKind.Place, saved = handle)
+        assertEquals("lenz", restored.ui.value.query)
+        assertEquals(NEARBY[0], restored.ui.value.place)
+        restored.open(date())
+        advanceUntilIdle()
+        assertEquals("the list answers the restored query", listOf<String?>("lenz"), store.placeCalls)
+        assertEquals("still listed: kept", NEARBY[0], restored.ui.value.place)
+
+        store.places = { Outcome.Ok(PlacesList(true, listOf(NEARBY[1]))) }
+        val gone = vm(ChangeKind.Place, saved = handle)
+        gone.open(date())
+        advanceUntilIdle()
+        assertNull("no longer listed: dropped (R18)", gone.ui.value.place)
+    }
+
+    @Test
+    fun `the search field stops at the contract's 100 characters`() = runTest(dispatcher) {
+        val vm = vm(ChangeKind.Place)
+        vm.open(date())
+        advanceUntilIdle()
+        vm.setQuery("x".repeat(130))
+        advanceTimeBy(301)
+        advanceUntilIdle()
+        assertEquals(100, vm.ui.value.query.length)
+        assertEquals(100, store.placeCalls.last()!!.length)
     }
 
     // ── cancel ──────────────────────────────────────────────────────────────

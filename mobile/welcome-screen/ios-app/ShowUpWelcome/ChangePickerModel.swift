@@ -11,6 +11,13 @@
 //    the same, so a suggestion the server stored whose answer was lost is answered with that copy, never stored
 //    twice (R14). Another value is another suggestion: a new id.
 //  - ONE SELECTION SURVIVES A LIST CHANGE only while the selected place is still listed (R18).
+//  - A 409 IS NOT K. The server refuses a suggestion that can no longer be made, and a retry cannot change that:
+//    `ui.stale` closes the picker and the host reads the date again. No error, no event.
+//  - THE SELECTION, THE QUERY AND THE SEND'S ID ARE HANDED TO THE HOST AS ONE STRING (`ChangePickerDraft`), which
+//    keeps them in `@SceneStorage` scoped to the session epoch. iOS does not restore a pushed destination after the
+//    process dies (the stack is `@State`), so what survives is this: opening the SAME picker again -- the same
+//    date and kind -- finds the selection, the field and the retry's id where they were. A restored place is
+//    kept only if the reloaded list still has it (R18). The draft is cleared when the picker ends.
 
 import Foundation
 
@@ -41,12 +48,43 @@ struct ChangePickerUi: Equatable, Sendable {
     var done = false
     /// Cancel or back: the host closes the picker.
     var closed = false
+    /// 409: the suggestion can no longer be made. The host closes the picker and reads the date again; no K.
+    var stale = false
 
     var hasSelection: Bool { slot != nil || place != nil }
 }
 
 /// The debounce on the trimmed query (ticket B, "debounced"; 300 ms is the design's).
 let placesDebounceSeconds: TimeInterval = 0.3
+
+/// The places route's `q` allows 100 characters; the field stops there so a long query never 400s into M.
+let placesQueryMax = 100
+
+/// What must outlive the process for one picker: the selection, the field and the id of the send in progress.
+/// One JSON string, because `@SceneStorage` takes primitives (as the profile drafts do). Nothing here goes to
+/// analytics: it is the phone's own scene storage.
+struct ChangePickerDraft: Codable, Equatable, Sendable {
+    var dateId: String
+    var kind: String
+    /// The selected slot, seconds since 1970.
+    var slot: Double?
+    var place: PlaceOption?
+    var query: String
+    var fromSearch: Bool
+    var attemptValue: String?
+    var attemptId: String?
+
+    var encoded: String {
+        guard let data = try? JSONEncoder().encode(self) else { return "" }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    /// Anything that does not decode is no draft: a value from another build is a shape this one never saw.
+    static func decode(_ raw: String) -> ChangePickerDraft? {
+        guard !raw.isEmpty, let data = raw.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(ChangePickerDraft.self, from: data)
+    }
+}
 
 @MainActor
 @Observable
@@ -71,6 +109,8 @@ final class ChangePickerModel {
     @ObservationIgnored private var pickedFromSearch = false
     /// The value last sent and the id it went with, kept for the retry.
     @ObservationIgnored private var attempt: (value: String, id: String)?
+    /// Hands the host the draft as a string, or "" when the picker has ended.
+    @ObservationIgnored private let persistDraft: (String) -> Void
 
     init(
         kind: ChangeKind,
@@ -80,7 +120,9 @@ final class ChangePickerModel {
         clock: @escaping () -> Date = { Date() },
         newId: @escaping () -> String = { UUID().uuidString.lowercased() },
         zone: @escaping () -> TimeZone = { TimeZone.current },
-        debounce: TimeInterval = placesDebounceSeconds
+        debounce: TimeInterval = placesDebounceSeconds,
+        restoring: ChangePickerDraft? = nil,
+        persist: @escaping (String) -> Void = { _ in }
     ) {
         self.kind = kind
         self.entry = entry
@@ -90,7 +132,25 @@ final class ChangePickerModel {
         self.newId = newId
         self.zone = zone
         self.debounce = debounce
-        self.ui = ChangePickerUi(kind: kind, entry: entry)
+        self.persistDraft = persist
+        var start = ChangePickerUi(kind: kind, entry: entry)
+        if let draft = restoring, draft.kind == kind.rawValue {
+            start.slot = draft.slot.map { Date(timeIntervalSince1970: $0) }
+            start.place = draft.place
+            start.query = draft.query
+        }
+        self.ui = start
+        if let draft = restoring, draft.kind == kind.rawValue {
+            pickedFromSearch = draft.fromSearch
+            if let value = draft.attemptValue, let id = draft.attemptId { attempt = (value, id) }
+        }
+    }
+
+    private func save() {
+        guard let date else { return }
+        persistDraft(ChangePickerDraft(
+            dateId: date.id, kind: kind.rawValue, slot: ui.slot?.timeIntervalSince1970, place: ui.place, query: ui.query,
+            fromSearch: pickedFromSearch, attemptValue: attempt?.value, attemptId: attempt?.id).encoded)
     }
 
     /// The picker is on screen: `change_picker_opened`, once however many times the host builds it, and for the
@@ -100,23 +160,29 @@ final class ChangePickerModel {
         self.date = date
         analytics?.report(ChangeAnalytics.pickerOpened(dateId: date.id, kind: kind, entry: entry,
                                                        meetAt: date.meetAt, now: clock()))
-        if kind == .place { fetch("", immediately: true) }
+        // After process death the field comes back with its text: the list answers THAT, not the nearby default.
+        if kind == .place { fetch(ui.query.trimmingCharacters(in: .whitespacesAndNewlines), immediately: true) }
+        save()
     }
 
     func selectSlot(_ slot: Date) {
         if ui.slot != slot { ui.sendFailed = false }
         ui.slot = slot
+        save()
     }
 
     func selectPlace(_ place: PlaceOption) {
         if case .loaded(_, _, let forQuery) = ui.list { pickedFromSearch = !forQuery.isEmpty } else { pickedFromSearch = false }
         if ui.place != place { ui.sendFailed = false }
         ui.place = place
+        save()
     }
 
     /// The field changed: the list follows 300 ms after the last key, on the trimmed text.
-    func setQuery(_ query: String) {
+    func setQuery(_ raw: String) {
+        let query = String(raw.prefix(placesQueryMax))
         ui.query = query
+        save()
         guard kind == .place else { return }
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         // Same read as the last one, and it did not fail: nothing to ask. A failure is retried by typing.
@@ -154,20 +220,22 @@ final class ChangePickerModel {
         case .success(let list):
             ui.list = .loaded(places: list.places, google: list.google, forQuery: trimmed)
             if let chosen = ui.place, !list.places.contains(where: { $0.placeId == chosen.placeId }) { ui.place = nil }
+            save()
         case .failure:
             // No selection to keep: the list it was picked from is gone, and Suggest waits for a new one.
             ui.list = .failed
             ui.place = nil
+            save()
         }
     }
 
     /// `Suggest {value}`, and K's retry. Inert while one is in flight, and with nothing selected.
     func suggest() {
-        guard let dateId = date?.id, !ui.sending, !ui.done else { return }
+        guard let dateId = date?.id, !ui.sending, !ui.done, !ui.stale else { return }
         let value: String
         if kind == .time {
             guard let slot = ui.slot else { return }
-            value = "\(slot.timeIntervalSince1970)"
+            value = "\(Int(slot.timeIntervalSince1970))"
         } else {
             guard let place = ui.place else { return }
             value = place.placeId
@@ -179,6 +247,7 @@ final class ChangePickerModel {
             id = newId()
             attempt = (value, id)
         }
+        save()
         ui.sending = true
         ui.sendFailed = false
         let request = SuggestRequest(
@@ -192,10 +261,16 @@ final class ChangePickerModel {
         Task { [weak self, store] in
             let answer = await store.suggest(dateId: dateId, request: request)
             switch answer {
-            case .success:
+            case .sent:
                 self?.ui.sending = false
                 self?.ui.done = true
-            case .failure:
+                self?.persistDraft("")
+            case .stale:
+                // 409: nothing a retry can fix. No K, no event: the host closes and reads the date again.
+                self?.ui.sending = false
+                self?.ui.stale = true
+                self?.persistDraft("")
+            case .failed:
                 self?.ui.sending = false
                 self?.ui.sendFailed = true
             }
@@ -204,11 +279,12 @@ final class ChangePickerModel {
 
     /// Cancel or back: nothing was stored or sent. Ignored while a send is in flight (both buttons are inert).
     func cancel() {
-        guard !ui.sending, !ui.closed, !ui.done else { return }
+        guard !ui.sending, !ui.closed, !ui.done, !ui.stale else { return }
         if let date {
             analytics?.report(ChangeAnalytics.pickerDismissed(dateId: date.id, kind: kind, entry: entry,
                                                               hadSelection: ui.hasSelection))
         }
         ui.closed = true
+        persistDraft("")
     }
 }

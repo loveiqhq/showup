@@ -129,6 +129,7 @@ private struct TutorialFlow: View {
         _hideAgeStored = SceneStorage(wrappedValue: false,
                                       SceneKey.scoped("basics.hideAge", epoch: epoch))
         _searchLikeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("search.like", epoch: epoch))
+        _changeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("change.picker", epoch: epoch))
     }
 
     // SceneStorage, not State: a process death mid-tutorial should not silently drop the user back
@@ -286,6 +287,9 @@ private struct TutorialFlow: View {
                                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
     /// An open like sheet and its message, so a process the system ended reopens them (`attachSearch`).
     @SceneStorage private var searchLikeStored: String
+    /// The open picker's selection, field and send id (`ChangePickerDraft`), epoch-scoped like every key here. The
+    /// pushed destination is not restored after the process dies; opening the same picker again finds this.
+    @SceneStorage private var changeStored: String
 
     // ── the date (SHOWUP-193) ─────────────────────────────────────────────────
     //
@@ -1210,8 +1214,11 @@ private struct TutorialFlow: View {
     /// The picker for `route`, pushed over whatever is up (the Date screen, or the chat above it). Suggest another
     /// (Date 05 cards) calls this with `counter_card` / `counter_thread`, which fires only `change_picker_opened`.
     func openChangePicker(_ route: AppRoute) {
-        guard case .changePicker(let kind, let entry) = route, dateModel.state.date != nil else { return }
-        changeModel = ChangePickerModel(kind: kind, entry: entry, store: changeStore, analytics: AppAnalytics.shared)
+        guard case .changePicker(let kind, let entry) = route, let dateId = dateModel.state.date?.id else { return }
+        let stored = $changeStored
+        let restored = ChangePickerDraft.decode(changeStored).flatMap { $0.dateId == dateId && $0.kind == kind.rawValue ? $0 : nil }
+        changeModel = ChangePickerModel(kind: kind, entry: entry, store: changeStore, analytics: AppAnalytics.shared,
+                                        restoring: restored, persist: { stored.wrappedValue = $0 })
         chatPath.append(route)
     }
 
@@ -1242,6 +1249,13 @@ private struct TutorialFlow: View {
                     }
                 }
                 .onChange(of: model.ui.closed) { _, closed in if closed { popChangePicker() } }
+                // 409: the cutoff passed or someone checked in. No error: close, and read the date again.
+                .onChange(of: model.ui.stale) { _, stale in
+                    if stale {
+                        dateModel.foreground()
+                        popChangePicker()
+                    }
+                }
         }
     }
 

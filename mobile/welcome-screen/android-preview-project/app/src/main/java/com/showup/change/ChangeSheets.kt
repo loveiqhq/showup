@@ -169,6 +169,9 @@ fun ChangeFullSheet(footer: @Composable () -> Unit, content: @Composable () -> U
 
 @Composable
 private fun BoxScope.Footer(modifier: Modifier, content: @Composable () -> Unit) {
+    val bottomInset = with(LocalDensity.current) {
+        WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom).getBottom(this).toDp()
+    }
     Column(
         modifier
             .fillMaxWidth()
@@ -176,9 +179,10 @@ private fun BoxScope.Footer(modifier: Modifier, content: @Composable () -> Unit)
             .roundedShadows(SolidColor(Cream), 0.dp, FooterLift)
             .background(Cream)
             .drawBehind { drawRect(BorderSoft, size = Size(size.width, 1.dp.toPx())) }
-            .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars).only(WindowInsetsSides.Bottom))
-            // Pad 14 20 30 plus the 1 px rule CSS counts in the box.
-            .padding(start = 20.dp, end = 20.dp, top = 15.dp, bottom = 30.dp),
+            // Pad 14 20 30 plus the 1 px rule CSS counts in the box. The 30 is the mock home indicator: where the
+            // real bottom inset (the gesture bar, or the keyboard) is larger it replaces the 30 rather than adding
+            // to it, so a button-navigation phone keeps the drawn 30.
+            .padding(start = 20.dp, end = 20.dp, top = 15.dp, bottom = maxOf(30.dp, bottomInset)),
         verticalArrangement = Arrangement.spacedBy(10.dp),
         content = { content() },
     )

@@ -11,6 +11,7 @@
  */
 package com.showup.change
 
+import com.showup.api.CallFailure
 import com.showup.api.Outcome
 import com.showup.api.ShowUpApi
 import com.showup.api.generated.model.AgreeChangeDto
@@ -22,8 +23,11 @@ import com.showup.api.generated.model.ChangeSuggestionDto
 import com.showup.api.generated.model.PlaceOptionDto
 import com.showup.api.generated.model.SuggestChangeDto
 import com.showup.api.outcome
+import kotlinx.coroutines.CancellationException
+import java.io.IOException
 import java.time.Instant
 import java.util.UUID
+import kotlin.math.roundToInt
 import com.showup.api.generated.model.ChangeEntry as WireEntry
 import com.showup.api.generated.model.ChangeKind as WireKind
 import com.showup.api.generated.model.ChangeStatus as WireStatus
@@ -125,13 +129,27 @@ data class SuggestRequest(
     val tz: String,
 )
 
+/**
+ * What `Suggest` came back with. [Stale] is 409: the server refuses a suggestion that can no longer be made
+ * (past the cutoff, after a check-in, a slot no longer offered, the place now binding), and asking again cannot
+ * change that -- so it is not K: the picker closes and the date is read again. Everything else that is not a
+ * success ([Failed]: no response, 503, any other status) is K, and a retry may succeed.
+ */
+sealed interface SuggestResult {
+    data class Sent(val suggestion: ChangeSuggestion) : SuggestResult
+
+    data object Stale : SuggestResult
+
+    data class Failed(val why: CallFailure) : SuggestResult
+}
+
 /** Date 05's calls, behind an interface so the models are tested with no network. */
 interface ChangeStore {
     /** Public places near the binding meet place, or matching [query] (null or blank: nearby). */
     suspend fun places(dateId: String, query: String?): Outcome<PlacesList>
 
     /** A suggestion; a repeat of the same clientId is answered with the stored one. */
-    suspend fun suggest(dateId: String, request: SuggestRequest): Outcome<ChangeSuggestion>
+    suspend fun suggest(dateId: String, request: SuggestRequest): SuggestResult
 
     /** `I agree`: the suggestion becomes binding for both. A refusal (no longer pending) is a failure. */
     suspend fun agree(dateId: String, suggestionId: String, surface: AgreeSurface): Outcome<ChangeSuggestion>
@@ -147,7 +165,11 @@ class ApiChangeStore(private val api: ShowUpApi) : ChangeStore {
         response.body()?.takeIf { response.isSuccessful }?.toList()
     }
 
-    override suspend fun suggest(dateId: String, request: SuggestRequest): Outcome<ChangeSuggestion> = outcome {
+    /**
+     * [outcome]'s line between "no response" and "a response that is not a success", plus the one answer that is
+     * neither: 409, which the caller resolves with a date read rather than a retry.
+     */
+    override suspend fun suggest(dateId: String, request: SuggestRequest): SuggestResult = try {
         // By wire value, not constant name: a regenerated enum constant must not change what is sent.
         val body = SuggestChangeDto(
             clientId = UUID.fromString(request.clientId),
@@ -159,7 +181,18 @@ class ApiChangeStore(private val api: ShowUpApi) : ChangeStore {
             tz = request.tz,
         )
         val response = api.dates.suggestDateChange(dateId, body)
-        response.body()?.takeIf { response.isSuccessful }?.toSuggestion()
+        val sent = response.body()
+        when {
+            response.isSuccessful && sent != null -> SuggestResult.Sent(sent.toSuggestion())
+            response.code() == 409 -> SuggestResult.Stale
+            else -> SuggestResult.Failed(CallFailure.Server)
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: IOException) {
+        SuggestResult.Failed(CallFailure.Network)
+    } catch (e: Exception) {
+        SuggestResult.Failed(CallFailure.Server)
     }
 
     override suspend fun agree(dateId: String, suggestionId: String, surface: AgreeSurface): Outcome<ChangeSuggestion> = outcome {
@@ -190,7 +223,7 @@ private fun ChangePlaceDto.Type.toType() = when (this) {
 
 private fun ChangePlacesDto.toList() = PlacesList(
     google = attribution == ChangePlacesDto.Attribution.google,
-    places = places.map { PlaceOption(it.placeId, it.name, it.type.toType(), it.address, it.distanceMeters.toInt()) },
+    places = places.map { PlaceOption(it.placeId, it.name, it.type.toType(), it.address, it.distanceMeters.toDouble().roundToInt()) },
 )
 
 private fun WireKind.toKind() = if (this == WireKind.time) ChangeKind.Time else ChangeKind.Place
