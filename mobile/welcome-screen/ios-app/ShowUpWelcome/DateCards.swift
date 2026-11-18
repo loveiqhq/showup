@@ -259,7 +259,7 @@ private struct ChangeTag: View {
             HStack(spacing: 6) {
                 BrandIconView(icon: .refresh, size: 12, stroke: 2.4, tint: .liqMuted)
                     .accessibilityHidden(true)
-                Text(changedText(was))
+                changedText(was)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
