@@ -1191,6 +1191,8 @@ private struct TutorialFlow: View {
 
     /// `Find your next date`: the date is over, so Search, Likes and Instant open, and Search shows.
     private func findNextDate() {
+        // The date is over: a picker draft kept for it would never match another date's id, and is dropped.
+        changeStored = ""
         dateModel.outcomeShown()
         dateProfileModel.close()
         checkIn.refresh()

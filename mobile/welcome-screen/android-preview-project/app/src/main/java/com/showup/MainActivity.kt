@@ -2874,7 +2874,13 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) { navController.popBackStack() }
                     return@composable
                 }
-                if (d == null) return@composable
+                if (d == null) {
+                    // After process death nothing else reads the date: the Date destination that calls `arrived` is not
+                    // composed under a restored picker. Ask once; the branch above pops the picker if the read comes
+                    // back with no active date.
+                    LaunchedEffect(Unit) { date.foreground() }
+                    return@composable
+                }
                 val vm: ChangePickerViewModel = viewModel(
                     factory = viewModelFactory {
                         initializer { ChangePickerViewModel(kind, from, changeStore, analytics = AppAnalytics, saved = createSavedStateHandle()) }

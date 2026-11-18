@@ -86,6 +86,10 @@ class ChangePickerViewModelTest {
         match = DateMatch("u2", "Leonie", 28, "Neukölln", 1, null, 4),
         motivationYou = "long_term", motivationThem = "long_term",
         sharedVibes = emptyList(), sharedInterests = emptyList(), unread = null, checkedIn = false, chatTutorialSeen = false,
+        change = DateChange(
+            cutoffAt = meet.minusSeconds(1800), allowed = true, slots = listOf(slot, slot.plusSeconds(900)),
+            timeWas = null, placeWas = null, pending = emptyList(),
+        ),
     )
 
     private fun vm(kind: ChangeKind, entry: ChangeEntry = ChangeEntry.CoordinateTile, saved: SavedStateHandle = SavedStateHandle()) = ChangePickerViewModel(
@@ -431,6 +435,43 @@ class ChangePickerViewModelTest {
         gone.open(date())
         advanceUntilIdle()
         assertNull("no longer listed: dropped (R18)", gone.ui.value.place)
+    }
+
+    @Test
+    fun `a restored slot that the server no longer offers is dropped, one still offered is kept`() = runTest(dispatcher) {
+        val handle = SavedStateHandle()
+        val first = vm(ChangeKind.Time, saved = handle)
+        first.open(date())
+        first.selectSlot(slot.plusSeconds(900))
+
+        val kept = vm(ChangeKind.Time, saved = handle)
+        assertEquals(slot.plusSeconds(900), kept.ui.value.slot)
+        kept.open(date())
+        assertEquals("still offered: kept", slot.plusSeconds(900), kept.ui.value.slot)
+
+        // The slot list moved on while the process was gone.
+        val moved = date().let { it.copy(change = it.change!!.copy(slots = listOf(slot))) }
+        val dropped = vm(ChangeKind.Time, saved = handle)
+        dropped.open(moved)
+        assertNull("not offered: dropped, the primary reads Pick a time", dropped.ui.value.slot)
+        assertFalse(dropped.ui.value.hasSelection)
+        // And it stays dropped for the next restore.
+        assertNull(vm(ChangeKind.Time, saved = handle).ui.value.slot)
+    }
+
+    @Test
+    fun `a debounced search not yet sent is dropped when the picker is cancelled, and nothing more is saved`() = runTest(dispatcher) {
+        val handle = SavedStateHandle()
+        val vm = vm(ChangeKind.Place, saved = handle)
+        vm.open(date())
+        advanceUntilIdle()
+        vm.setQuery("a")
+        vm.cancel()
+        advanceTimeBy(500)
+        advanceUntilIdle()
+        assertEquals("the pending search never went out", listOf<String?>(null), store.placeCalls)
+        vm.setQuery("late")
+        assertEquals("a finished picker writes nothing", "a", handle.get<String>("query"))
     }
 
     @Test

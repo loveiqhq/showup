@@ -60,7 +60,9 @@ final class ChangePickerModelTests: XCTestCase {
                    match: DateMatch(userId: "u2", name: "Leonie", age: 28, district: "Neukölln", distanceKm: 1,
                                     photoUrl: nil, attendedCount: 4),
                    motivationYou: "long_term", motivationThem: "long_term",
-                   sharedVibes: [], sharedInterests: [], unread: nil, checkedIn: false, chatTutorialSeen: false)
+                   sharedVibes: [], sharedInterests: [], unread: nil, checkedIn: false, chatTutorialSeen: false,
+                   change: DateChange(cutoffAt: meet.addingTimeInterval(-1800), allowed: true,
+                                      slots: [slot, slot.addingTimeInterval(900)], timeWas: nil, placeWas: nil, pending: []))
     }
 
     private func model(_ kind: ChangeKind, _ store: FakeChangeStore, _ analytics: RecordingAnalytics,
@@ -433,6 +435,44 @@ final class ChangePickerModelTests: XCTestCase {
         XCTAssertNil(other.ui.slot)
         XCTAssertEqual(other.ui.query, "")
         XCTAssertNil(ChangePickerDraft.decode("not json"))
+    }
+
+    func testARestoredSlotTheServerNoLongerOffersIsDroppedOneStillOfferedIsKept() async {
+        let box = DraftBox()
+        let first = model(.time, FakeChangeStore(), RecordingAnalytics(), persist: { box.value = $0 })
+        first.open(date())
+        first.selectSlot(slot.addingTimeInterval(900))
+
+        let kept = model(.time, FakeChangeStore(), RecordingAnalytics(), saved: ChangePickerDraft.decode(box.value))
+        XCTAssertEqual(kept.ui.slot, slot.addingTimeInterval(900))
+        kept.open(date())
+        XCTAssertEqual(kept.ui.slot, slot.addingTimeInterval(900), "still offered: kept")
+
+        // The slot list moved on while the process was gone.
+        var moved = date()
+        moved.change = DateChange(cutoffAt: meet.addingTimeInterval(-1800), allowed: true, slots: [slot], timeWas: nil,
+                                  placeWas: nil, pending: [])
+        let dropped = model(.time, FakeChangeStore(), RecordingAnalytics(), saved: ChangePickerDraft.decode(box.value))
+        dropped.open(moved)
+        XCTAssertNil(dropped.ui.slot, "not offered: dropped, the primary reads Pick a time")
+        XCTAssertFalse(dropped.ui.hasSelection)
+    }
+
+    func testADebouncedSearchNotYetSentIsDroppedWhenThePickerIsCancelledAndTheClearedDraftStaysCleared() async {
+        let store = FakeChangeStore()
+        let box = DraftBox()
+        let m = model(.place, store, RecordingAnalytics(), persist: { box.value = $0 })
+        m.open(date())
+        await settle()
+        m.setQuery("a")
+        m.cancel()
+        await settle(0.3)
+        let calls = await store.placeCalls
+        XCTAssertEqual(calls, [nil], "the pending search never went out")
+        XCTAssertEqual(box.value, "", "a late answer does not rewrite the cleared draft")
+        m.setQuery("late")
+        await settle(0.3)
+        XCTAssertEqual(box.value, "")
     }
 
     func testTheSearchFieldStopsAtTheContractsHundredCharacters() async {

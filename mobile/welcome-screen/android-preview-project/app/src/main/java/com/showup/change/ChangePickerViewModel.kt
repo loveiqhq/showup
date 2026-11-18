@@ -140,6 +140,8 @@ class ChangePickerViewModel(
     /** What must outlive the process: the selection, the field, and the id of the send in progress. */
     private fun persist() {
         val u = _ui.value
+        // A picker that has ended writes nothing more: a late answer must not bring a finished send back.
+        if (u.closed || u.done || u.stale) return
         saved[KEY_SLOT] = u.slot?.epochSecond
         saved[KEY_QUERY] = u.query
         saved[KEY_PLACE_ID] = u.place?.placeId
@@ -159,6 +161,15 @@ class ChangePickerViewModel(
     fun open(date: ActiveDate) {
         if (this.date != null) return
         this.date = date
+        // A restored slot is only as good as the list the server offers now: it may have been taken, or the cutoff
+        // may have moved it out. Not offered: dropped, so the primary reads `Pick a time` and no slot is lit (R18's
+        // time half).
+        _ui.value.slot?.let { restored ->
+            if (restored !in date.change?.slots.orEmpty()) {
+                _ui.update { it.copy(slot = null) }
+                persist()
+            }
+        }
         analytics?.report(ChangeAnalytics.pickerOpened(date.id, kind, entry, date.meetAt, clock()))
         // After process death the field comes back with its text: the list answers THAT, not the nearby default.
         if (kind == ChangeKind.Place) fetch(_ui.value.query.trim(), immediately = true)
@@ -200,6 +211,8 @@ class ChangePickerViewModel(
     private fun fetch(trimmed: String, immediately: Boolean) {
         val dateId = date?.id ?: return
         loadJob?.cancel()
+        // An ended picker starts no read: it would only write state nobody is looking at.
+        if (_ui.value.closed || _ui.value.done || _ui.value.stale) return
         loadJob = viewModelScope.launch {
             if (!immediately) delay(PLACES_DEBOUNCE_MS)
             requested = trimmed
@@ -243,9 +256,15 @@ class ChangePickerViewModel(
         )
         viewModelScope.launch {
             when (store.suggest(dateId, request)) {
-                is SuggestResult.Sent -> _ui.update { it.copy(sending = false, done = true) }
+                is SuggestResult.Sent -> {
+                    loadJob?.cancel()
+                    _ui.update { it.copy(sending = false, done = true) }
+                }
                 // 409: nothing a retry can fix. No K, no event: the host closes and reads the date again.
-                SuggestResult.Stale -> _ui.update { it.copy(sending = false, stale = true) }
+                SuggestResult.Stale -> {
+                    loadJob?.cancel()
+                    _ui.update { it.copy(sending = false, stale = true) }
+                }
                 is SuggestResult.Failed -> _ui.update { it.copy(sending = false, sendFailed = true) }
             }
         }
@@ -256,6 +275,8 @@ class ChangePickerViewModel(
         val state = _ui.value
         if (state.sending || state.closed || state.done || state.stale) return
         date?.let { analytics?.report(ChangeAnalytics.pickerDismissed(it.id, kind, entry, state.hasSelection)) }
+        // The picker is over: a places answer still in flight (or a debounced search not yet sent) is dropped.
+        loadJob?.cancel()
         _ui.update { it.copy(closed = true) }
     }
 }

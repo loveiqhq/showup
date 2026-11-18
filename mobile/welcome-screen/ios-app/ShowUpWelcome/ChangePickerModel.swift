@@ -146,8 +146,11 @@ final class ChangePickerModel {
         }
     }
 
+    /// A picker that has ended writes nothing more: a late answer must not bring a finished send's draft back.
+    private var ended: Bool { ui.closed || ui.done || ui.stale }
+
     private func save() {
-        guard let date else { return }
+        guard let date, !ended else { return }
         persistDraft(ChangePickerDraft(
             dateId: date.id, kind: kind.rawValue, slot: ui.slot?.timeIntervalSince1970, place: ui.place, query: ui.query,
             fromSearch: pickedFromSearch, attemptValue: attempt?.value, attemptId: attempt?.id).encoded)
@@ -158,6 +161,10 @@ final class ChangePickerModel {
     func open(_ date: ActiveDate) {
         guard self.date == nil else { return }
         self.date = date
+        // A restored slot is only as good as the list the server offers now: it may have been taken, or the cutoff may
+        // have moved it out. Not offered: dropped, so the primary reads `Pick a time` and no slot is lit (R18's time
+        // half).
+        if let restored = ui.slot, !(date.change?.slots ?? []).contains(restored) { ui.slot = nil }
         analytics?.report(ChangeAnalytics.pickerOpened(dateId: date.id, kind: kind, entry: entry,
                                                        meetAt: date.meetAt, now: clock()))
         // After process death the field comes back with its text: the list answers THAT, not the nearby default.
@@ -202,6 +209,8 @@ final class ChangePickerModel {
     private func fetch(_ trimmed: String, immediately: Bool) {
         guard let dateId = date?.id else { return }
         loadTask?.cancel()
+        // An ended picker starts no read: it would only write state nobody is looking at.
+        guard !ended else { return }
         let wait = debounce
         loadTask = Task { [weak self, store] in
             if !immediately {
@@ -262,11 +271,13 @@ final class ChangePickerModel {
             let answer = await store.suggest(dateId: dateId, request: request)
             switch answer {
             case .sent:
+                self?.loadTask?.cancel()
                 self?.ui.sending = false
                 self?.ui.done = true
                 self?.persistDraft("")
             case .stale:
                 // 409: nothing a retry can fix. No K, no event: the host closes and reads the date again.
+                self?.loadTask?.cancel()
                 self?.ui.sending = false
                 self?.ui.stale = true
                 self?.persistDraft("")
@@ -284,6 +295,8 @@ final class ChangePickerModel {
             analytics?.report(ChangeAnalytics.pickerDismissed(dateId: date.id, kind: kind, entry: entry,
                                                               hadSelection: ui.hasSelection))
         }
+        // The picker is over: a places answer still in flight (or a debounced search not yet sent) is dropped.
+        loadTask?.cancel()
         ui.closed = true
         persistDraft("")
     }
