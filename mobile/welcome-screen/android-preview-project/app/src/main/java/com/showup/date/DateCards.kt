@@ -60,7 +60,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -114,6 +113,7 @@ import com.showup.designsystem.ShowUpEasing
 import com.showup.designsystem.Success
 import com.showup.designsystem.SuccessFg
 import com.showup.designsystem.cssBlurToShadowRadius
+import com.showup.designsystem.BaselineWrap
 import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.fitWords
 import com.showup.designsystem.fitWordsOf
@@ -228,37 +228,6 @@ internal fun DateHero(photoUrl: String?, modifier: Modifier = Modifier) {
 }
 
 // ── ③ time + place ──────────────────────────────────────────────────────────
-
-/**
- * A label and a value on one baseline, gap 8, the value dropping to its own line when the two do not
- * fit -- the reference's `display: flex; align-items: baseline; flex-wrap: wrap; gap: 8`. A long place
- * name wraps rather than truncating.
- */
-@Composable
-private fun BaselineWrap(label: @Composable () -> Unit, value: @Composable () -> Unit) {
-    Layout(contents = listOf(label, value)) { (l, v), constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val labelP = l.first().measure(loose)
-        // The value at most a full line wide: a name longer than that wraps inside it, as CSS's does.
-        val valueP = v.first().measure(loose)
-        val gap = 8.dp.roundToPx()
-        if (labelP.width + gap + valueP.width <= constraints.maxWidth) {
-            val base = maxOf(labelP[FirstBaseline], valueP[FirstBaseline])
-            val labelTop = base - labelP[FirstBaseline]
-            val valueTop = base - valueP[FirstBaseline]
-            layout(constraints.maxWidth, maxOf(labelTop + labelP.height, valueTop + valueP.height)) {
-                labelP.place(0, labelTop)
-                valueP.place(labelP.width + gap, valueTop)
-            }
-        } else {
-            // `flex-wrap` with `gap: 8`, which is also the row gap: the value on its own line.
-            layout(constraints.maxWidth, labelP.height + gap + valueP.height) {
-                labelP.place(0, 0)
-                valueP.place(0, labelP.height + gap)
-            }
-        }
-    }
-}
 
 @Composable
 private fun MeetLabel(text: String) = Text(

@@ -67,13 +67,8 @@ struct ChangeSuggestionCard: View {
                 Text("\(who) · \(what)".uppercased())
                     .font(F.manrope(11, .heavy)).tracking(0.06).foregroundColor(.liqPurple)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(value).font(F.lora(24, bold: true)).foregroundColor(.liqFg)
-                    .cssLineBox(24 * 1.1)
-                    .layoutPriority(1)
-                Text(was).font(F.manrope(13, .regular)).foregroundColor(.liqSubtle).strikethrough()
-            }
-            .padding(.top, 6)
+            valueRow(value: value, was: was)
+                .padding(.top, 6)
             if !isTime, let place = suggestion.place {
                 Text("\(placeTypeLabel(place.type)) · \(place.address)")
                     .font(F.manrope(12.5, .regular)).foregroundColor(.liqMuted)
@@ -82,6 +77,31 @@ struct ChangeSuggestionCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(EdgeInsets(top: 12, leading: 14, bottom: 13, trailing: 14))
+    }
+
+    /// The reference's `align-items: baseline; flex-wrap: wrap; gap: 10`: the old value on the new one's baseline,
+    /// dropping to its own line under a long name instead of squeezing or truncating. `ViewThatFits` takes the
+    /// one-line form when both fit (the same answer the Date screen's `BaselineWrap` gives) and the stack when not.
+    private func valueRow(value: String, was: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                valueText(value).fixedSize()
+                wasText(was).fixedSize()
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                valueText(value).fixedSize(horizontal: false, vertical: true)
+                wasText(was).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func valueText(_ value: String) -> some View {
+        Text(value).font(F.lora(24, bold: true)).foregroundColor(.liqFg).cssLineBox(24 * 1.1)
+    }
+
+    private func wasText(_ was: String) -> some View {
+        Text(was).font(F.manrope(13, .regular)).foregroundColor(.liqSubtle).strikethrough()
     }
 
     @ViewBuilder private func footer(mine: Bool, deadline: String) -> some View {

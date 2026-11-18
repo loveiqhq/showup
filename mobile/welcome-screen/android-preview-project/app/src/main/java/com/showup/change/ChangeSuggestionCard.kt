@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.chat.messageTime
 import com.showup.date.pressable
+import com.showup.designsystem.BaselineWrap
 import com.showup.designsystem.Border
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Elevated
@@ -77,6 +78,8 @@ fun changeCardTag(id: String) = "change-card-$id"
 const val CHANGE_CARD_AGREE_TAG = "change-card-agree"
 const val CHANGE_CARD_COUNTER_TAG = "change-card-counter"
 const val CHANGE_CARD_RETRY_TAG = "change-card-retry"
+const val CHANGE_CARD_VALUE_TAG = "change-card-value"
+const val CHANGE_CARD_WAS_TAG = "change-card-was"
 
 private val AmberInk = Color(0xFF78350F)
 private val AmberBody = Color(0xFF92400E)
@@ -127,10 +130,15 @@ fun ChangeSuggestionCard(
                     val what = if (isTime) ChangeCopy.CARD_TIME else ChangeCopy.CARD_PLACE
                     Text("$who · $what".uppercase(), style = HeaderText)
                 }
-                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Bottom) {
-                    Text(value, modifier = Modifier.weight(1f, fill = false).cssLineBox(ValueText.lineHeight), style = ValueText)
-                    Text(was, style = WasText)
-                }
+                // The reference's `align-items: baseline; flex-wrap: wrap; gap: 10`: the struck old value on the
+                // value's baseline, dropping to its own line under a long name instead of squeezing.
+                BaselineWrap(
+                    first = { // The tag is applied after cssLineBox: its node then sits where the text is drawn, which the baseline test reads.
+                    Text(value, modifier = Modifier.cssLineBox(ValueText.lineHeight).testTag(CHANGE_CARD_VALUE_TAG), style = ValueText) },
+                    second = { Text(was, modifier = Modifier.testTag(CHANGE_CARD_WAS_TAG), style = WasText) },
+                    modifier = Modifier.padding(top = 6.dp),
+                    gap = 10.dp,
+                )
                 suggestion.place?.takeIf { !isTime }?.let {
                     Text("${placeTypeLabel(it.type)} · ${it.address}", modifier = Modifier.padding(top = 3.dp), style = TypeLine)
                 }

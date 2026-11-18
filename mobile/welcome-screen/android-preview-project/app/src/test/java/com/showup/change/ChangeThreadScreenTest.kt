@@ -9,9 +9,11 @@ package com.showup.change
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -218,5 +220,47 @@ class ChangeThreadScreenTest {
     fun `a card alone replaces the start grid`() = runComposeUiTest {
         setContent { Screen(thread(listOf(s.THEIRS_TIME))) }
         onAllNodesWithText("Start with a reason", substring = true).assertCountEquals(0)
+    }
+
+    // ── the value row: one baseline, wrapping (the reference's `align-items: baseline; flex-wrap: wrap`) ──
+
+    /** Where the first line's baseline of the tagged text is drawn, in dp from the root's top. */
+    private fun androidx.compose.ui.test.ComposeUiTest.baselineDp(tag: String): Float {
+        val node = onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode()
+        val results = mutableListOf<TextLayoutResult>()
+        node.config[SemanticsActions.GetTextLayoutResult].action!!.invoke(results)
+        return (node.boundsInRoot.top + results.first().getLineBaseline(0)) / node.layoutInfo.density.density
+    }
+
+    private fun androidx.compose.ui.test.ComposeUiTest.dpPerPx() =
+        onNodeWithTag(CHANGE_CARD_VALUE_TAG, useUnmergedTree = true).fetchSemanticsNode().layoutInfo.density.density
+
+    private fun androidx.compose.ui.test.ComposeUiTest.boundsOf(tag: String) =
+        onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+
+    @Test
+    fun `the struck old value sits on the value's baseline`() = runComposeUiTest {
+        setContent { Screen(thread(listOf(s.THEIRS_TIME))) }
+        assertEquals(baselineDp(CHANGE_CARD_VALUE_TAG), baselineDp(CHANGE_CARD_WAS_TAG), 0.5f)
+        // And to its right, 10 apart.
+        val value = boundsOf(CHANGE_CARD_VALUE_TAG)
+        val was = boundsOf(CHANGE_CARD_WAS_TAG)
+        assertEquals(10f, (was.left - value.right) / dpPerPx(), 0.5f)
+    }
+
+    @Test
+    fun `a long place name drops the old name to its own line instead of squeezing it`() = runComposeUiTest {
+        val long = s.MINE_PLACE.copy(
+            byYou = false,
+            place = s.MINE_PLACE.place!!.copy(name = "Osteria Nove Ristorante Pizzeria Bar and Lounge Kreuzberg"),
+            wasPlaceName = "Cafe Krone",
+        )
+        setContent { Screen(thread(listOf(long))) }
+        val value = boundsOf(CHANGE_CARD_VALUE_TAG)
+        val was = boundsOf(CHANGE_CARD_WAS_TAG)
+        val dp = dpPerPx()
+        assertTrue("the old name is below the new one", was.top >= value.bottom)
+        assertEquals("on its own line, at the left", value.left, was.left, 1f)
+        assertTrue("one line, not squeezed", was.height / dp < 20f)
     }
 }
