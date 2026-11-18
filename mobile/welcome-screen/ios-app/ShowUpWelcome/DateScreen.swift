@@ -141,6 +141,10 @@ struct DateScreen: View {
     var changeTiles: [ChatReason]? = nil
     /// A change tile was tapped: the Date 05 picker opens, once it exists.
     var onChangeTile: (ChatReason) -> Void = { _ in }
+    /// `I agree` on the request card (Date 05): the model agrees with surface `coordinate_card`.
+    var onAgree: () -> Void = {}
+    /// `Suggest another` on the request card while the chat is locked: the picker of that kind, entry `counter_card`.
+    var onSuggestAnother: (ChangeKind) -> Void = { _ in }
 
     /// Measured, local and disposable: what the footer rule needs.
     @State private var heights: [String: CGFloat] = [:]
@@ -225,10 +229,11 @@ struct DateScreen: View {
                 .padding(.top, 8)
                 .fitAnchor("date:hero")
             Color.clear.frame(height: 12)
-            // The match's arrival and an unread message are both hoisted under the hero (R11).
-            let hoist = hoisted(state, date.arrival)
+            // The match's arrival, her change request and an unread message are hoisted under the hero, in that order
+            // (R11, R8).
+            let hoist = hoisted(state, date.arrival, date.changeRequest)
             if hoist { coordinate(date, state) }
-            TimePlaceCard(date: date, zone: zone, copied: ui.copied, onCopy: onCopy).fitAnchor("date:time-card")
+            TimePlaceCard(date: date, zone: zone, copied: ui.copied, onCopy: onCopy, now: ui.now).fitAnchor("date:time-card")
             if !hoist { coordinate(date, state) }
             ReportRow(onReport: onReport).fitAnchor("date:report")
             IntentCard(date: date).fitAnchor("date:intent")
@@ -249,8 +254,10 @@ struct DateScreen: View {
     private func coordinate(_ date: ActiveDate, _ state: DateState) -> some View {
         // The tiles only in A: from B on, the chat's chips do the same job.
         CoordinateModule(state: state, date: date, now: ui.now, zone: zone, onOpenChat: onOpenChat,
-                         changeTiles: state == .locked ? (changeTiles ?? changeTilesFor(date.change, now: ui.now)) : [],
-                         onChangeTile: onChangeTile)
+                         changeTiles: state == .locked && date.changeRequest == nil
+                             ? (changeTiles ?? changeTilesFor(date.change, now: ui.now)) : [],
+                         onChangeTile: onChangeTile, agreeing: ui.agreeing, agreeFailed: ui.agreeFailed,
+                         onAgree: onAgree, onSuggestAnother: onSuggestAnother)
             .fitAnchor(date.arrival != nil ? "date:arrival-card" : "date:coordinate")
     }
 }

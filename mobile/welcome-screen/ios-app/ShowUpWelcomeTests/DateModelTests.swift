@@ -14,6 +14,7 @@ actor FakeDateStore: DateStoring {
     private(set) var profile: Result<SearchProfile, CallFailure> = .failure(.server)
     private(set) var seen: [String] = []
     private(set) var partnerCheckIns = 0
+    private(set) var devChangeCalls: [String] = []
 
     func setRead(_ value: Result<DateRead, CallFailure>) { read = value }
     func setProfile(_ value: Result<SearchProfile, CallFailure>) { profile = value }
@@ -31,6 +32,18 @@ actor FakeDateStore: DateStoring {
     func markArrivalSeen(dateId: String) async { seen.append(dateId) }
     func partnerChecksIn() async -> Bool {
         partnerCheckIns += 1
+        return true
+    }
+    func matchSuggests(kind: ChangeKind) async -> Bool {
+        devChangeCalls.append("suggest:\(kind.rawValue)")
+        return true
+    }
+    func matchAgrees() async -> Bool {
+        devChangeCalls.append("agree")
+        return true
+    }
+    func expireSuggestions() async -> Bool {
+        devChangeCalls.append("expire")
         return true
     }
 }

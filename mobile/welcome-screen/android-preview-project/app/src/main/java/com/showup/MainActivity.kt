@@ -878,9 +878,10 @@ class MainActivity : ComponentActivity() {
             // The Date screen's owner and the match's read-only profile's, keyed on the account like
             // every other. Always the real server: the debug sample walk has no dates.
             val dateStore = remember(api) { DateRepository(api) }
+            val changeStore = remember(api) { ApiChangeStore(api) }
             val date: DateViewModel = viewModel(
                 key = "date-$account",
-                factory = viewModelFactory { initializer { DateViewModel(dateStore, analytics = AppAnalytics) } },
+                factory = viewModelFactory { initializer { DateViewModel(dateStore, analytics = AppAnalytics, changes = changeStore) } },
             )
             val dateState by date.state.collectAsStateWithLifecycle()
             val dateProfile: DateProfileViewModel = viewModel(
@@ -897,7 +898,6 @@ class MainActivity : ComponentActivity() {
             // One chat model per date, held for the session -- the thread, a typed draft and a selected
             // chip survive leaving the chat and coming back -- keyed on the account and the date.
             val chatStore = remember(api) { ApiChatStore(api) }
-            val changeStore = remember(api) { ApiChangeStore(api) }
             val chatEvents = remember { ChatHostEvents(analytics = AppAnalytics) }
             // `message_received` once per message across launches: what was reported is kept on the phone.
             val receivedLedger = remember { SharedPrefsReceivedLedger(applicationContext) }
@@ -2615,6 +2615,11 @@ class MainActivity : ComponentActivity() {
                                         )
                                     },
                                     onOpenChat = ::openChatFromCard,
+                                    onAgree = date::agreeRequest,
+                                    // Only `change_picker_opened`: no chip was tapped (the ticket's tracking rule).
+                                    onSuggestAnother = { kind ->
+                                        navController.navigate(com.showup.change.counterCardRoute(kind)) { launchSingleTop = true }
+                                    },
                                     // `action_chip_used` first, then the picker (whose own open fires `change_picker_opened`).
                                     onChangeTile = { reason ->
                                         date.changeTile(reason)
@@ -3185,6 +3190,10 @@ class MainActivity : ComponentActivity() {
                                     DevDateAction.MatchCantMakeIt -> dateStore.messageFromMatch(com.showup.chat.ChatReason.CantMakeIt, ChatSamples.MATCH_CANT_MAKE_IT)
                                     DevDateAction.MatchEndsInChat -> dateStore.matchEndsInChat()
                                     DevDateAction.PartnerChecksIn -> dateStore.partnerChecksIn()
+                                    DevDateAction.MatchSuggestsTime -> dateStore.matchSuggests(com.showup.change.ChangeKind.Time)
+                                    DevDateAction.MatchSuggestsPlace -> dateStore.matchSuggests(com.showup.change.ChangeKind.Place)
+                                    DevDateAction.MatchAgrees -> dateStore.matchAgrees()
+                                    DevDateAction.ExpireSuggestions -> dateStore.expireSuggestions()
                                     DevDateAction.End -> dateStore.endTestDate()
                                 }
                                 // The Date screen's own read shows the result: a new date or message

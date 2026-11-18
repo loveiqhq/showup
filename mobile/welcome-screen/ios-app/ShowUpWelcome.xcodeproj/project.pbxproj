@@ -244,74 +244,75 @@
 		FEED000000000000000001EB /* Manrope-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001E1 /* Manrope-Regular.ttf */; };
 		FEED000000000000000001EC /* Manrope-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FEED000000000000000001E2 /* Manrope-SemiBold.ttf */; };
 		FEED00000000000000000016 /* Flags in Resources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000015 /* Flags */; };
-		FEED00000000000000000259 /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000215 /* APIAccessTests.swift */; };
-		FEED0000000000000000025A /* ArrivalFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000216 /* ArrivalFitTests.swift */; };
-		FEED0000000000000000025B /* ArrivalGateModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000217 /* ArrivalGateModelTests.swift */; };
-		FEED0000000000000000025C /* ArrivalRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000218 /* ArrivalRepositoryTests.swift */; };
-		FEED0000000000000000025D /* ArrivalRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000219 /* ArrivalRoutingTests.swift */; };
-		FEED0000000000000000025E /* ArrivalRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021A /* ArrivalRulesTests.swift */; };
-		FEED0000000000000000025F /* BasicsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021B /* BasicsRepositoryTests.swift */; };
-		FEED00000000000000000260 /* BasicsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021C /* BasicsTrackingTests.swift */; };
-		FEED00000000000000000261 /* CSSTextLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021D /* CSSTextLayoutTests.swift */; };
-		FEED00000000000000000262 /* ChangePickerModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021E /* ChangePickerModelTests.swift */; };
-		FEED00000000000000000263 /* ChangeRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021F /* ChangeRepositoryTests.swift */; };
-		FEED00000000000000000264 /* ChangeRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000220 /* ChangeRulesTests.swift */; };
-		FEED00000000000000000265 /* ChangeSheetsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000221 /* ChangeSheetsTests.swift */; };
-		FEED00000000000000000266 /* ChatFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000222 /* ChatFitTests.swift */; };
-		FEED00000000000000000267 /* ChatModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000223 /* ChatModelTests.swift */; };
-		FEED00000000000000000268 /* ChatReasonsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000224 /* ChatReasonsTests.swift */; };
-		FEED00000000000000000269 /* ChatRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000225 /* ChatRepositoryTests.swift */; };
-		FEED0000000000000000026A /* ChatRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000226 /* ChatRulesTests.swift */; };
-		FEED0000000000000000026B /* ChatThreadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000227 /* ChatThreadTests.swift */; };
-		FEED0000000000000000026C /* CheckInModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000228 /* CheckInModelTests.swift */; };
-		FEED0000000000000000026D /* CheckInRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000229 /* CheckInRulesTests.swift */; };
-		FEED0000000000000000026E /* ConfettiRainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022A /* ConfettiRainTests.swift */; };
-		FEED0000000000000000026F /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022B /* CrashesTests.swift */; };
-		FEED00000000000000000270 /* DateFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022C /* DateFitTests.swift */; };
-		FEED00000000000000000271 /* DateLocationGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022D /* DateLocationGateTests.swift */; };
-		FEED00000000000000000272 /* DateModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022E /* DateModelTests.swift */; };
-		FEED00000000000000000273 /* DateOfBirthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022F /* DateOfBirthTests.swift */; };
-		FEED00000000000000000274 /* DateRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000230 /* DateRepositoryTests.swift */; };
-		FEED00000000000000000275 /* DateRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000231 /* DateRulesTests.swift */; };
-		FEED00000000000000000276 /* DetailsModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000232 /* DetailsModelTests.swift */; };
-		FEED00000000000000000277 /* DevMenuRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000233 /* DevMenuRulesTests.swift */; };
-		FEED00000000000000000278 /* DevOfflineUploadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000234 /* DevOfflineUploadsTests.swift */; };
-		FEED00000000000000000279 /* EvidenceShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000235 /* EvidenceShots.swift */; };
-		FEED0000000000000000027A /* FitDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000236 /* FitDevices.swift */; };
-		FEED0000000000000000027B /* FlowScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000237 /* FlowScreenTests.swift */; };
-		FEED0000000000000000027C /* GateFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000238 /* GateFitTests.swift */; };
-		FEED0000000000000000027D /* LocationGateModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000239 /* LocationGateModelTests.swift */; };
-		FEED0000000000000000027E /* LocationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023A /* LocationRulesTests.swift */; };
-		FEED0000000000000000027F /* MediaFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023B /* MediaFitTests.swift */; };
-		FEED00000000000000000280 /* MediaFlowRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023C /* MediaFlowRegressionTests.swift */; };
-		FEED00000000000000000281 /* MediaPromptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023D /* MediaPromptsTests.swift */; };
-		FEED00000000000000000282 /* MediaRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023E /* MediaRulesTests.swift */; };
-		FEED00000000000000000283 /* ModalShellFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023F /* ModalShellFitTests.swift */; };
-		FEED00000000000000000284 /* NotificationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000240 /* NotificationRulesTests.swift */; };
-		FEED00000000000000000285 /* PermissionReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000241 /* PermissionReconcilerTests.swift */; };
-		FEED00000000000000000286 /* PhoneAuthRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000242 /* PhoneAuthRepositoryTests.swift */; };
-		FEED00000000000000000287 /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000243 /* PhoneValidationTests.swift */; };
-		FEED00000000000000000288 /* PhotoUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000244 /* PhotoUploadTests.swift */; };
-		FEED00000000000000000289 /* PhotosReorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000245 /* PhotosReorderTests.swift */; };
-		FEED0000000000000000028A /* PhotosTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000246 /* PhotosTrackingTests.swift */; };
-		FEED0000000000000000028B /* PickModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000247 /* PickModelTests.swift */; };
-		FEED0000000000000000028C /* PickRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000248 /* PickRulesTests.swift */; };
-		FEED0000000000000000028D /* PremiumFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000249 /* PremiumFitTests.swift */; };
-		FEED0000000000000000028E /* PremiumModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024A /* PremiumModelTests.swift */; };
-		FEED0000000000000000028F /* PremiumRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024B /* PremiumRulesTests.swift */; };
-		FEED00000000000000000290 /* ProfileAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024C /* ProfileAnalyticsTests.swift */; };
-		FEED00000000000000000291 /* ProfileDetailsRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024D /* ProfileDetailsRulesTests.swift */; };
-		FEED00000000000000000292 /* PromptsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024E /* PromptsTrackingTests.swift */; };
-		FEED00000000000000000293 /* ReachabilityRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024F /* ReachabilityRulesTests.swift */; };
-		FEED00000000000000000294 /* RealYouTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000250 /* RealYouTests.swift */; };
-		FEED00000000000000000295 /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000251 /* ScreenFitTests.swift */; };
-		FEED00000000000000000296 /* SearchFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000252 /* SearchFitTests.swift */; };
-		FEED00000000000000000297 /* SearchModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000253 /* SearchModelTests.swift */; };
-		FEED00000000000000000298 /* SearchRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000254 /* SearchRulesTests.swift */; };
-		FEED00000000000000000299 /* ServerDateTranscoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000255 /* ServerDateTranscoderTests.swift */; };
-		FEED0000000000000000029A /* TabBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000256 /* TabBarTests.swift */; };
-		FEED0000000000000000029B /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000257 /* TapTargetTests.swift */; };
-		FEED0000000000000000029C /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000258 /* TutorialRoutingTests.swift */; };
+		FEED0000000000000000025A /* APIAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000215 /* APIAccessTests.swift */; };
+		FEED0000000000000000025B /* ArrivalFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000216 /* ArrivalFitTests.swift */; };
+		FEED0000000000000000025C /* ArrivalGateModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000217 /* ArrivalGateModelTests.swift */; };
+		FEED0000000000000000025D /* ArrivalRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000218 /* ArrivalRepositoryTests.swift */; };
+		FEED0000000000000000025E /* ArrivalRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000219 /* ArrivalRoutingTests.swift */; };
+		FEED0000000000000000025F /* ArrivalRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021A /* ArrivalRulesTests.swift */; };
+		FEED00000000000000000260 /* BasicsRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021B /* BasicsRepositoryTests.swift */; };
+		FEED00000000000000000261 /* BasicsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021C /* BasicsTrackingTests.swift */; };
+		FEED00000000000000000262 /* CSSTextLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021D /* CSSTextLayoutTests.swift */; };
+		FEED00000000000000000263 /* ChangePickerModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021E /* ChangePickerModelTests.swift */; };
+		FEED00000000000000000264 /* ChangeRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000021F /* ChangeRepositoryTests.swift */; };
+		FEED00000000000000000265 /* ChangeRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000220 /* ChangeRulesTests.swift */; };
+		FEED00000000000000000266 /* ChangeSheetsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000221 /* ChangeSheetsTests.swift */; };
+		FEED00000000000000000267 /* ChatFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000222 /* ChatFitTests.swift */; };
+		FEED00000000000000000268 /* ChatModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000223 /* ChatModelTests.swift */; };
+		FEED00000000000000000269 /* ChatReasonsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000224 /* ChatReasonsTests.swift */; };
+		FEED0000000000000000026A /* ChatRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000225 /* ChatRepositoryTests.swift */; };
+		FEED0000000000000000026B /* ChatRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000226 /* ChatRulesTests.swift */; };
+		FEED0000000000000000026C /* ChatThreadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000227 /* ChatThreadTests.swift */; };
+		FEED0000000000000000026D /* CheckInModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000228 /* CheckInModelTests.swift */; };
+		FEED0000000000000000026E /* CheckInRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000229 /* CheckInRulesTests.swift */; };
+		FEED0000000000000000026F /* ConfettiRainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022A /* ConfettiRainTests.swift */; };
+		FEED00000000000000000270 /* CrashesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022B /* CrashesTests.swift */; };
+		FEED00000000000000000271 /* DateChangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022C /* DateChangeTests.swift */; };
+		FEED00000000000000000272 /* DateFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022D /* DateFitTests.swift */; };
+		FEED00000000000000000273 /* DateLocationGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022E /* DateLocationGateTests.swift */; };
+		FEED00000000000000000274 /* DateModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000022F /* DateModelTests.swift */; };
+		FEED00000000000000000275 /* DateOfBirthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000230 /* DateOfBirthTests.swift */; };
+		FEED00000000000000000276 /* DateRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000231 /* DateRepositoryTests.swift */; };
+		FEED00000000000000000277 /* DateRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000232 /* DateRulesTests.swift */; };
+		FEED00000000000000000278 /* DetailsModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000233 /* DetailsModelTests.swift */; };
+		FEED00000000000000000279 /* DevMenuRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000234 /* DevMenuRulesTests.swift */; };
+		FEED0000000000000000027A /* DevOfflineUploadsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000235 /* DevOfflineUploadsTests.swift */; };
+		FEED0000000000000000027B /* EvidenceShots.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000236 /* EvidenceShots.swift */; };
+		FEED0000000000000000027C /* FitDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000237 /* FitDevices.swift */; };
+		FEED0000000000000000027D /* FlowScreenTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000238 /* FlowScreenTests.swift */; };
+		FEED0000000000000000027E /* GateFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000239 /* GateFitTests.swift */; };
+		FEED0000000000000000027F /* LocationGateModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023A /* LocationGateModelTests.swift */; };
+		FEED00000000000000000280 /* LocationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023B /* LocationRulesTests.swift */; };
+		FEED00000000000000000281 /* MediaFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023C /* MediaFitTests.swift */; };
+		FEED00000000000000000282 /* MediaFlowRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023D /* MediaFlowRegressionTests.swift */; };
+		FEED00000000000000000283 /* MediaPromptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023E /* MediaPromptsTests.swift */; };
+		FEED00000000000000000284 /* MediaRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000023F /* MediaRulesTests.swift */; };
+		FEED00000000000000000285 /* ModalShellFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000240 /* ModalShellFitTests.swift */; };
+		FEED00000000000000000286 /* NotificationRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000241 /* NotificationRulesTests.swift */; };
+		FEED00000000000000000287 /* PermissionReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000242 /* PermissionReconcilerTests.swift */; };
+		FEED00000000000000000288 /* PhoneAuthRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000243 /* PhoneAuthRepositoryTests.swift */; };
+		FEED00000000000000000289 /* PhoneValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000244 /* PhoneValidationTests.swift */; };
+		FEED0000000000000000028A /* PhotoUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000245 /* PhotoUploadTests.swift */; };
+		FEED0000000000000000028B /* PhotosReorderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000246 /* PhotosReorderTests.swift */; };
+		FEED0000000000000000028C /* PhotosTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000247 /* PhotosTrackingTests.swift */; };
+		FEED0000000000000000028D /* PickModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000248 /* PickModelTests.swift */; };
+		FEED0000000000000000028E /* PickRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000249 /* PickRulesTests.swift */; };
+		FEED0000000000000000028F /* PremiumFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024A /* PremiumFitTests.swift */; };
+		FEED00000000000000000290 /* PremiumModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024B /* PremiumModelTests.swift */; };
+		FEED00000000000000000291 /* PremiumRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024C /* PremiumRulesTests.swift */; };
+		FEED00000000000000000292 /* ProfileAnalyticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024D /* ProfileAnalyticsTests.swift */; };
+		FEED00000000000000000293 /* ProfileDetailsRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024E /* ProfileDetailsRulesTests.swift */; };
+		FEED00000000000000000294 /* PromptsTrackingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED0000000000000000024F /* PromptsTrackingTests.swift */; };
+		FEED00000000000000000295 /* ReachabilityRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000250 /* ReachabilityRulesTests.swift */; };
+		FEED00000000000000000296 /* RealYouTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000251 /* RealYouTests.swift */; };
+		FEED00000000000000000297 /* ScreenFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000252 /* ScreenFitTests.swift */; };
+		FEED00000000000000000298 /* SearchFitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000253 /* SearchFitTests.swift */; };
+		FEED00000000000000000299 /* SearchModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000254 /* SearchModelTests.swift */; };
+		FEED0000000000000000029A /* SearchRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000255 /* SearchRulesTests.swift */; };
+		FEED0000000000000000029B /* ServerDateTranscoderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000256 /* ServerDateTranscoderTests.swift */; };
+		FEED0000000000000000029C /* TabBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000257 /* TabBarTests.swift */; };
+		FEED0000000000000000029D /* TapTargetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000258 /* TapTargetTests.swift */; };
+		FEED0000000000000000029E /* TutorialRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FEED00000000000000000259 /* TutorialRoutingTests.swift */; };
 		FEED000000000000000001F9 /* PhoneNumberKit in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000001F8 /* PhoneNumberKit */; };
 		FEED000000000000000001FE /* ShowUpAPI in Frameworks */ = {isa = PBXBuildFile; productRef = FEED000000000000000001FD /* ShowUpAPI */; };
 		FEED00000000000000000203 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = FEED00000000000000000202 /* Sentry */; };
@@ -589,51 +590,52 @@
 		FEED00000000000000000229 /* CheckInRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInRulesTests.swift; sourceTree = "<group>"; };
 		FEED0000000000000000022A /* ConfettiRainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfettiRainTests.swift; sourceTree = "<group>"; };
 		FEED0000000000000000022B /* CrashesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashesTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000022C /* DateFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFitTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000022D /* DateLocationGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateLocationGateTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000022E /* DateModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateModelTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000022F /* DateOfBirthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOfBirthTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000230 /* DateRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateRepositoryTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000231 /* DateRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateRulesTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000232 /* DetailsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsModelTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000233 /* DevMenuRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevMenuRulesTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000234 /* DevOfflineUploadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevOfflineUploadsTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000235 /* EvidenceShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvidenceShots.swift; sourceTree = "<group>"; };
-		FEED00000000000000000236 /* FitDevices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitDevices.swift; sourceTree = "<group>"; };
-		FEED00000000000000000237 /* FlowScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreenTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000238 /* GateFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateFitTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000239 /* LocationGateModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationGateModelTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000023A /* LocationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationRulesTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000023B /* MediaFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFitTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000023C /* MediaFlowRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFlowRegressionTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000023D /* MediaPromptsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPromptsTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000023E /* MediaRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRulesTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000023F /* ModalShellFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalShellFitTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000240 /* NotificationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRulesTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000241 /* PermissionReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionReconcilerTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000242 /* PhoneAuthRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthRepositoryTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000243 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000244 /* PhotoUploadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoUploadTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000245 /* PhotosReorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosReorderTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000246 /* PhotosTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosTrackingTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000247 /* PickModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickModelTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000248 /* PickRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickRulesTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000249 /* PremiumFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumFitTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000024A /* PremiumModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumModelTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000024B /* PremiumRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumRulesTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000024C /* ProfileAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalyticsTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000024D /* ProfileDetailsRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailsRulesTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000024E /* PromptsTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsTrackingTests.swift; sourceTree = "<group>"; };
-		FEED0000000000000000024F /* ReachabilityRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReachabilityRulesTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000250 /* RealYouTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealYouTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000251 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000252 /* SearchFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFitTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000253 /* SearchModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModelTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000254 /* SearchRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchRulesTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000255 /* ServerDateTranscoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerDateTranscoderTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000256 /* TabBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000257 /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
-		FEED00000000000000000258 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000022C /* DateChangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateChangeTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000022D /* DateFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFitTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000022E /* DateLocationGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateLocationGateTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000022F /* DateModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateModelTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000230 /* DateOfBirthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateOfBirthTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000231 /* DateRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateRepositoryTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000232 /* DateRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateRulesTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000233 /* DetailsModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailsModelTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000234 /* DevMenuRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevMenuRulesTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000235 /* DevOfflineUploadsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevOfflineUploadsTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000236 /* EvidenceShots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EvidenceShots.swift; sourceTree = "<group>"; };
+		FEED00000000000000000237 /* FitDevices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitDevices.swift; sourceTree = "<group>"; };
+		FEED00000000000000000238 /* FlowScreenTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowScreenTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000239 /* GateFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GateFitTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000023A /* LocationGateModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationGateModelTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000023B /* LocationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationRulesTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000023C /* MediaFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFitTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000023D /* MediaFlowRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaFlowRegressionTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000023E /* MediaPromptsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaPromptsTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000023F /* MediaRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaRulesTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000240 /* ModalShellFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalShellFitTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000241 /* NotificationRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationRulesTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000242 /* PermissionReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionReconcilerTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000243 /* PhoneAuthRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneAuthRepositoryTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000244 /* PhoneValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneValidationTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000245 /* PhotoUploadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoUploadTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000246 /* PhotosReorderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosReorderTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000247 /* PhotosTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotosTrackingTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000248 /* PickModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickModelTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000249 /* PickRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PickRulesTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000024A /* PremiumFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumFitTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000024B /* PremiumModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumModelTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000024C /* PremiumRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PremiumRulesTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000024D /* ProfileAnalyticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAnalyticsTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000024E /* ProfileDetailsRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailsRulesTests.swift; sourceTree = "<group>"; };
+		FEED0000000000000000024F /* PromptsTrackingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptsTrackingTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000250 /* ReachabilityRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReachabilityRulesTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000251 /* RealYouTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealYouTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000252 /* ScreenFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenFitTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000253 /* SearchFitTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchFitTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000254 /* SearchModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchModelTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000255 /* SearchRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchRulesTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000256 /* ServerDateTranscoderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerDateTranscoderTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000257 /* TabBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000258 /* TapTargetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TapTargetTests.swift; sourceTree = "<group>"; };
+		FEED00000000000000000259 /* TutorialRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TutorialRoutingTests.swift; sourceTree = "<group>"; };
 		FEED000000000000000001EE /* ShowUpWelcomeTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ShowUpWelcomeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -955,51 +957,52 @@
 				FEED00000000000000000229 /* CheckInRulesTests.swift */,
 				FEED0000000000000000022A /* ConfettiRainTests.swift */,
 				FEED0000000000000000022B /* CrashesTests.swift */,
-				FEED0000000000000000022C /* DateFitTests.swift */,
-				FEED0000000000000000022D /* DateLocationGateTests.swift */,
-				FEED0000000000000000022E /* DateModelTests.swift */,
-				FEED0000000000000000022F /* DateOfBirthTests.swift */,
-				FEED00000000000000000230 /* DateRepositoryTests.swift */,
-				FEED00000000000000000231 /* DateRulesTests.swift */,
-				FEED00000000000000000232 /* DetailsModelTests.swift */,
-				FEED00000000000000000233 /* DevMenuRulesTests.swift */,
-				FEED00000000000000000234 /* DevOfflineUploadsTests.swift */,
-				FEED00000000000000000235 /* EvidenceShots.swift */,
-				FEED00000000000000000236 /* FitDevices.swift */,
-				FEED00000000000000000237 /* FlowScreenTests.swift */,
-				FEED00000000000000000238 /* GateFitTests.swift */,
-				FEED00000000000000000239 /* LocationGateModelTests.swift */,
-				FEED0000000000000000023A /* LocationRulesTests.swift */,
-				FEED0000000000000000023B /* MediaFitTests.swift */,
-				FEED0000000000000000023C /* MediaFlowRegressionTests.swift */,
-				FEED0000000000000000023D /* MediaPromptsTests.swift */,
-				FEED0000000000000000023E /* MediaRulesTests.swift */,
-				FEED0000000000000000023F /* ModalShellFitTests.swift */,
-				FEED00000000000000000240 /* NotificationRulesTests.swift */,
-				FEED00000000000000000241 /* PermissionReconcilerTests.swift */,
-				FEED00000000000000000242 /* PhoneAuthRepositoryTests.swift */,
-				FEED00000000000000000243 /* PhoneValidationTests.swift */,
-				FEED00000000000000000244 /* PhotoUploadTests.swift */,
-				FEED00000000000000000245 /* PhotosReorderTests.swift */,
-				FEED00000000000000000246 /* PhotosTrackingTests.swift */,
-				FEED00000000000000000247 /* PickModelTests.swift */,
-				FEED00000000000000000248 /* PickRulesTests.swift */,
-				FEED00000000000000000249 /* PremiumFitTests.swift */,
-				FEED0000000000000000024A /* PremiumModelTests.swift */,
-				FEED0000000000000000024B /* PremiumRulesTests.swift */,
-				FEED0000000000000000024C /* ProfileAnalyticsTests.swift */,
-				FEED0000000000000000024D /* ProfileDetailsRulesTests.swift */,
-				FEED0000000000000000024E /* PromptsTrackingTests.swift */,
-				FEED0000000000000000024F /* ReachabilityRulesTests.swift */,
-				FEED00000000000000000250 /* RealYouTests.swift */,
-				FEED00000000000000000251 /* ScreenFitTests.swift */,
-				FEED00000000000000000252 /* SearchFitTests.swift */,
-				FEED00000000000000000253 /* SearchModelTests.swift */,
-				FEED00000000000000000254 /* SearchRulesTests.swift */,
-				FEED00000000000000000255 /* ServerDateTranscoderTests.swift */,
-				FEED00000000000000000256 /* TabBarTests.swift */,
-				FEED00000000000000000257 /* TapTargetTests.swift */,
-				FEED00000000000000000258 /* TutorialRoutingTests.swift */,
+				FEED0000000000000000022C /* DateChangeTests.swift */,
+				FEED0000000000000000022D /* DateFitTests.swift */,
+				FEED0000000000000000022E /* DateLocationGateTests.swift */,
+				FEED0000000000000000022F /* DateModelTests.swift */,
+				FEED00000000000000000230 /* DateOfBirthTests.swift */,
+				FEED00000000000000000231 /* DateRepositoryTests.swift */,
+				FEED00000000000000000232 /* DateRulesTests.swift */,
+				FEED00000000000000000233 /* DetailsModelTests.swift */,
+				FEED00000000000000000234 /* DevMenuRulesTests.swift */,
+				FEED00000000000000000235 /* DevOfflineUploadsTests.swift */,
+				FEED00000000000000000236 /* EvidenceShots.swift */,
+				FEED00000000000000000237 /* FitDevices.swift */,
+				FEED00000000000000000238 /* FlowScreenTests.swift */,
+				FEED00000000000000000239 /* GateFitTests.swift */,
+				FEED0000000000000000023A /* LocationGateModelTests.swift */,
+				FEED0000000000000000023B /* LocationRulesTests.swift */,
+				FEED0000000000000000023C /* MediaFitTests.swift */,
+				FEED0000000000000000023D /* MediaFlowRegressionTests.swift */,
+				FEED0000000000000000023E /* MediaPromptsTests.swift */,
+				FEED0000000000000000023F /* MediaRulesTests.swift */,
+				FEED00000000000000000240 /* ModalShellFitTests.swift */,
+				FEED00000000000000000241 /* NotificationRulesTests.swift */,
+				FEED00000000000000000242 /* PermissionReconcilerTests.swift */,
+				FEED00000000000000000243 /* PhoneAuthRepositoryTests.swift */,
+				FEED00000000000000000244 /* PhoneValidationTests.swift */,
+				FEED00000000000000000245 /* PhotoUploadTests.swift */,
+				FEED00000000000000000246 /* PhotosReorderTests.swift */,
+				FEED00000000000000000247 /* PhotosTrackingTests.swift */,
+				FEED00000000000000000248 /* PickModelTests.swift */,
+				FEED00000000000000000249 /* PickRulesTests.swift */,
+				FEED0000000000000000024A /* PremiumFitTests.swift */,
+				FEED0000000000000000024B /* PremiumModelTests.swift */,
+				FEED0000000000000000024C /* PremiumRulesTests.swift */,
+				FEED0000000000000000024D /* ProfileAnalyticsTests.swift */,
+				FEED0000000000000000024E /* ProfileDetailsRulesTests.swift */,
+				FEED0000000000000000024F /* PromptsTrackingTests.swift */,
+				FEED00000000000000000250 /* ReachabilityRulesTests.swift */,
+				FEED00000000000000000251 /* RealYouTests.swift */,
+				FEED00000000000000000252 /* ScreenFitTests.swift */,
+				FEED00000000000000000253 /* SearchFitTests.swift */,
+				FEED00000000000000000254 /* SearchModelTests.swift */,
+				FEED00000000000000000255 /* SearchRulesTests.swift */,
+				FEED00000000000000000256 /* ServerDateTranscoderTests.swift */,
+				FEED00000000000000000257 /* TabBarTests.swift */,
+				FEED00000000000000000258 /* TapTargetTests.swift */,
+				FEED00000000000000000259 /* TutorialRoutingTests.swift */,
 			);
 			path = ShowUpWelcomeTests;
 			sourceTree = "<group>";
@@ -1397,74 +1400,75 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FEED00000000000000000259 /* APIAccessTests.swift in Sources */,
-				FEED0000000000000000025A /* ArrivalFitTests.swift in Sources */,
-				FEED0000000000000000025B /* ArrivalGateModelTests.swift in Sources */,
-				FEED0000000000000000025C /* ArrivalRepositoryTests.swift in Sources */,
-				FEED0000000000000000025D /* ArrivalRoutingTests.swift in Sources */,
-				FEED0000000000000000025E /* ArrivalRulesTests.swift in Sources */,
-				FEED0000000000000000025F /* BasicsRepositoryTests.swift in Sources */,
-				FEED00000000000000000260 /* BasicsTrackingTests.swift in Sources */,
-				FEED00000000000000000261 /* CSSTextLayoutTests.swift in Sources */,
-				FEED00000000000000000262 /* ChangePickerModelTests.swift in Sources */,
-				FEED00000000000000000263 /* ChangeRepositoryTests.swift in Sources */,
-				FEED00000000000000000264 /* ChangeRulesTests.swift in Sources */,
-				FEED00000000000000000265 /* ChangeSheetsTests.swift in Sources */,
-				FEED00000000000000000266 /* ChatFitTests.swift in Sources */,
-				FEED00000000000000000267 /* ChatModelTests.swift in Sources */,
-				FEED00000000000000000268 /* ChatReasonsTests.swift in Sources */,
-				FEED00000000000000000269 /* ChatRepositoryTests.swift in Sources */,
-				FEED0000000000000000026A /* ChatRulesTests.swift in Sources */,
-				FEED0000000000000000026B /* ChatThreadTests.swift in Sources */,
-				FEED0000000000000000026C /* CheckInModelTests.swift in Sources */,
-				FEED0000000000000000026D /* CheckInRulesTests.swift in Sources */,
-				FEED0000000000000000026E /* ConfettiRainTests.swift in Sources */,
-				FEED0000000000000000026F /* CrashesTests.swift in Sources */,
-				FEED00000000000000000270 /* DateFitTests.swift in Sources */,
-				FEED00000000000000000271 /* DateLocationGateTests.swift in Sources */,
-				FEED00000000000000000272 /* DateModelTests.swift in Sources */,
-				FEED00000000000000000273 /* DateOfBirthTests.swift in Sources */,
-				FEED00000000000000000274 /* DateRepositoryTests.swift in Sources */,
-				FEED00000000000000000275 /* DateRulesTests.swift in Sources */,
-				FEED00000000000000000276 /* DetailsModelTests.swift in Sources */,
-				FEED00000000000000000277 /* DevMenuRulesTests.swift in Sources */,
-				FEED00000000000000000278 /* DevOfflineUploadsTests.swift in Sources */,
-				FEED00000000000000000279 /* EvidenceShots.swift in Sources */,
-				FEED0000000000000000027A /* FitDevices.swift in Sources */,
-				FEED0000000000000000027B /* FlowScreenTests.swift in Sources */,
-				FEED0000000000000000027C /* GateFitTests.swift in Sources */,
-				FEED0000000000000000027D /* LocationGateModelTests.swift in Sources */,
-				FEED0000000000000000027E /* LocationRulesTests.swift in Sources */,
-				FEED0000000000000000027F /* MediaFitTests.swift in Sources */,
-				FEED00000000000000000280 /* MediaFlowRegressionTests.swift in Sources */,
-				FEED00000000000000000281 /* MediaPromptsTests.swift in Sources */,
-				FEED00000000000000000282 /* MediaRulesTests.swift in Sources */,
-				FEED00000000000000000283 /* ModalShellFitTests.swift in Sources */,
-				FEED00000000000000000284 /* NotificationRulesTests.swift in Sources */,
-				FEED00000000000000000285 /* PermissionReconcilerTests.swift in Sources */,
-				FEED00000000000000000286 /* PhoneAuthRepositoryTests.swift in Sources */,
-				FEED00000000000000000287 /* PhoneValidationTests.swift in Sources */,
-				FEED00000000000000000288 /* PhotoUploadTests.swift in Sources */,
-				FEED00000000000000000289 /* PhotosReorderTests.swift in Sources */,
-				FEED0000000000000000028A /* PhotosTrackingTests.swift in Sources */,
-				FEED0000000000000000028B /* PickModelTests.swift in Sources */,
-				FEED0000000000000000028C /* PickRulesTests.swift in Sources */,
-				FEED0000000000000000028D /* PremiumFitTests.swift in Sources */,
-				FEED0000000000000000028E /* PremiumModelTests.swift in Sources */,
-				FEED0000000000000000028F /* PremiumRulesTests.swift in Sources */,
-				FEED00000000000000000290 /* ProfileAnalyticsTests.swift in Sources */,
-				FEED00000000000000000291 /* ProfileDetailsRulesTests.swift in Sources */,
-				FEED00000000000000000292 /* PromptsTrackingTests.swift in Sources */,
-				FEED00000000000000000293 /* ReachabilityRulesTests.swift in Sources */,
-				FEED00000000000000000294 /* RealYouTests.swift in Sources */,
-				FEED00000000000000000295 /* ScreenFitTests.swift in Sources */,
-				FEED00000000000000000296 /* SearchFitTests.swift in Sources */,
-				FEED00000000000000000297 /* SearchModelTests.swift in Sources */,
-				FEED00000000000000000298 /* SearchRulesTests.swift in Sources */,
-				FEED00000000000000000299 /* ServerDateTranscoderTests.swift in Sources */,
-				FEED0000000000000000029A /* TabBarTests.swift in Sources */,
-				FEED0000000000000000029B /* TapTargetTests.swift in Sources */,
-				FEED0000000000000000029C /* TutorialRoutingTests.swift in Sources */,
+				FEED0000000000000000025A /* APIAccessTests.swift in Sources */,
+				FEED0000000000000000025B /* ArrivalFitTests.swift in Sources */,
+				FEED0000000000000000025C /* ArrivalGateModelTests.swift in Sources */,
+				FEED0000000000000000025D /* ArrivalRepositoryTests.swift in Sources */,
+				FEED0000000000000000025E /* ArrivalRoutingTests.swift in Sources */,
+				FEED0000000000000000025F /* ArrivalRulesTests.swift in Sources */,
+				FEED00000000000000000260 /* BasicsRepositoryTests.swift in Sources */,
+				FEED00000000000000000261 /* BasicsTrackingTests.swift in Sources */,
+				FEED00000000000000000262 /* CSSTextLayoutTests.swift in Sources */,
+				FEED00000000000000000263 /* ChangePickerModelTests.swift in Sources */,
+				FEED00000000000000000264 /* ChangeRepositoryTests.swift in Sources */,
+				FEED00000000000000000265 /* ChangeRulesTests.swift in Sources */,
+				FEED00000000000000000266 /* ChangeSheetsTests.swift in Sources */,
+				FEED00000000000000000267 /* ChatFitTests.swift in Sources */,
+				FEED00000000000000000268 /* ChatModelTests.swift in Sources */,
+				FEED00000000000000000269 /* ChatReasonsTests.swift in Sources */,
+				FEED0000000000000000026A /* ChatRepositoryTests.swift in Sources */,
+				FEED0000000000000000026B /* ChatRulesTests.swift in Sources */,
+				FEED0000000000000000026C /* ChatThreadTests.swift in Sources */,
+				FEED0000000000000000026D /* CheckInModelTests.swift in Sources */,
+				FEED0000000000000000026E /* CheckInRulesTests.swift in Sources */,
+				FEED0000000000000000026F /* ConfettiRainTests.swift in Sources */,
+				FEED00000000000000000270 /* CrashesTests.swift in Sources */,
+				FEED00000000000000000271 /* DateChangeTests.swift in Sources */,
+				FEED00000000000000000272 /* DateFitTests.swift in Sources */,
+				FEED00000000000000000273 /* DateLocationGateTests.swift in Sources */,
+				FEED00000000000000000274 /* DateModelTests.swift in Sources */,
+				FEED00000000000000000275 /* DateOfBirthTests.swift in Sources */,
+				FEED00000000000000000276 /* DateRepositoryTests.swift in Sources */,
+				FEED00000000000000000277 /* DateRulesTests.swift in Sources */,
+				FEED00000000000000000278 /* DetailsModelTests.swift in Sources */,
+				FEED00000000000000000279 /* DevMenuRulesTests.swift in Sources */,
+				FEED0000000000000000027A /* DevOfflineUploadsTests.swift in Sources */,
+				FEED0000000000000000027B /* EvidenceShots.swift in Sources */,
+				FEED0000000000000000027C /* FitDevices.swift in Sources */,
+				FEED0000000000000000027D /* FlowScreenTests.swift in Sources */,
+				FEED0000000000000000027E /* GateFitTests.swift in Sources */,
+				FEED0000000000000000027F /* LocationGateModelTests.swift in Sources */,
+				FEED00000000000000000280 /* LocationRulesTests.swift in Sources */,
+				FEED00000000000000000281 /* MediaFitTests.swift in Sources */,
+				FEED00000000000000000282 /* MediaFlowRegressionTests.swift in Sources */,
+				FEED00000000000000000283 /* MediaPromptsTests.swift in Sources */,
+				FEED00000000000000000284 /* MediaRulesTests.swift in Sources */,
+				FEED00000000000000000285 /* ModalShellFitTests.swift in Sources */,
+				FEED00000000000000000286 /* NotificationRulesTests.swift in Sources */,
+				FEED00000000000000000287 /* PermissionReconcilerTests.swift in Sources */,
+				FEED00000000000000000288 /* PhoneAuthRepositoryTests.swift in Sources */,
+				FEED00000000000000000289 /* PhoneValidationTests.swift in Sources */,
+				FEED0000000000000000028A /* PhotoUploadTests.swift in Sources */,
+				FEED0000000000000000028B /* PhotosReorderTests.swift in Sources */,
+				FEED0000000000000000028C /* PhotosTrackingTests.swift in Sources */,
+				FEED0000000000000000028D /* PickModelTests.swift in Sources */,
+				FEED0000000000000000028E /* PickRulesTests.swift in Sources */,
+				FEED0000000000000000028F /* PremiumFitTests.swift in Sources */,
+				FEED00000000000000000290 /* PremiumModelTests.swift in Sources */,
+				FEED00000000000000000291 /* PremiumRulesTests.swift in Sources */,
+				FEED00000000000000000292 /* ProfileAnalyticsTests.swift in Sources */,
+				FEED00000000000000000293 /* ProfileDetailsRulesTests.swift in Sources */,
+				FEED00000000000000000294 /* PromptsTrackingTests.swift in Sources */,
+				FEED00000000000000000295 /* ReachabilityRulesTests.swift in Sources */,
+				FEED00000000000000000296 /* RealYouTests.swift in Sources */,
+				FEED00000000000000000297 /* ScreenFitTests.swift in Sources */,
+				FEED00000000000000000298 /* SearchFitTests.swift in Sources */,
+				FEED00000000000000000299 /* SearchModelTests.swift in Sources */,
+				FEED0000000000000000029A /* SearchRulesTests.swift in Sources */,
+				FEED0000000000000000029B /* ServerDateTranscoderTests.swift in Sources */,
+				FEED0000000000000000029C /* TabBarTests.swift in Sources */,
+				FEED0000000000000000029D /* TapTargetTests.swift in Sources */,
+				FEED0000000000000000029E /* TutorialRoutingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -296,7 +296,8 @@ private struct TutorialFlow: View {
     // The Date screen's owner and the match's read-only profile's (Android's DateViewModel and
     // DateProfileViewModel). Replaced by `beginNewAccount` like every account-scoped model.
     private let dateStore = DateRepository(api: APIAccess.client)
-    @State private var dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+    @State private var dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
+                                      changes: ChangeRepository(api: APIAccess.client))
     @State private var dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
                                                            analytics: AppAnalytics.shared, players: sharedMediaPlayer)
     /// The read-only profile as it last was, drawn while it slides away.
@@ -780,7 +781,8 @@ private struct TutorialFlow: View {
                                places: CLPlaceReader())
         search = SearchModel(store: SearchRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
                              players: sharedMediaPlayer)
-        dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+        dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
+                                      changes: ChangeRepository(api: APIAccess.client))
         dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
                                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
         arrivalGate = ArrivalGateModel(store: ArrivalRepository(api: APIAccess.client),
@@ -1158,7 +1160,10 @@ private struct TutorialFlow: View {
             onChangeTile: { reason in
                 dateModel.changeTile(reason)
                 if let route = changePickerRoute(reason, surface: .coordinateCard) { openChangePicker(route) }
-            })
+            },
+            onAgree: { dateModel.agreeRequest() },
+            // Only `change_picker_opened`: no chip was tapped (the ticket's tracking rule).
+            onSuggestAnother: { kind in openChangePicker(counterCardRoute(kind)) })
     }
 
     private func routeArrivalUndoOnDate() {
@@ -1959,6 +1964,10 @@ private struct TutorialFlow: View {
                         case .matchCantMakeIt: _ = await store.messageFromMatch(reason: .cantMakeIt, body: ChatSamples.matchCantMakeIt)
                         case .matchEndsInChat: _ = await store.matchEndsInChat()
                         case .partnerChecksIn: _ = await store.partnerChecksIn()
+                        case .matchSuggestsTime: _ = await store.matchSuggests(kind: .time)
+                        case .matchSuggestsPlace: _ = await store.matchSuggests(kind: .place)
+                        case .matchAgrees: _ = await store.matchAgrees()
+                        case .expireSuggestions: _ = await store.expireSuggestions()
                         case .end: _ = await store.endTestDate()
                         }
                         // The Date screen's own read shows the result: a new date or message lands in place,

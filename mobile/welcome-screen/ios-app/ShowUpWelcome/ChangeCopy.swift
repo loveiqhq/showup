@@ -76,4 +76,13 @@ enum ChangeCopy {
     static func systemExpired(deadline: String, time: String, place: String) -> String {
         "No answer by \(deadline) \u{2014} \(time) at \(place) stays."
     }
+
+    // D · G · E · J · the Date screen's purple card and the hoisted request card
+    static func waitingToAgree(_ name: String) -> String { "Waiting for \(name) to agree" }
+    static let youSuggested = "You suggested"
+    static let changed = "Changed"
+    static let changedWas = " \u{00B7} was "
+    static let requestTag = "Change request"
+    static func needsAnswer(_ time: String) -> String { "needs your answer \u{00B7} \(time)" }
+    static func messagingOpens(_ time: String) -> String { "Messaging opens at \(time)" }
 }

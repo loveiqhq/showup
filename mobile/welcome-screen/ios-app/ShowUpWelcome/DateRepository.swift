@@ -28,6 +28,12 @@ protocol DateStoring: Sendable {
     func markArrivalSeen(dateId: String) async
     /// Debug only: the test match checks in and commits, sending the push.
     func partnerChecksIn() async -> Bool
+    /// Debug only (Date 05): the test match suggests a later time or another place, so the request card shows.
+    func matchSuggests(kind: ChangeKind) async -> Bool
+    /// Debug only (Date 05): the test match agrees to the viewer's earliest-deadline pending suggestion.
+    func matchAgrees() async -> Bool
+    /// Debug only (Date 05): every pending suggestion is past its deadline and the expiry runs once.
+    func expireSuggestions() async -> Bool
 }
 
 struct DateRepository: DateStoring {
@@ -96,6 +102,24 @@ struct DateRepository: DateStoring {
 
     func partnerChecksIn() async -> Bool {
         guard case .noContent? = try? await api.client.devPartnerCheckIn() else { return false }
+        return true
+    }
+
+    func matchSuggests(kind: ChangeKind) async -> Bool {
+        // By wire value, not case name: a regenerated enum case must not change what is sent.
+        guard let wire = Components.Schemas.ChangeKind(rawValue: kind.rawValue) else { return false }
+        let dto = Components.Schemas.DevDateChangeDto(kind: .init(value1: wire))
+        guard case .noContent? = try? await api.client.createDevDateChange(body: .json(dto)) else { return false }
+        return true
+    }
+
+    func matchAgrees() async -> Bool {
+        guard case .noContent? = try? await api.client.agreeDevDateChange() else { return false }
+        return true
+    }
+
+    func expireSuggestions() async -> Bool {
+        guard case .noContent? = try? await api.client.expireDevDateChange() else { return false }
         return true
     }
 

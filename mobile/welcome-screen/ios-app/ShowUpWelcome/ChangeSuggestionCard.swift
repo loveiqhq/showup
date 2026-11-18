@@ -172,9 +172,9 @@ struct DeadlineBox: View {
     let time: String
     let place: String
 
-    private static let ink = Color(hex: 0x78350F)
-    private static let body = Color(hex: 0x92400E)
-    private static let icon = Color(hex: 0xB45309)
+    static let ink = Color(hex: 0x78350F)
+    static let bodyInk = Color(hex: 0x92400E)
+    static let icon = Color(hex: 0xB45309)
 
     var body: some View {
         HStack(alignment: .top, spacing: 9) {
@@ -183,7 +183,7 @@ struct DeadlineBox: View {
                 Text(ChangeCopy.answerBy(deadline)).font(F.manrope(13.5, .bold)).foregroundColor(Self.ink)
                 PrettyText(runs: [(ChangeCopy.untilYouAgree, false), (ChangeCopy.untilBinding(time: time, place: place), true),
                                   (ChangeCopy.untilRest, false)],
-                           font: chatFont(PS.manropeMedium, 12.5, .medium), lineHeight: 12.5 * 1.4, color: Self.body,
+                           font: chatFont(PS.manropeMedium, 12.5, .medium), lineHeight: 12.5 * 1.4, color: Self.bodyInk,
                            emphasisFont: chatFont(PS.manropeBold, 12.5, .bold), emphasisColor: Self.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

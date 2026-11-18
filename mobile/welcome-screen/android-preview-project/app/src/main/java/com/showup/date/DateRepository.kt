@@ -11,13 +11,16 @@ import com.showup.api.ShowUpApi
 import com.showup.api.callCatching
 import com.showup.api.generated.model.ActiveDateDto
 import com.showup.api.generated.model.CreateDevDateDto
+import com.showup.api.generated.model.DevDateChangeDto
 import com.showup.api.generated.model.DevDateMessageDto
 import com.showup.api.outcome
+import com.showup.change.ChangeKind
 import com.showup.change.toChange
 import com.showup.change.toSuggestion
 import com.showup.chat.ChatReason
 import com.showup.search.SearchProfile
 import com.showup.search.toProfile
+import com.showup.api.generated.model.ChangeKind as WireKind
 import com.showup.api.generated.model.ChatReason as WireReason
 
 /** The Date screen's calls, behind an interface so the view model is tested with no network. */
@@ -54,6 +57,15 @@ interface DateStore {
 
     /** Debug only: the test match checks in and commits, sending the push. */
     suspend fun partnerChecksIn(): Result<Boolean>
+
+    /** Debug only (Date 05): the test match suggests a later time or another place, so the request card shows. */
+    suspend fun matchSuggests(kind: ChangeKind): Result<Boolean>
+
+    /** Debug only (Date 05): the test match agrees to the viewer's earliest-deadline pending suggestion. */
+    suspend fun matchAgrees(): Result<Boolean>
+
+    /** Debug only (Date 05): every pending suggestion is past its deadline and the expiry runs once. */
+    suspend fun expireSuggestions(): Result<Boolean>
 }
 
 class DateRepository(private val api: ShowUpApi) : DateStore {
@@ -96,6 +108,20 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
 
     override suspend fun partnerChecksIn(): Result<Boolean> = callCatching {
         api.dev.devPartnerCheckIn().isSuccessful
+    }
+
+    override suspend fun matchSuggests(kind: ChangeKind): Result<Boolean> = callCatching {
+        // By wire value, not constant name: a regenerated enum constant must not change what is sent.
+        val wire = WireKind.entries.first { it.value == kind.wire }
+        api.dev.createDevDateChange(DevDateChangeDto(kind = wire)).isSuccessful
+    }
+
+    override suspend fun matchAgrees(): Result<Boolean> = callCatching {
+        api.dev.agreeDevDateChange().isSuccessful
+    }
+
+    override suspend fun expireSuggestions(): Result<Boolean> = callCatching {
+        api.dev.expireDevDateChange().isSuccessful
     }
 
     private fun ActiveDateDto.toActiveDate() = ActiveDate(

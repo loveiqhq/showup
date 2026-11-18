@@ -28,6 +28,10 @@ struct DateUi: Equatable, Sendable {
     /// The date ended in the chat and the viewer has not seen it (SHOWUP-194): the host shows G or H.
     /// `date` stays as it was, for the match's face on that screen.
     var ended: EndedInChat?
+    /// `I agree` on the request card is on its way (Date 05 L): both buttons are inert and `I agree` sits at .6.
+    var agreeing = false
+    /// The last `I agree` on the card got no server OK: the red line shows, and nothing else has changed.
+    var agreeFailed = false
 
     var state: DateState? {
         date.map { dateState(now: now, unlockAt: $0.unlockAt, unread: $0.unread, coordinateOpen: $0.coordinateOpen) }
@@ -43,6 +47,8 @@ final class DateModel {
     private let analytics: (any AnalyticsTracking)?
     private let clock: () -> Date
     private let zone: () -> TimeZone
+    /// Date 05's calls; nil where nothing agrees (the card's `I agree` then does nothing).
+    private let changes: (any ChangeStoring)?
     /// How long `Copied` shows: `Motion.copied`. Short in tests.
     private let copiedFor: TimeInterval
 
@@ -65,8 +71,10 @@ final class DateModel {
         clock: @escaping () -> Date = { Date() },
         zone: @escaping () -> TimeZone = { TimeZone.current },
         copiedFor: TimeInterval = Motion.copied,
-        pollEvery: TimeInterval = datePollSeconds
+        pollEvery: TimeInterval = datePollSeconds,
+        changes: (any ChangeStoring)? = nil
     ) {
+        self.changes = changes
         self.store = store
         self.analytics = analytics
         self.clock = clock
@@ -196,34 +204,59 @@ final class DateModel {
         }
     }
 
-    private func read() {
-        let store = self.store
-        let zone = self.zone().identifier
+    /// `I agree` on the request card (Date 05 R22): the server decides, and NOTHING on screen changes until it has.
+    /// Agreed or 409 (it is no longer pending): read the date again, which clears the card or shows its real state --
+    /// no error and no event here, the server fired its own. No response or 5xx: the red line, retried by a tap on it
+    /// or on `I agree`. Both buttons stay inert while it is on its way, through the re-read.
+    func agreeRequest() {
+        guard let changes, let date = state.date, let request = date.changeRequest, !state.agreeing else { return }
+        state.agreeing = true
+        state.agreeFailed = false
+        let dateId = date.id
+        let requestId = request.id
         Task { [weak self] in
-            let answer = await store.active(zone: zone)
+            let result = await changes.agree(dateId: dateId, suggestionId: requestId, surface: .coordinateCard)
             guard let self else { return }
-            let now = self.clock()
-            self.state.now = now
-            self.state.loading = false
-            switch answer {
-            case .success(.active(let date)):
-                self.state.date = self.withoutCleared(date)
-                self.state.failed = nil
-                // A new date after one that went away is shown, not left.
-                self.state.left = false
-                self.state.ended = nil
-                self.reportVisit(date, now: now)
-            case .success(.ended(let outcome)):
-                self.state.failed = nil
-                self.state.ended = outcome
-            case .success(.none):
-                self.state.failed = nil
-                self.state.left = true
-            case .failure(let why):
-                // A failure is shown only where nothing else is: a dropped poll under a date on screen left one
-                // behind, and after the date the next visit opened on `Couldn't load your date`.
-                self.state.failed = self.state.date == nil ? why : nil
+            switch result {
+            case .agreed, .stale:
+                await self.readNow()
+            case .failed:
+                self.state.agreeFailed = true
             }
+            self.state.agreeing = false
+        }
+    }
+
+    private func read() {
+        Task { [weak self] in await self?.readNow() }
+    }
+
+    private func readNow() async {
+        let zone = self.zone().identifier
+        let answer = await store.active(zone: zone)
+        let now = self.clock()
+        self.state.now = now
+        self.state.loading = false
+        switch answer {
+        case .success(.active(let date)):
+            // The red line belongs to the request it failed on: a read that brings none, or another, drops it.
+            self.state.agreeFailed = self.state.agreeFailed && date.changeRequest?.id == self.state.date?.changeRequest?.id
+            self.state.date = self.withoutCleared(date)
+            self.state.failed = nil
+            // A new date after one that went away is shown, not left.
+            self.state.left = false
+            self.state.ended = nil
+            self.reportVisit(date, now: now)
+        case .success(.ended(let outcome)):
+            self.state.failed = nil
+            self.state.ended = outcome
+        case .success(.none):
+            self.state.failed = nil
+            self.state.left = true
+        case .failure(let why):
+            // A failure is shown only where nothing else is: a dropped poll under a date on screen left one
+            // behind, and after the date the next visit opened on `Couldn't load your date`.
+            self.state.failed = self.state.date == nil ? why : nil
         }
     }
 

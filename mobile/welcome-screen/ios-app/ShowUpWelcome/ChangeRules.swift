@@ -62,6 +62,11 @@ func counterThreadRoute(_ kind: ChangeKind) -> AppRoute {
     .changePicker(kind: kind, entry: .counterThread)
 }
 
+/// `Suggest another` on the request card while the chat is locked: the picker of the request's kind, entry `counter_card` (§42).
+func counterCardRoute(_ kind: ChangeKind) -> AppRoute {
+    .changePicker(kind: kind, entry: .counterCard)
+}
+
 /// `350 m` under a kilometre, rounded to the nearest 50; `1.1 km` from it, one decimal (R3). Integer maths so a half
 /// rounds up on every phone: 349 is 350 m, 999 reads `1.0 km` (50 m steps reach a full kilometre), 1049 is `1.0 km`,
 /// 1050 is `1.1 km`. Never in analytics.

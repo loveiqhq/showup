@@ -232,6 +232,10 @@ private fun ScreensPage(
                 DevTextButton("Leonie can't make it (End date card, needs B)") { onDateAction(DevDateAction.MatchCantMakeIt) }
                 DevTextButton("Leonie ends the date in the chat (H, needs her can't-make-it)") { onDateAction(DevDateAction.MatchEndsInChat) }
                 DevTextButton("Leonie checks in (H, the arrival card)") { onDateAction(DevDateAction.PartnerChecksIn) }
+                DevTextButton("Leonie suggests a later time (SHOWUP-196 E / J)") { onDateAction(DevDateAction.MatchSuggestsTime) }
+                DevTextButton("Leonie suggests another place (SHOWUP-196 E / J)") { onDateAction(DevDateAction.MatchSuggestsPlace) }
+                DevTextButton("Leonie agrees to my suggestion (SHOWUP-196 G)") { onDateAction(DevDateAction.MatchAgrees) }
+                DevTextButton("Expire suggestions now (SHOWUP-196 H)") { onDateAction(DevDateAction.ExpireSuggestions) }
                 DevTextButton("End test date") { onDateAction(DevDateAction.End) }
             }
         }

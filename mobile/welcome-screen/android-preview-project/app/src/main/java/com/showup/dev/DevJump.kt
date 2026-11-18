@@ -287,6 +287,18 @@ sealed interface DevDateAction {
     /** Leonie checks in at the spot (SHOWUP-195 H): her arrival card shows under the hero. */
     data object PartnerChecksIn : DevDateAction
 
+    /** Leonie suggests a later time (SHOWUP-196 E / J): her request card shows. */
+    data object MatchSuggestsTime : DevDateAction
+
+    /** Leonie suggests another place (SHOWUP-196 E / J). */
+    data object MatchSuggestsPlace : DevDateAction
+
+    /** Leonie agrees to this phone's suggestion (SHOWUP-196 G): the purple card shows the new value. */
+    data object MatchAgrees : DevDateAction
+
+    /** Every open suggestion is past its deadline and expires now (SHOWUP-196 H). */
+    data object ExpireSuggestions : DevDateAction
+
     /** Ends the test date: the screen leaves for the normal resume. */
     data object End : DevDateAction
 }

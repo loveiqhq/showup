@@ -66,4 +66,13 @@ object ChangeCopy {
     const val SYSTEM_TIME = "Meet time is now %s"
     const val SYSTEM_PLACE = "Meeting place is now %s"
     const val SYSTEM_EXPIRED = "No answer by %s — %s at %s stays."
+
+    // D · G · E · J · the Date screen's purple card and the hoisted request card
+    const val WAITING_TO_AGREE = "Waiting for %s to agree"
+    const val YOU_SUGGESTED = "You suggested"
+    const val CHANGED = "Changed"
+    const val CHANGED_WAS = " · was "
+    const val REQUEST_TAG = "Change request"
+    const val NEEDS_ANSWER = "needs your answer · %s"
+    const val MESSAGING_OPENS = "Messaging opens at %s"
 }

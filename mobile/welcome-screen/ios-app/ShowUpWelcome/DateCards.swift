@@ -154,6 +154,8 @@ struct TimePlaceCard: View {
     let zone: TimeZone
     let copied: Bool
     let onCopy: () -> Void
+    /// The clock tick: `Changed · was` is hidden after the meet time.
+    var now: Date = .distantPast
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
     var body: some View {
@@ -172,7 +174,13 @@ struct TimePlaceCard: View {
             .padding(.bottom, 13)
             HStack(alignment: .top, spacing: 12) {
                 IconTile(size: 40, radius: 13, fill: Color.liqElevated, icon: .clock, iconSize: 19, tint: .liqPurple, stroke: 2.2)
-                BaselineWrap(label: DateCopy.meetingTime, value: meetTime(date.meetAt, zone: zone))
+                VStack(alignment: .leading, spacing: 0) {
+                    BaselineWrap(label: DateCopy.meetingTime, value: meetTime(date.meetAt, zone: zone))
+                    if let tag = changeTagFor(date, kind: .time, now: now, zone: zone) {
+                        ChangeTag(tag: tag, name: date.match.name).fitAnchor("date:time-change-tag")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             if let place = date.place {
                 Rectangle().fill(Color.liqFg.opacity(0.10)).frame(height: 1).padding(.vertical, 10)
@@ -200,11 +208,70 @@ struct TimePlaceCard: View {
                             }
                         }
                         .padding(.top, 3)
+                        if let tag = changeTagFor(date, kind: .place, now: now, zone: zone) {
+                            ChangeTag(tag: tag, name: date.match.name).fitAnchor("date:place-change-tag")
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            // ONE compact note while the viewer has any own suggestion waiting, with the CURRENT binding values.
+            if let note = bindingNoteFor(date, zone: zone) {
+                BindingNote(name: date.match.name, time: note.time, place: note.place, deadline: note.deadline, compact: true)
+                    .padding(.top, 12)
+                    .fitAnchor("date:binding-note")
+            }
         }
+    }
+}
+
+/// The line under the time or place value while a change is live (`ChangeTag`). Waiting: the amber box (pad 9 11,
+/// radius 12, `clock` 15 / 2.4, gap 9, 8 above), `Waiting for {name} to agree` 13.5 / 700 over `You suggested {value}`
+/// 12.5 / 500 with the value bold. Changed: `refresh` 12 / 2.4, gap 6, 4 above, 12.5 muted, `Changed` bold in ink and
+/// `was {original}` struck. Both are the full width of the row, so they sit under the value, never beside it.
+/// Android's `ChangeTag`.
+private struct ChangeTag: View {
+    let tag: ChangeTagText
+    let name: String
+
+    var body: some View {
+        switch tag {
+        case .waiting(let value):
+            HStack(alignment: .top, spacing: 9) {
+                BrandIconView(icon: .clock, size: 15, stroke: 2.4, tint: DeadlineBox.icon)
+                    .padding(.top, 1)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(ChangeCopy.waitingToAgree(name)).font(F.manrope(13.5, .bold)).foregroundColor(DeadlineBox.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    PrettyText(runs: [(ChangeCopy.youSuggested + " ", false), (value, true)],
+                               font: chatFont(PS.manropeMedium, 12.5, .medium), lineHeight: 12.5 * 1.4, color: DeadlineBox.bodyInk,
+                               emphasisFont: chatFont(PS.manropeBold, 12.5, .bold), emphasisColor: DeadlineBox.ink)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(EdgeInsets(top: 9, leading: 11, bottom: 9, trailing: 11))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: 0xF59E0B).opacity(0.09)))
+            .padding(.top, 8)
+            .accessibilityElement(children: .combine)
+        case .changed(let was):
+            HStack(spacing: 6) {
+                BrandIconView(icon: .refresh, size: 12, stroke: 2.4, tint: .liqMuted)
+                    .accessibilityHidden(true)
+                Text(changedText(was))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private func changedText(_ was: String) -> Text {
+        Text(ChangeCopy.changed).font(F.manrope(12.5, .bold)).foregroundColor(.liqFg)
+            + Text(ChangeCopy.changedWas).font(F.manrope(12.5, .regular)).foregroundColor(.liqMuted)
+            + Text(was).font(F.manrope(12.5, .regular)).foregroundColor(.liqMuted).strikethrough()
     }
 }
 
@@ -318,12 +385,23 @@ struct CoordinateModule: View {
     /// The change tiles under the locked line: `changeTilesFor`, empty when the payload hides them.
     var changeTiles: [ChatReason] = []
     var onChangeTile: (ChatReason) -> Void = { _ in }
+    /// Date 05 L: `I agree` is on its way / got no server OK. The card holds neither: the Date screen's model does.
+    var agreeing = false
+    var agreeFailed = false
+    var onAgree: () -> Void = {}
+    /// `Suggest another` while the chat is locked: the picker of the request's kind (the host's route).
+    var onSuggestAnother: (ChangeKind) -> Void = { _ in }
 
     var body: some View {
         // Date 03 H: the match's check-in outranks an unread message (R11), locked or not. Open chat always opens
         // the chat (16 Nov): the card only exists after a committed check-in, and that check-in has opened it.
         if let arrival = date.arrival {
             ArrivalCoordinate(match: date.match, arrival: arrival, now: now, zone: zone, onCta: onOpenChat)
+        } else if let request = date.changeRequest {
+            // Date 05 E / J: the match's change request outranks an unread message (R8), locked or not.
+            RequestCoordinate(date: date, request: request, locked: state == .locked, now: now, zone: zone,
+                              agreeing: agreeing, agreeFailed: agreeFailed, onOpenChat: onOpenChat, onAgree: onAgree,
+                              onSuggestAnother: { onSuggestAnother(request.kind) })
         } else if state == .unread, let unread = date.unread {
             UnreadCoordinate(match: date.match, unread: unread, now: now, zone: zone, onOpenChat: onOpenChat)
         } else {
@@ -374,18 +452,32 @@ struct CoordinateModule: View {
     }
 }
 
+/// The one 48-tall CTA under a hoisted card's panel, 14 below it, in the card's tone.
+private struct ToneCta: View {
+    let tone: ReasonTone
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        CoordinateCta(label: label, fill: tone.fg,
+                      shadows: tone == .orange ? shadowCta : (tone == .danger ? [] : shadowViolet),
+                      action: action)
+            .padding(.top, 14)
+    }
+}
+
 /// The hoisted card's ONE frame (⑧ and Date 03's H): a 1.5 border and a 4 top rail in the tone, the avatar with
 /// its count badge, the name and the tag, the `{line} · {time}` line, the tinted snippet panel and the CTA in the
 /// same tone. The unread and the arrival variants differ only in the words and the panel's content, so they
 /// share this and never fork a second card.
-private struct HoistedCoordinate<Snippet: View>: View {
+private struct HoistedCoordinate<Footer: View, Snippet: View>: View {
     let match: DateMatch
     let count: Int
     let tone: ReasonTone
     let tag: String
     let line: String
-    let ctaLabel: String
-    let onCta: () -> Void
+    /// What sits under the panel: the single CTA of the unread and arrival cards, the request's answers.
+    @ViewBuilder let footer: () -> Footer
     @ViewBuilder let snippet: () -> Snippet
     @ScaledMetric(relativeTo: .body) private var typeScale: CGFloat = 1
 
@@ -419,10 +511,7 @@ private struct HoistedCoordinate<Snippet: View>: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 14).fill(tone.bg))
                         .padding(.top, 13)
-                    CoordinateCta(label: ctaLabel, fill: tone.fg,
-                                  shadows: tone == .orange ? shadowCta : (tone == .danger ? [] : shadowViolet),
-                                  action: onCta)
-                        .padding(.top, 14)
+                    footer()
                 }
                 .padding(16)
             }
@@ -472,7 +561,7 @@ private struct UnreadCoordinate: View {
         let tone = reason?.tone ?? .orange
         HoistedCoordinate(match: match, count: unread.count, tone: tone, tag: unreadTag(unread.count),
                           line: DateCopy.needsResponse(unreadTime(sentAt: unread.sentAt, now: now, zone: zone)),
-                          ctaLabel: DateCopy.readAndReply, onCta: onOpenChat) {
+                          footer: { ToneCta(tone: tone, label: DateCopy.readAndReply, action: onOpenChat) }) {
             if let reason { ReasonBadge(reason: reason, onLight: true) }
             if let body = unread.body {
                 // `textWrap: 'pretty'` before the 2-line clamp: the sheet's `... sorry!` / `Almost there.`.
@@ -480,6 +569,130 @@ private struct UnreadCoordinate: View {
                            color: .liqFg)
                     .lines(2)
             }
+        }
+    }
+}
+
+/// Date 05 E and J: the match suggested a new time or place. The hoisted card's frame in orange whatever the reason (one
+/// look for every "needs a reaction" card; the badge inside keeps its own tone), count 1 with the pulse, the 4 rail.
+/// Panel: the reason badge, `{name} suggested`, the value (Lora 700 22 / 1.15) with the old one struck on its baseline,
+/// a place's `{Type} · {address}`. Under it the amber deadline box, then two 48 pills, gap 8: the first `Open chat`
+/// (the chat is open, E) or `Suggest another` (locked, J), the second `I agree` -- the binding action sits second, so a
+/// quick tap on the first never agrees. L's red line retries; J adds `Messaging opens at {opensAt}`. Android's
+/// `RequestCoordinate`.
+private struct RequestCoordinate: View {
+    let date: ActiveDate
+    let request: ChangeSuggestion
+    let locked: Bool
+    let now: Date
+    let zone: TimeZone
+    let agreeing: Bool
+    let agreeFailed: Bool
+    let onOpenChat: () -> Void
+    let onAgree: () -> Void
+    let onSuggestAnother: () -> Void
+
+    var body: some View {
+        let tone = ReasonTone.orange
+        let text = requestCardText(date, request: request, now: now, zone: zone)
+        HoistedCoordinate(match: date.match, count: 1, tone: tone, tag: ChangeCopy.requestTag, line: text.needs,
+                          footer: {
+            VStack(alignment: .leading, spacing: 0) {
+                DeadlineBox(deadline: text.deadline, time: text.bindingTime, place: text.bindingPlace)
+                    .padding(.top, 10)
+                RequestButtons(tone: tone, locked: locked, agreeing: agreeing,
+                               onFirst: locked ? onSuggestAnother : onOpenChat, onAgree: onAgree)
+                    .padding(.top, 14)
+                if agreeFailed {
+                    // Date 02's tappable red line, 4 under the buttons; a tap retries.
+                    ChangeRetryLine(message: ChangeCopy.agreeFailed, onRetry: onAgree)
+                        .padding(.top, 4)
+                }
+                if locked {
+                    Text(text.opensLine)
+                        .font(F.manrope(12.5, .regular))
+                        .foregroundColor(.liqMuted)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 10)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }) {
+            ReasonBadge(reason: text.reason, onLight: true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ChangeCopy.cardThey(date.match.name)).font(F.manrope(13, .regular)).foregroundColor(.liqMuted)
+                valueRow(text)
+                if let line = text.placeLine {
+                    Text(line).font(F.manrope(12.5, .regular)).foregroundColor(.liqMuted)
+                }
+            }
+        }
+    }
+
+    /// `align-items: baseline; flex-wrap: wrap; gap: 10`: the old value on the new one's baseline, dropping to its own
+    /// line under a long name instead of squeezing (the same answer as the thread card's).
+    private func valueRow(_ text: RequestCardText) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                valueText(text.value).fixedSize()
+                wasText(text.was).fixedSize()
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                valueText(text.value).fixedSize(horizontal: false, vertical: true)
+                wasText(text.was).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func valueText(_ value: String) -> some View {
+        Text(value).font(F.lora(22, bold: true)).foregroundColor(.liqFg).cssLineBox(22 * 1.15)
+    }
+
+    private func wasText(_ was: String) -> some View {
+        Text(was).font(F.manrope(13, .regular)).foregroundColor(.liqSubtle).strikethrough()
+    }
+}
+
+/// The request card's two answers (h 48, pills, gap 8). While `agreeing` both are inert and `I agree` sits at .6, as the
+/// 194 End date and 195 waits do.
+private struct RequestButtons: View {
+    let tone: ReasonTone
+    let locked: Bool
+    let agreeing: Bool
+    let onFirst: () -> Void
+    let onAgree: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button(action: onFirst) {
+                HStack(spacing: 7) {
+                    BrandIconView(icon: locked ? .refresh : .messageCircle, size: 17, stroke: 2.2, tint: tone.fg)
+                    Text(locked ? ChangeCopy.suggestAnother : DateCopy.openChat)
+                        .font(F.manrope(15, .bold)).foregroundColor(tone.fg).lineLimit(1).minimumScaleFactor(0.7)
+                }
+                .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
+                .background(Capsule().fill(Color.white))
+                .overlay(Capsule().strokeBorder(tone.chipBorder, lineWidth: 1.5))
+            }
+            .buttonStyle(PressScale())
+            .fitTapArea()
+            .disabled(agreeing)
+            .accessibilityIdentifier("date:request-first")
+            Button(action: onAgree) {
+                HStack(spacing: 7) {
+                    BrandIconView(icon: .check, size: 17, stroke: 2.6, tint: .white)
+                    Text(ChangeCopy.iAgree).font(F.manrope(15, .bold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.7)
+                }
+                .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
+                .background(ShadowedPill(fill: tone.fg, shadows: shadowCta))
+                .opacity(agreeing ? 0.6 : 1)
+            }
+            .buttonStyle(PressScale())
+            .fitTapArea()
+            .disabled(agreeing)
+            .accessibilityIdentifier("date:request-agree")
         }
     }
 }
@@ -499,7 +712,7 @@ private struct ArrivalCoordinate: View {
         let tone = ReasonTone.orange
         HoistedCoordinate(match: match, count: 1, tone: tone, tag: ArrivalCopy.arrivedTag,
                           line: ArrivalCopy.arrivedTime(unreadTime(sentAt: arrival.checkedInAt, now: now, zone: zone)),
-                          ctaLabel: ArrivalCopy.openChat, onCta: onCta) {
+                          footer: { ToneCta(tone: tone, label: ArrivalCopy.openChat, action: onCta) }) {
             HStack(alignment: .center, spacing: 9) {
                 BrandIconView(icon: .mapPin, size: 17, stroke: 2.2, tint: tone.fg)
                     .accessibilityHidden(true)
