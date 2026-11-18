@@ -67,6 +67,9 @@ fun changePickerRoute(reason: ChatReason, surface: ChipSurface): AppRoute.Change
     return AppRoute.ChangePicker(kind.wire, entry.wire)
 }
 
+/** `Suggest another` on a card in the thread: the picker of the same kind, entry `counter_thread` (§42). */
+fun counterThreadRoute(kind: ChangeKind): AppRoute.ChangePicker = AppRoute.ChangePicker(kind.wire, ChangeEntry.CounterThread.wire)
+
 /**
  * `350 m` under a kilometre, rounded to the nearest 50; `1.1 km` from it, one decimal (R3). Integer maths
  * so a half rounds up on every phone: 349 is 350 m, 999 reads `1.0 km` (50 m steps reach a full kilometre),

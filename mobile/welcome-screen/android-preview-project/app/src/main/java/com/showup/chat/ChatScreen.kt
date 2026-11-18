@@ -79,6 +79,9 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
 import com.showup.date.ActiveDate
+import com.showup.change.ChangeKind
+import com.showup.change.ChangeRetryLine
+import com.showup.change.ChangeSuggestionCard
 import com.showup.change.visibleReasons
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Border
@@ -125,6 +128,8 @@ fun ChatScreen(
     onEnd: () -> Unit,
     onRetry: () -> Unit,
     onResend: (String) -> Unit = {},
+    onAgree: (String) -> Unit = {},
+    onCounter: (ChangeKind) -> Unit = {},
 ) {
     val date = ui.date
     val motion = rememberMotion()
@@ -161,7 +166,7 @@ fun ChatScreen(
                     // of two lines, the dock is under it and nothing changes.
                     val dockMost = (maxHeight - ThreadLeast).coerceAtLeast(0.dp)
                     Column(Modifier.fillMaxSize()) {
-                        Thread(ui, date, zone, Modifier.weight(1f), onAckGuide, onEndCard, onResend)
+                        Thread(ui, date, zone, Modifier.weight(1f), onAckGuide, onEndCard, onResend, onAgree, onCounter)
                         Dock(ui, date, dockMost, onPick, onEdit, onSend)
                     }
                 }
@@ -230,8 +235,12 @@ private fun Thread(
     onAckGuide: () -> Unit,
     onEndCard: () -> Unit,
     onResend: (String) -> Unit,
+    onAgree: (String) -> Unit,
+    onCounter: (ChangeKind) -> Unit,
 ) {
     val scroll = rememberScrollState()
+    // Messages, suggestion cards and system lines in one time order (a suggestion is not a message).
+    val items = remember(ui.messages, ui.suggestions, zone) { buildThread(ui.messages, ui.suggestions, zone) }
     val guide = ui.selected == ChatReason.CantMakeIt
     val waiting = guide && ui.guide == Guide.Locked
     val footKey: Any? = when {
@@ -242,7 +251,7 @@ private fun Thread(
     ThreadScroll(
         state = scroll,
         contentPadding = if (waiting) PaddingValues(horizontal = 14.dp, vertical = 6.dp) else PaddingValues(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 8.dp),
-        messageCount = ui.messages.size,
+        messageCount = items.size,
         footKey = footKey,
         modifier = modifier.fillMaxWidth().background(Elevated).testTag(CHAT_THREAD_TAG),
         foot = if (guide) {
@@ -251,25 +260,41 @@ private fun Thread(
             null
         },
     ) {
-        ui.messages.forEachIndexed { i, message ->
-            if (message.failed) {
-                UnsentMessage(message, date, zone, resending = message.clientId in ui.resending, onResend)
-            } else {
-                val lastOfRun = !message.fromYou && (i == ui.messages.lastIndex || ui.messages[i + 1].fromYou)
-                ChatBubble(message, date.match.name, date.match.photoUrl, showAvatar = lastOfRun, zone = zone)
+        items.forEachIndexed { i, item ->
+            when (item) {
+                is ThreadItem.Message -> {
+                    val message = item.message
+                    if (message.failed) {
+                        UnsentMessage(message, date, zone, resending = message.clientId in ui.resending, onResend)
+                    } else {
+                        // The avatar ends a run of the match's messages; a card or a line after it ends the run too.
+                        val next = (items.getOrNull(i + 1) as? ThreadItem.Message)?.message
+                        val lastOfRun = !message.fromYou && (next == null || next.fromYou)
+                        ChatBubble(message, date.match.name, date.match.photoUrl, showAvatar = lastOfRun, zone = zone)
+                    }
+                }
+                is ThreadItem.Card -> ChangeSuggestionCard(
+                    suggestion = item.suggestion,
+                    name = date.match.name,
+                    bindingTime = date.meetAt,
+                    bindingPlace = date.place?.name.orEmpty(),
+                    zone = zone,
+                    agreeing = item.suggestion.id in ui.agreeing,
+                    agreeFailed = item.suggestion.id in ui.agreeFailed,
+                    onAgree = { onAgree(item.suggestion.id) },
+                    onCounter = { onCounter(item.suggestion.kind) },
+                )
+                is ThreadItem.System -> SystemLine(item.text, if (item.agreed) BrandIcon.Check else BrandIcon.Clock, success = item.agreed)
             }
         }
         if (ui.endCard) EndDateCard(onEndCard)
     }
 }
 
-/** J's line: 12 / 600 / 1.35 in the danger ink. */
-private val ResendLine = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, lineHeight = (12 * 1.35).sp, color = DangerFg, textAlign = TextAlign.End)
-
 /**
  * J (9 Nov 2026): a message whose send failed -- the bubble at opacity .6 with no receipt, and 4 under
- * it, right-aligned, the line that resends it: `alert-circle` 14 / 2.4, gap 6, the sentence at most 280,
- * the line at least 44 high, the floor. It announces itself, as `role="alert"` does. While the resend is on its way the line does nothing.
+ * it, right-aligned, the line that resends it ([ChangeRetryLine], shared with Date 05's L). While the resend is on its
+ * way the line does nothing.
  */
 @Composable
 private fun UnsentMessage(message: ChatMessage, date: ActiveDate, zone: ZoneId, resending: Boolean, onResend: (String) -> Unit) {
@@ -277,25 +302,12 @@ private fun UnsentMessage(message: ChatMessage, date: ActiveDate, zone: ZoneId, 
         Box(Modifier.fillMaxWidth().graphicsLayer { alpha = 0.6f }) {
             ChatBubble(message, date.match.name, date.match.photoUrl, showAvatar = false, zone = zone)
         }
-        OverflowTapTarget(
-            touch = Modifier
-                .testTag(CHAT_RESEND_TAG)
-                .clickable(role = Role.Button, onClick = { if (!resending) message.clientId?.let(onResend) })
-                .semantics {
-                    contentDescription = ChatCopy.SEND_FAILED
-                    liveRegion = LiveRegionMode.Assertive
-                },
-        ) {
-            Row(
-                Modifier.widthIn(max = 280.dp).heightIn(min = 44.dp).clearAndSetSemantics {}.padding(horizontal = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(BrandIcon.AlertCircle, 14.dp, tint = DangerFg, strokeWidth = 2.4f)
-                val line = AnnotatedString(ChatCopy.SEND_FAILED)
-                Text(line, modifier = Modifier.prettyWrap(line, ResendLine).cssLineBox(ResendLine.lineHeight), style = ResendLine)
-            }
-        }
+        ChangeRetryLine(
+            ChatCopy.SEND_FAILED,
+            onRetry = { if (!resending) message.clientId?.let(onResend) },
+            tag = CHAT_RESEND_TAG,
+            end = true,
+        )
     }
 }
 

@@ -45,4 +45,25 @@ object ChangeCopy {
 
     /** The list area's description while it loads: spoken, never drawn (R17). */
     const val LOADING_PLACES = "Loading places"
+
+    // C · F · H · L · the suggestion card in the thread, and the system lines the server's facts turn into
+    const val CARD_YOU = "You suggested"
+    const val CARD_THEY = "%s suggested"
+    const val CARD_TIME = "Meet time"
+    const val CARD_PLACE = "Meeting place"
+    const val WAITING_FOR = "Waiting for %s"
+    const val AGREED = "Agreed"
+    const val AGREED_AT = "Agreed · %s"
+    const val REPLACED = "Replaced by a new suggestion"
+    const val EXPIRED = "Expired · not agreed by %s"
+    const val ANSWER_BY = "Answer by %s"
+    const val UNTIL_YOU_AGREE = "Until you agree, "
+    const val UNTIL_BINDING = "%s at %s stays binding."
+    const val UNTIL_REST = " Not being there counts as a no-show."
+    const val SUGGEST_ANOTHER = "Suggest another"
+    const val I_AGREE = "I agree"
+    const val AGREE_FAILED = "Couldn't agree. Check your connection and try again."
+    const val SYSTEM_TIME = "Meet time is now %s"
+    const val SYSTEM_PLACE = "Meeting place is now %s"
+    const val SYSTEM_EXPIRED = "No answer by %s — %s at %s stays."
 }

@@ -1177,7 +1177,7 @@ private struct TutorialFlow: View {
         if chatModel == nil || chatDateId != date.id {
             // `message_received` once per message across launches: what was reported is kept on the phone.
             chatModel = ChatModel(store: chatStore, dates: dateStore, analytics: AppAnalytics.shared,
-                                  received: UserDefaultsReceivedLedger())
+                                  received: UserDefaultsReceivedLedger(), changes: changeStore)
             chatDateId = date.id
         }
         chatPath = [chatRoute(date, entry: chatEntryFor(date))]
@@ -1335,7 +1335,14 @@ private struct TutorialFlow: View {
                 onKeep: { model.keepDate() },
                 onEnd: { model.endDate() },
                 onRetry: { model.retry() },
-                onResend: { model.resend($0) })
+                onResend: { model.resend($0) },
+                onAgree: { model.agree($0) },
+                // Suggest another on a card in the thread: change_picker_opened only, entry counter_thread.
+                onCounter: { kind in
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                    to: nil, from: nil, for: nil)
+                    openChangePicker(counterThreadRoute(kind))
+                })
             }
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)

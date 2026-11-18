@@ -53,4 +53,27 @@ enum ChangeCopy {
 
     /// The list area's description while it loads: spoken, never drawn (R17).
     static let loadingPlaces = "Loading places"
+
+    // C · F · H · L · the suggestion card in the thread, and the system lines the server's facts turn into
+    static let cardYou = "You suggested"
+    static func cardThey(_ name: String) -> String { "\(name) suggested" }
+    static let cardTime = "Meet time"
+    static let cardPlace = "Meeting place"
+    static func waitingFor(_ name: String) -> String { "Waiting for \(name)" }
+    static let agreed = "Agreed"
+    static func agreedAt(_ time: String) -> String { "Agreed · \(time)" }
+    static let replaced = "Replaced by a new suggestion"
+    static func expired(_ deadline: String) -> String { "Expired · not agreed by \(deadline)" }
+    static func answerBy(_ deadline: String) -> String { "Answer by \(deadline)" }
+    static let untilYouAgree = "Until you agree, "
+    static func untilBinding(time: String, place: String) -> String { "\(time) at \(place) stays binding." }
+    static let untilRest = " Not being there counts as a no-show."
+    static let suggestAnother = "Suggest another"
+    static let iAgree = "I agree"
+    static let agreeFailed = "Couldn't agree. Check your connection and try again."
+    static func systemTime(_ time: String) -> String { "Meet time is now \(time)" }
+    static func systemPlace(_ venue: String) -> String { "Meeting place is now \(venue)" }
+    static func systemExpired(deadline: String, time: String, place: String) -> String {
+        "No answer by \(deadline) \u{2014} \(time) at \(place) stays."
+    }
 }

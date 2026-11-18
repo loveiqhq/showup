@@ -57,6 +57,11 @@ func changePickerRoute(_ reason: ChatReason, surface: ChipSurface) -> AppRoute? 
     return .changePicker(kind: kind, entry: surface == .coordinateCard ? .coordinateTile : .chatChip)
 }
 
+/// `Suggest another` on a card in the thread: the picker of the same kind, entry `counter_thread` (§42).
+func counterThreadRoute(_ kind: ChangeKind) -> AppRoute {
+    .changePicker(kind: kind, entry: .counterThread)
+}
+
 /// `350 m` under a kilometre, rounded to the nearest 50; `1.1 km` from it, one decimal (R3). Integer maths so a half
 /// rounds up on every phone: 349 is 350 m, 999 reads `1.0 km` (50 m steps reach a full kilometre), 1049 is `1.0 km`,
 /// 1050 is `1.1 km`. Never in analytics.

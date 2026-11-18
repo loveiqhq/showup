@@ -112,6 +112,7 @@ import com.showup.change.ChangePickerScreen
 import com.showup.change.ChangePickerViewModel
 import com.showup.change.ChangeSheetContext
 import com.showup.change.changePickerRoute
+import com.showup.change.counterThreadRoute
 import com.showup.chat.SharedPrefsReceivedLedger
 import com.showup.chat.DateEndedScreen
 import com.showup.chat.chatEntryFor
@@ -904,7 +905,7 @@ class MainActivity : ComponentActivity() {
                 viewModel(
                     key = "chat-$account-$id",
                     factory = viewModelFactory {
-                        initializer { ChatViewModel(chatStore, dateStore, analytics = AppAnalytics, received = receivedLedger) }
+                        initializer { ChatViewModel(chatStore, dateStore, analytics = AppAnalytics, received = receivedLedger, changes = changeStore) }
                     },
                 )
             }
@@ -2846,6 +2847,13 @@ class MainActivity : ComponentActivity() {
                     onEnd = vm::endDate,
                     onRetry = vm::retry,
                     onResend = vm::resend,
+                    onAgree = vm::agree,
+                    // Suggest another on a card in the thread: change_picker_opened only, entry counter_thread.
+                    onCounter = { kind ->
+                        focus.clearFocus()
+                        keyboard?.hide()
+                        navController.navigate(counterThreadRoute(kind)) { launchSingleTop = true }
+                    },
                 )
                 }
             }

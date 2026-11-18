@@ -44,7 +44,14 @@ class FakeChangeStore : ChangeStore {
     val suggests = mutableListOf<SuggestRequest>()
     var suggest: SuggestResult = SuggestResult.Sent(sampleSuggestion())
     val agrees = mutableListOf<Triple<String, String, AgreeSurface>>()
-    var agree: Outcome<ChangeSuggestion> = Outcome.Ok(sampleSuggestion())
+    var agree: AgreeResult = AgreeResult.Agreed(sampleSuggestion())
+
+    /** What GET suggestions returns; the thread tests change it between reads, as the server would. */
+    var suggestionList: Outcome<List<ChangeSuggestion>> = Outcome.Ok(emptyList())
+    var suggestionReads = 0
+
+    /** While set, an agree waits on it: the request is on its way. */
+    var agreeGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
 
     override suspend fun places(dateId: String, query: String?): Outcome<PlacesList> {
         placeCalls += query
@@ -56,12 +63,16 @@ class FakeChangeStore : ChangeStore {
         return suggest
     }
 
-    override suspend fun agree(dateId: String, suggestionId: String, surface: AgreeSurface): Outcome<ChangeSuggestion> {
+    override suspend fun agree(dateId: String, suggestionId: String, surface: AgreeSurface): AgreeResult {
         agrees += Triple(dateId, suggestionId, surface)
+        agreeGate?.await()
         return agree
     }
 
-    override suspend fun suggestions(dateId: String): Outcome<List<ChangeSuggestion>> = Outcome.Ok(emptyList())
+    override suspend fun suggestions(dateId: String): Outcome<List<ChangeSuggestion>> {
+        suggestionReads++
+        return suggestionList
+    }
 }
 
 fun sampleSuggestion() = ChangeSuggestion(

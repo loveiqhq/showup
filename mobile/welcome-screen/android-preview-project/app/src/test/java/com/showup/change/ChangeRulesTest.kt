@@ -132,4 +132,10 @@ class ChangeRulesTest {
         assertEquals("19:00", changeClock(meet, berlin))
         assertEquals("18:30", changeClock(cutoff, berlin))
     }
+
+    @Test
+    fun `Suggest another in the thread opens the same kind with the counter_thread entry`() {
+        assertEquals(AppRoute.ChangePicker("time", "counter_thread"), counterThreadRoute(ChangeKind.Time))
+        assertEquals(AppRoute.ChangePicker("place", "counter_thread"), counterThreadRoute(ChangeKind.Place))
+    }
 }

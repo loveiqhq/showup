@@ -27,10 +27,17 @@ actor FakeChangeStore: ChangeStoring {
         .success(PlacesList(google: true, places: nearbyPlaces))
     }
     private var suggestAnswer: SuggestResult = .sent(sampleSuggestion())
-    private var agreeAnswer: Result<ChangeSuggestion, CallFailure> = .success(sampleSuggestion())
+    private var agreeAnswer: AgreeResult = .agreed(sampleSuggestion())
+    private var suggestionsAnswer: Result<[ChangeSuggestion], CallFailure> = .success([])
+    /// How long an agree takes to answer: the request on its way.
+    private var agreeDelay: Double = 0
+    private(set) var suggestionReads = 0
 
     func setPlaces(_ answer: @escaping @Sendable (String?) -> Result<PlacesList, CallFailure>) { placesAnswer = answer }
     func setSuggest(_ answer: SuggestResult) { suggestAnswer = answer }
+    func setAgree(_ answer: AgreeResult) { agreeAnswer = answer }
+    func setSuggestions(_ answer: Result<[ChangeSuggestion], CallFailure>) { suggestionsAnswer = answer }
+    func setAgreeDelay(_ seconds: Double) { agreeDelay = seconds }
 
     func places(dateId: String, query: String?) async -> Result<PlacesList, CallFailure> {
         placeCalls.append(query)
@@ -40,11 +47,15 @@ actor FakeChangeStore: ChangeStoring {
         suggests.append(request)
         return suggestAnswer
     }
-    func agree(dateId: String, suggestionId: String, surface: AgreeSurface) async -> Result<ChangeSuggestion, CallFailure> {
+    func agree(dateId: String, suggestionId: String, surface: AgreeSurface) async -> AgreeResult {
         agrees.append("\(dateId)/\(suggestionId)/\(surface.rawValue)")
+        if agreeDelay > 0 { try? await Task.sleep(nanoseconds: UInt64(agreeDelay * 1_000_000_000)) }
         return agreeAnswer
     }
-    func suggestions(dateId: String) async -> Result<[ChangeSuggestion], CallFailure> { .success([]) }
+    func suggestions(dateId: String) async -> Result<[ChangeSuggestion], CallFailure> {
+        suggestionReads += 1
+        return suggestionsAnswer
+    }
 }
 
 @MainActor

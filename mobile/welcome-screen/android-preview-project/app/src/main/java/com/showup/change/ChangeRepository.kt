@@ -143,6 +143,20 @@ sealed interface SuggestResult {
     data class Failed(val why: CallFailure) : SuggestResult
 }
 
+/**
+ * What `I agree` came back with. [Stale] is 409: it is no longer pending (replaced, expired, answered), the
+ * caller's own, past its deadline, or a check-in came -- asking again cannot change that, so the surface
+ * reads the date and the thread again and shows the real state, with no error. [Failed] (no response, 5xx)
+ * is the red retry line.
+ */
+sealed interface AgreeResult {
+    data class Agreed(val suggestion: ChangeSuggestion) : AgreeResult
+
+    data object Stale : AgreeResult
+
+    data class Failed(val why: CallFailure) : AgreeResult
+}
+
 /** Date 05's calls, behind an interface so the models are tested with no network. */
 interface ChangeStore {
     /** Public places near the binding meet place, or matching [query] (null or blank: nearby). */
@@ -151,8 +165,8 @@ interface ChangeStore {
     /** A suggestion; a repeat of the same clientId is answered with the stored one. */
     suspend fun suggest(dateId: String, request: SuggestRequest): SuggestResult
 
-    /** `I agree`: the suggestion becomes binding for both. A refusal (no longer pending) is a failure. */
-    suspend fun agree(dateId: String, suggestionId: String, surface: AgreeSurface): Outcome<ChangeSuggestion>
+    /** `I agree`: the suggestion becomes binding for both. A repeat by the receiver is answered 200 again. */
+    suspend fun agree(dateId: String, suggestionId: String, surface: AgreeSurface): AgreeResult
 
     /** Every suggestion of the date, oldest first, all statuses: the thread's cards and system lines. */
     suspend fun suggestions(dateId: String): Outcome<List<ChangeSuggestion>>
@@ -195,10 +209,21 @@ class ApiChangeStore(private val api: ShowUpApi) : ChangeStore {
         SuggestResult.Failed(CallFailure.Server)
     }
 
-    override suspend fun agree(dateId: String, suggestionId: String, surface: AgreeSurface): Outcome<ChangeSuggestion> = outcome {
+    override suspend fun agree(dateId: String, suggestionId: String, surface: AgreeSurface): AgreeResult = try {
         val wire = AgreeChangeDto.Surface.entries.first { it.value == surface.wire }
         val response = api.dates.agreeDateChange(dateId, suggestionId, AgreeChangeDto(wire))
-        response.body()?.takeIf { response.isSuccessful }?.toSuggestion()
+        val agreed = response.body()
+        when {
+            response.isSuccessful && agreed != null -> AgreeResult.Agreed(agreed.toSuggestion())
+            response.code() == 409 -> AgreeResult.Stale
+            else -> AgreeResult.Failed(CallFailure.Server)
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: IOException) {
+        AgreeResult.Failed(CallFailure.Network)
+    } catch (e: Exception) {
+        AgreeResult.Failed(CallFailure.Server)
     }
 
     override suspend fun suggestions(dateId: String): Outcome<List<ChangeSuggestion>> = outcome {

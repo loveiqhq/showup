@@ -156,12 +156,22 @@ class ChangeRepositoryTest {
     @Test
     fun `agree posts the surface and maps the agreed suggestion`() = runTest {
         json(suggestion.replace("\"pending\"", "\"agreed\"").replace("\"createdAt\"", "\"answeredAt\":\"2026-11-17T15:10:00.000Z\",\"createdAt\""))
-        val result = (store.agree("d1", sid, AgreeSurface.Thread) as Outcome.Ok).value
+        val result = (store.agree("d1", sid, AgreeSurface.Thread) as AgreeResult.Agreed).suggestion
         assertEquals(ChangeStatus.Agreed, result.status)
         assertEquals(Instant.parse("2026-11-17T15:10:00Z"), result.answeredAt)
         val request = server.takeRequest()
         assertEquals("/dates/d1/suggestions/$sid/agree", request.path)
         assertEquals("thread", request.body.readUtf8().body().str("surface"))
+    }
+
+    @Test
+    fun `agree maps 409 to stale and 503, 500 and a dropped connection to failures`() = runTest {
+        json("""{"message":"not pending"}""", code = 409)
+        assertEquals(AgreeResult.Stale, store.agree("d1", sid, AgreeSurface.Thread))
+        json("""{"message":"down"}""", code = 503)
+        assertEquals(AgreeResult.Failed(CallFailure.Server), store.agree("d1", sid, AgreeSurface.Thread))
+        server.shutdown()
+        assertEquals(AgreeResult.Failed(CallFailure.Network), store.agree("d1", sid, AgreeSurface.Thread))
     }
 
     @Test

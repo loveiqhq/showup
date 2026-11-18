@@ -115,14 +115,24 @@ enum SuggestResult: Equatable, Sendable {
     case failed(CallFailure)
 }
 
+/// What `I agree` came back with. `stale` is 409: it is no longer pending (replaced, expired, answered), the caller's
+/// own, past its deadline, or a check-in came -- asking again cannot change that, so the surface reads the date and
+/// the thread again and shows the real state, with no error. `failed` (no response, 5xx) is the red retry line.
+/// Android's `AgreeResult`.
+enum AgreeResult: Equatable, Sendable {
+    case agreed(ChangeSuggestion)
+    case stale
+    case failed(CallFailure)
+}
+
 /// Date 05's calls, behind a protocol so the models are tested with no network.
 protocol ChangeStoring: Sendable {
     /// Public places near the binding meet place, or matching `query` (nil or blank: nearby).
     func places(dateId: String, query: String?) async -> Result<PlacesList, CallFailure>
     /// A suggestion; a repeat of the same clientId is answered with the stored one.
     func suggest(dateId: String, request: SuggestRequest) async -> SuggestResult
-    /// `I agree`: the suggestion becomes binding for both. A refusal (no longer pending) is a failure.
-    func agree(dateId: String, suggestionId: String, surface: AgreeSurface) async -> Result<ChangeSuggestion, CallFailure>
+    /// `I agree`: the suggestion becomes binding for both. A repeat by the receiver is answered 200 again.
+    func agree(dateId: String, suggestionId: String, surface: AgreeSurface) async -> AgreeResult
     /// Every suggestion of the date, oldest first, all statuses: the thread's cards and system lines.
     func suggestions(dateId: String) async -> Result<[ChangeSuggestion], CallFailure>
 }
@@ -172,16 +182,21 @@ struct ChangeRepository: ChangeStoring {
         }
     }
 
-    func agree(dateId: String, suggestionId: String, surface: AgreeSurface) async -> Result<ChangeSuggestion, CallFailure> {
+    func agree(dateId: String, suggestionId: String, surface: AgreeSurface) async -> AgreeResult {
         do {
             let dto = Components.Schemas.AgreeChangeDto(surface: try Self.make(surface.rawValue))
-            if case .ok(let ok) = try await api.client.agreeDateChange(path: .init(id: dateId, sid: suggestionId), body: .json(dto)),
-               let suggestion = ChangeSuggestion(try ok.body.json) {
-                return .success(suggestion)
+            // The contract documents only 200, so a 409 arrives as `.undocumented` (as `suggest`'s does).
+            switch try await api.client.agreeDateChange(path: .init(id: dateId, sid: suggestionId), body: .json(dto)) {
+            case .ok(let ok):
+                guard let suggestion = ChangeSuggestion(try ok.body.json) else { return .failed(.server) }
+                return .agreed(suggestion)
+            case let .undocumented(statusCode, _) where statusCode == 409:
+                return .stale
+            default:
+                return .failed(.server)
             }
-            return .failure(.server)
         } catch {
-            return .failure(Self.failure(error))
+            return .failed(Self.failure(error))
         }
     }
 

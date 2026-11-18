@@ -62,4 +62,22 @@ final class ChangeRepositoryTests: XCTestCase {
         let b = await repo(status: 500, body: #"{"message":"boom"}"#).suggest(dateId: "d1", request: request)
         XCTAssertEqual(b, .failed(.server))
     }
+
+    func testAgreePostsTheSurfaceAndMapsTheAgreedSuggestion() async {
+        let agreed = suggestion.replacingOccurrences(of: "\"pending\"", with: "\"agreed\"")
+            .replacingOccurrences(of: "\"createdAt\"", with: "\"answeredAt\":\"2026-11-17T15:10:00.000Z\",\"createdAt\"")
+        let result = await repo(status: 200, body: agreed).agree(dateId: "d1", suggestionId: "s1", surface: .thread)
+        guard case .agreed(let done) = result else { return XCTFail("expected agreed, got \(result)") }
+        XCTAssertEqual(done.status, .agreed)
+        XCTAssertEqual(done.answeredAt, Date(timeIntervalSince1970: 1_794_928_200))
+    }
+
+    func testAgreeMaps409ToStaleAnd503And500ToFailures() async {
+        let stale = await repo(status: 409, body: #"{"message":"not pending"}"#).agree(dateId: "d1", suggestionId: "s1", surface: .thread)
+        XCTAssertEqual(stale, .stale)
+        let a = await repo(status: 503, body: #"{"message":"down"}"#).agree(dateId: "d1", suggestionId: "s1", surface: .thread)
+        XCTAssertEqual(a, .failed(.server))
+        let b = await repo(status: 500, body: #"{"message":"boom"}"#).agree(dateId: "d1", suggestionId: "s1", surface: .thread)
+        XCTAssertEqual(b, .failed(.server))
+    }
 }

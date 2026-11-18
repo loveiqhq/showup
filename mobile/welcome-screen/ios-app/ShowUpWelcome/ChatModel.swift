@@ -53,6 +53,13 @@ struct ChatUi: Equatable, Sendable {
     var outcome: EndedInChat?
     /// The date is gone some other way: the host goes back to the Date screen.
     var left = false
+    /// Date 05: every suggestion of the date, oldest first, from the last read of GET suggestions. Never messages:
+    /// they send no `message_sent`, arrive with no `message_received` and are not unread.
+    var suggestions: [ChangeSuggestion] = []
+    /// `I agree` in the thread is on its way, by suggestion id: both buttons are inert.
+    var agreeing: Set<String> = []
+    /// L: the last `I agree` got no server OK, by suggestion id; the card shows the red line.
+    var agreeFailed: Set<String> = []
 
     var locked: Bool { fieldLocked(selected: selected, guide: guide) }
     /// Android's `canSend` (the free function of that name would be hidden by a property spelled the same).
@@ -60,7 +67,7 @@ struct ChatUi: Equatable, Sendable {
     /// Android's `endCard`.
     var endCardShown: Bool { endCardVisible(messages: messages, selected: selected) }
     /// B, the start grid: no message yet and nothing picked or typed. A chip tap moves to the thread.
-    var start: Bool { messages.isEmpty && selected == nil && draft.isEmpty && guide == .none }
+    var start: Bool { messages.isEmpty && suggestions.isEmpty && selected == nil && draft.isEmpty && guide == .none }
     /// Android's `countdown`.
     var countdownText: String? { date.flatMap { countdown(now: now, meetAt: $0.meetAt) } }
 }
@@ -78,6 +85,8 @@ final class ChatModel {
     private let pollEvery: TimeInterval
     /// The match's messages already reported, by id, in this launch and earlier ones: once per message.
     private let received: any ReceivedLedger
+    /// Date 05's calls; nil where the host has none (the suggestions then stay empty).
+    private let changes: (any ChangeStoring)?
 
     @ObservationIgnored private var poll: Task<Void, Never>?
     /// The last read of the thread.
@@ -118,8 +127,10 @@ final class ChatModel {
         clock: @escaping () -> Date = { Date() },
         zone: @escaping () -> TimeZone = { TimeZone.current },
         pollEvery: TimeInterval = chatPollSeconds,
-        received: (any ReceivedLedger)? = nil
+        received: (any ReceivedLedger)? = nil,
+        changes: (any ChangeStoring)? = nil
     ) {
+        self.changes = changes
         self.store = store
         self.dates = dates
         self.analytics = analytics
@@ -340,6 +351,30 @@ final class ChatModel {
         }
     }
 
+    /// `I agree` on a theirs-pending card (L): the server decides, and NOTHING on screen changes until it has. While
+    /// it is on its way a second tap does nothing. 200: the date, the thread and the suggestions are read again (the
+    /// system line comes from the server). 409 (no longer pending): the same re-read, no error, no event -- the card
+    /// shows its real state. No response or 5xx: the red line, and a tap on it or on `I agree` sends it again (a
+    /// repeat by the receiver is answered 200). Android's `agree`.
+    func agree(_ suggestionId: String) {
+        guard let date = ui.date, let changes,
+              let card = ui.suggestions.first(where: { $0.id == suggestionId }),
+              !card.byYou, card.status == .pending, !ui.agreeing.contains(suggestionId) else { return }
+        ui.agreeing.insert(suggestionId)
+        ui.agreeFailed.remove(suggestionId)
+        Task { [weak self] in
+            let result = await changes.agree(dateId: date.id, suggestionId: suggestionId, surface: .thread)
+            guard let self else { return }
+            switch result {
+            case .agreed, .stale:
+                await self.refresh(date.id)
+            case .failed:
+                self.ui.agreeFailed.insert(suggestionId)
+            }
+            self.ui.agreeing.remove(suggestionId)
+        }
+    }
+
     // MARK: - reads
 
     /// The date, then the thread. The dock is never touched.
@@ -378,6 +413,15 @@ final class ChatModel {
                 ui.failed = why
             }
         }
+        await readSuggestions(id)
+    }
+
+    /// One more request per poll. A failed read keeps the cards on screen, as a failed thread read does.
+    private func readSuggestions(_ id: String) async {
+        guard let changes, case .success(let read) = await changes.suggestions(dateId: id) else { return }
+        ui.suggestions = read
+        let pending = Set(read.filter { $0.status == .pending }.map(\.id))
+        ui.agreeFailed.formIntersection(pending)
     }
 
     /// Reads the date: the latest agreed time and place, or its end. False once the chat is over -- ended

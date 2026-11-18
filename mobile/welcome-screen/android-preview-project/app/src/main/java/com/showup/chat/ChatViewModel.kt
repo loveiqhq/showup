@@ -34,6 +34,11 @@ package com.showup.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.showup.analytics.AnalyticsTracker
+import com.showup.change.AgreeResult
+import com.showup.change.AgreeSurface
+import com.showup.change.ChangeStatus
+import com.showup.change.ChangeStore
+import com.showup.change.ChangeSuggestion
 import com.showup.change.changeKindOf
 import com.showup.api.CallFailure
 import com.showup.api.Outcome
@@ -84,13 +89,22 @@ data class ChatUi(
     val outcome: EndedInChat? = null,
     /** The date is gone some other way: the host goes back to the Date screen. */
     val left: Boolean = false,
+    /**
+     * Date 05: every suggestion of the date, oldest first, from the last read of GET suggestions. Never
+     * messages: they send no `message_sent`, arrive with no `message_received` and are not unread.
+     */
+    val suggestions: List<ChangeSuggestion> = emptyList(),
+    /** `I agree` in the thread is on its way, by suggestion id: both buttons are inert. */
+    val agreeing: Set<String> = emptySet(),
+    /** L: the last `I agree` got no server OK, by suggestion id; the card shows the red line. */
+    val agreeFailed: Set<String> = emptySet(),
 ) {
     val locked: Boolean get() = fieldLocked(selected, guide)
     val canSend: Boolean get() = !sending && com.showup.chat.canSend(draft, locked)
     val endCard: Boolean get() = endCardVisible(messages, selected)
 
     /** B, the start grid: no message yet and nothing picked or typed. A chip tap moves to the thread. */
-    val start: Boolean get() = messages.isEmpty() && selected == null && draft.isEmpty() && guide == Guide.None
+    val start: Boolean get() = messages.isEmpty() && suggestions.isEmpty() && selected == null && draft.isEmpty() && guide == Guide.None
 
     val countdown: String? get() = date?.let { com.showup.chat.countdown(now, it.meetAt) }
 }
@@ -102,6 +116,8 @@ class ChatViewModel(
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val received: ReceivedLedger = InMemoryReceivedLedger(),
+    /** Date 05's calls; null where the host has none (the suggestions then stay empty). */
+    private val changes: ChangeStore? = null,
 ) : ViewModel() {
 
     private val _ui = MutableStateFlow(ChatUi(now = clock()))
@@ -295,6 +311,29 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * `I agree` on a theirs-pending card (L): the server decides, and NOTHING on screen changes until it has.
+     * While it is on its way a second tap does nothing. 200: the date, the thread and the suggestions are read
+     * again (the system line comes from the server). 409 (no longer pending): the same re-read, no error, no
+     * event -- the card shows its real state. No response or 5xx: the red line, and a tap on it or on `I agree`
+     * sends it again (a repeat by the receiver is answered 200).
+     */
+    fun agree(suggestionId: String) {
+        val ui = _ui.value
+        val date = ui.date ?: return
+        val changes = changes ?: return
+        val card = ui.suggestions.firstOrNull { it.id == suggestionId } ?: return
+        if (card.byYou || card.status != ChangeStatus.Pending || suggestionId in ui.agreeing) return
+        _ui.update { it.copy(agreeing = it.agreeing + suggestionId, agreeFailed = it.agreeFailed - suggestionId) }
+        viewModelScope.launch {
+            when (changes.agree(date.id, suggestionId, AgreeSurface.Thread)) {
+                is AgreeResult.Agreed, AgreeResult.Stale -> refresh(date.id)
+                is AgreeResult.Failed -> _ui.update { it.copy(agreeFailed = it.agreeFailed + suggestionId) }
+            }
+            _ui.update { it.copy(agreeing = it.agreeing - suggestionId) }
+        }
+    }
+
     /** `End date` on the card: the sheet opens. Only with the card, so only after a cant_make_it message. */
     fun openEndSheet() {
         val ui = _ui.value
@@ -354,6 +393,16 @@ class ChatViewModel(
             }
             // A failed re-read keeps the thread on screen: a dropped connection is not an empty chat.
             is Outcome.Failed -> _ui.update { if (it.loading) it.copy(loading = false, failed = thread.why) else it }
+        }
+        readSuggestions(id)
+    }
+
+    /** One more request per poll. A failed read keeps the cards on screen, as a failed thread read does. */
+    private suspend fun readSuggestions(id: String) {
+        val read = changes?.suggestions(id) as? Outcome.Ok ?: return
+        _ui.update { ui ->
+            val pending = read.value.filter { it.status == ChangeStatus.Pending }.map { it.id }.toSet()
+            ui.copy(suggestions = read.value, agreeFailed = ui.agreeFailed intersect pending)
         }
     }
 
