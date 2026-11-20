@@ -25,7 +25,8 @@ struct ChangeSuggestionCard: View {
     let agreeing: Bool
     let agreeFailed: Bool
     let onAgree: () -> Void
-    let onCounter: () -> Void
+    /// Nil once a new suggestion can no longer be made (cutoff, a check-in): only `I agree` is left.
+    let onCounter: (() -> Void)?
 
     var body: some View {
         let mine = suggestion.byYou
@@ -140,33 +141,44 @@ struct ChangeSuggestionCard: View {
     }
 
     /// `Suggest another` first, `I agree` second: h 44 pills, gap 8. While `agreeing` both are inert and `I agree`
-    /// is at .6.
+    /// is at .6. With no `onCounter` (Date 05: no new suggestion after the cutoff or a check-in, while this one stays
+    /// answerable until its deadline) `I agree` stands alone, full width.
     ///
     /// Side by side while both labels fit a half, stacked full width (Suggest another on top, the binding I agree below)
     /// when one does not; a pill is at least 44 and grows with its text, so nothing is cut at any type size.
-    private var buttons: some View {
-        ButtonPair(gap: 8) {
-            Button(action: onCounter) {
-                Text(ChangeCopy.suggestAnother).font(F.manrope(13.5, .bold)).foregroundColor(.liqFg)
-                    .padding(.horizontal, pairButtonPadding).padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(Capsule().fill(Color.liqElevated))
-                    .overlay(Capsule().strokeBorder(Color.liqBorder, lineWidth: 1))
+    @ViewBuilder private var buttons: some View {
+        if let onCounter {
+            ButtonPair(gap: 8) {
+                Button(action: onCounter) {
+                    Text(ChangeCopy.suggestAnother).font(F.manrope(13.5, .bold)).foregroundColor(.liqFg)
+                        .padding(.horizontal, pairButtonPadding).padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Capsule().fill(Color.liqElevated))
+                        .overlay(Capsule().strokeBorder(Color.liqBorder, lineWidth: 1))
+                }
+                .buttonStyle(PressScale())
+                .fitTapArea()
+                .disabled(agreeing)
+                agreeButton
             }
-            .buttonStyle(PressScale())
-            .fitTapArea()
-            .disabled(agreeing)
-            Button(action: onAgree) {
-                Text(ChangeCopy.iAgree).font(F.manrope(14, .bold)).foregroundColor(.white)
-                    .padding(.horizontal, pairButtonPadding).padding(.vertical, 8)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(SunsetFill(shape: Capsule(), shadows: shadowCta))
-                    .opacity(agreeing ? 0.6 : 1)
-            }
-            .buttonStyle(PressScale())
-            .fitTapArea()
-            .disabled(agreeing)
+        } else {
+            agreeButton
         }
+    }
+
+    /// The binding `I agree`: sunset pill, the CTA shadow, at least 44 and growing with its text; .6 and inert while
+    /// `agreeing`.
+    private var agreeButton: some View {
+        Button(action: onAgree) {
+            Text(ChangeCopy.iAgree).font(F.manrope(14, .bold)).foregroundColor(.white)
+                .padding(.horizontal, pairButtonPadding).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(SunsetFill(shape: Capsule(), shadows: shadowCta))
+                .opacity(agreeing ? 0.6 : 1)
+        }
+        .buttonStyle(PressScale())
+        .fitTapArea()
+        .disabled(agreeing)
     }
 }
 

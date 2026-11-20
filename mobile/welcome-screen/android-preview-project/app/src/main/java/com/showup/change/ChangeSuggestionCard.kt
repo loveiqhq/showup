@@ -104,7 +104,8 @@ fun ChangeSuggestionCard(
     agreeing: Boolean,
     agreeFailed: Boolean,
     onAgree: () -> Unit,
-    onCounter: () -> Unit,
+    /** Null once a new suggestion can no longer be made (cutoff, a check-in): only `I agree` is left. */
+    onCounter: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val mine = suggestion.byYou
@@ -215,12 +216,20 @@ fun DeadlineBox(deadline: String, time: String, place: String, modifier: Modifie
     }
 }
 
-/** `Suggest another` first, `I agree` second: h 44 pills, gap 8. While [agreeing] both are inert and `I agree` is at .6. */
+/**
+ * `Suggest another` first, `I agree` second: h 44 pills, gap 8. While [agreeing] both are inert and `I agree` is at .6.
+ * With no [onCounter] (Date 05: no new suggestion after the cutoff or a check-in, while this one stays answerable until
+ * its deadline) `I agree` stands alone, full width.
+ */
 @Composable
-private fun CardButtons(agreeing: Boolean, onAgree: () -> Unit, onCounter: () -> Unit) {
+private fun CardButtons(agreeing: Boolean, onAgree: () -> Unit, onCounter: (() -> Unit)?) {
     val pill = RoundedCornerShape(percent = 50)
     // Merging, so the card (itself a merged element) keeps the inert button as a node of its own.
     val inert = Modifier.semantics(mergeDescendants = true) { role = Role.Button; disabled() }
+    if (onCounter == null) {
+        AgreePill(agreeing, inert, onAgree, Modifier.fillMaxWidth())
+        return
+    }
     // Side by side while both labels fit a half, stacked full width (Suggest another on top, the binding I agree
     // below) when one does not; a pill is at least 44 and grows with its text, so nothing is cut at any type size.
     ButtonPair(
@@ -239,21 +248,26 @@ private fun CardButtons(agreeing: Boolean, onAgree: () -> Unit, onCounter: () ->
                 Text(ChangeCopy.SUGGEST_ANOTHER, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = Fg))
             }
         },
-        second = {
-            Box(
-                Modifier
-                    .heightIn(min = 44.dp)
-                    .alpha(if (agreeing) 0.6f else 1f)
-                    .testTag(CHANGE_CARD_AGREE_TAG)
-                    .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onAgree))
-                    .roundedShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), 22.dp, ShadowCta)
-                    .clip(pill)
-                    .cssLinearGradient(135f, SunsetStops.map { it.second }, SunsetStops.map { it.first })
-                    .padding(horizontal = PAIR_BUTTON_PADDING, vertical = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(ChangeCopy.I_AGREE, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White))
-            }
-        },
+        second = { AgreePill(agreeing, inert, onAgree) },
     )
+}
+
+/** The binding `I agree`: sunset pill, the CTA shadow, at least 44 and growing with its text; .6 and inert while [agreeing]. */
+@Composable
+private fun AgreePill(agreeing: Boolean, inert: Modifier, onAgree: () -> Unit, modifier: Modifier = Modifier) {
+    val pill = RoundedCornerShape(percent = 50)
+    Box(
+        modifier
+            .heightIn(min = 44.dp)
+            .alpha(if (agreeing) 0.6f else 1f)
+            .testTag(CHANGE_CARD_AGREE_TAG)
+            .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onAgree))
+            .roundedShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), 22.dp, ShadowCta)
+            .clip(pill)
+            .cssLinearGradient(135f, SunsetStops.map { it.second }, SunsetStops.map { it.first })
+            .padding(horizontal = PAIR_BUTTON_PADDING, vertical = 8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(ChangeCopy.I_AGREE, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White))
+    }
 }

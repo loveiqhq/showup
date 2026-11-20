@@ -135,7 +135,10 @@ struct ChatScreen: View {
                                              agreeing: ui.agreeing.contains(suggestion.id),
                                              agreeFailed: ui.agreeFailed.contains(suggestion.id),
                                              onAgree: { onAgree(suggestion.id) },
-                                             onCounter: { onCounter(suggestion.kind) })
+                                             // Suggest another only while a new suggestion can still be made
+                                             // (the tiles' and chips' one rule); I agree stays until the deadline.
+                                             onCounter: changeKindAvailable(date.change, kind: suggestion.kind, now: ui.now)
+                                                 ? { onCounter(suggestion.kind) } : nil)
                     case .system(_, let text, let agreed, _):
                         SystemLine(text: text, icon: agreed ? .check : .clock, success: agreed, width: width)
                     }

@@ -82,6 +82,7 @@ import com.showup.date.ActiveDate
 import com.showup.change.ChangeKind
 import com.showup.change.ChangeRetryLine
 import com.showup.change.ChangeSuggestionCard
+import com.showup.change.changeKindAvailable
 import com.showup.change.visibleReasons
 import com.showup.designsystem.ComponentSizes
 import com.showup.designsystem.Border
@@ -282,7 +283,13 @@ private fun Thread(
                     agreeing = item.suggestion.id in ui.agreeing,
                     agreeFailed = item.suggestion.id in ui.agreeFailed,
                     onAgree = { onAgree(item.suggestion.id) },
-                    onCounter = { onCounter(item.suggestion.kind) },
+                    // Suggest another only while a new suggestion can still be made (the tiles' and chips' one rule);
+                    // the card stays answerable with I agree until its own deadline.
+                    onCounter = if (changeKindAvailable(date.change, item.suggestion.kind, ui.now)) {
+                        { onCounter(item.suggestion.kind) }
+                    } else {
+                        null
+                    },
                 )
                 is ThreadItem.System -> SystemLine(item.text, if (item.agreed) BrandIcon.Check else BrandIcon.Clock, success = item.agreed)
             }

@@ -118,6 +118,15 @@ class ArrivalRoutingTest {
     }
 
     @Test
+    fun `a committed check-in closes new suggestions at once, on the committer's phone too (Date 05)`() {
+        val open = com.showup.change.DateChange(Instant.EPOCH, allowed = true, slots = emptyList(), timeWas = null, placeWas = null, pending = emptyList())
+        val before = date(checkedIn = false).copy(coordinateOpen = false, change = open)
+        val shown = committedView(before, committed = true)
+        assertFalse("the tiles and change chips hide with the Check-in bar", shown.change!!.allowed)
+        assertEquals(before.copy(checkedIn = true, coordinateOpen = true, change = open.copy(allowed = false)), shown)
+    }
+
+    @Test
     fun `an undo lands on the Date screen from the chat and stays put elsewhere`() {
         assertEquals(UndoLanding.LeaveChat, undoLanding(undone = true, chatOnTop = true))
         assertEquals(UndoLanding.ConsumeOnly, undoLanding(undone = true, chatOnTop = false))

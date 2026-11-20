@@ -141,7 +141,10 @@ final class DevMenuRulesTests: XCTestCase {
     func testTheDateActionsOfferLeonieCheckingInBeforeTheEnd() {
         let labels = DevDateAction.allCases.map(\.label)
         XCTAssertEqual(labels.last, "End test date")
-        XCTAssertEqual(labels.firstIndex(of: "Leonie checks in (H, the arrival card)"), labels.count - 2)
+        // Before the end, not at a fixed place: Date 05's four change actions follow it (SHOWUP-196).
+        let leonie = labels.firstIndex(of: "Leonie checks in (H, the arrival card)")
+        XCTAssertNotNil(leonie)
+        XCTAssertLessThan(leonie ?? labels.count, labels.count - 1)
     }
 
     func testEveryOtherScreenLandsWhereAsked() {

@@ -101,6 +101,15 @@ class ChangeThreadScreenTest {
     }
 
     @Test
+    fun `C once new suggestions are closed (cutoff or a check-in), Suggest another goes and I agree stays`() = runComposeUiTest {
+        val closed = s.DATE.copy(change = s.DATE.change!!.copy(allowed = false))
+        setContent { Screen(thread(listOf(s.THEIRS_TIME)).copy(date = closed)) }
+        onAllNodesWithText("Suggest another").assertCountEquals(0)
+        onNodeWithText("I agree").assertExists().performClick()
+        assertEquals(1, agrees.size)
+    }
+
+    @Test
     fun `C a place suggestion shows the type and the address, and counters with the place kind`() = runComposeUiTest {
         setContent { Screen(thread(listOf(s.MINE_PLACE.copy(byYou = false)))) }
         cardText("LEONIE SUGGESTED · MEETING PLACE").assertExists()
