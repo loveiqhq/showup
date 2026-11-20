@@ -44,6 +44,10 @@ extension EnvironmentValues {
     }
 }
 
+/// The reference's `ChangeFullSheet` top spacer (`height: 62`), under the status bar. Local: the picker's own
+/// geometry, not a spacing step.
+private let sheetTopSpacer: CGFloat = 62
+
 struct ChangeFullSheet<Content: View, Footer: View>: View {
     @ViewBuilder let content: () -> Content
     @ViewBuilder let footer: () -> Footer
@@ -59,9 +63,12 @@ struct ChangeFullSheet<Content: View, Footer: View>: View {
     private func sheet(footerCap: CGFloat) -> some View {
         ScrollView {
             VStack(spacing: 0) { content() }
-                .padding(EdgeInsets(top: Spacing.md, leading: 20, bottom: 16, trailing: 20))
+                .padding(EdgeInsets(top: 0, leading: 20, bottom: 16, trailing: 20))
                 .fitAnchor("change:list")
         }
+        // The reference's fixed 62 spacer above the list, under the status bar: the kit's phone frame lays the sheet
+        // out below its 54 status bar, so the 62 is space under it, not a mock of it (spec sheet frame A).
+        .padding(.top, sheetTopSpacer)
         .background(Color.liqCream.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             footer()

@@ -334,7 +334,7 @@ export class DateDevService {
 
     const windows = this.db.getRepository(CheckInWindow);
     await windows.delete({ userId: partner.id });
-    await windows.save(
+    const partnerWindow = await windows.save(
       windows.create({
         userId: partner.id,
         closesAt: new Date(Date.now() + 48 * 3_600_000),
@@ -354,13 +354,19 @@ export class DateDevService {
     await this.db.query(`DELETE FROM "check_ins" WHERE "user_id" = $1`, [
       partner.id,
     ]);
-    await this.checkIns.create(partner.id, {
+    const run = await this.checkIns.create(partner.id, {
       availabilityStart: new Date(Date.now() + 60_000).toISOString(),
       availabilityEnd: new Date(Date.now() + 6 * 3_600_000).toISOString(),
       preparationMinutes: 20,
       latitude: (here?.lat ?? VENUE.lat) + PARTNER_OFFSET_LAT,
       longitude: here?.lng ?? VENUE.lng,
     });
+    // Linked to her window, as the real Check-In flow links every run: Date 05's slots read the match's runs
+    // of their latest committed window, so an unlinked run gave the test date no later time to suggest.
+    await this.db.query(
+      `UPDATE "check_ins" SET "check_in_window_id" = $1 WHERE "id" = $2`,
+      [partnerWindow.id, run.id],
+    );
     return partner.id;
   }
 

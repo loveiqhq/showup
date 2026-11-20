@@ -101,7 +101,6 @@ import com.showup.designsystem.Raised
 import com.showup.designsystem.SheetErrorBox
 import com.showup.designsystem.SheetPrimaryButton
 import com.showup.designsystem.SheetSecondaryButton
-import com.showup.designsystem.Spacing
 import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.prettyWrap
 import com.showup.designsystem.roundedShadows
@@ -150,9 +149,14 @@ private val FooterLift = listOf(CssShadow(Fg.copy(alpha = 0.08f), offsetY = (-10
  * bars -- a translucent bar over white rows would show their text through it. It is aligned to the bottom of
  * the box, never placed by a Y.
  *
- * The top is the status-bar inset plus [Spacing.md]: the reference's 62 is a mock status bar (54) and a gap,
- * and the ticket says to anchor to the safe-area insets.
+ * The top is the status-bar inset plus the reference's fixed 62 spacer, above the scrolling list: the kit's
+ * phone frame draws its 54 status bar first and lays the sheet out BELOW it, so the 62 is space under the
+ * status bar, not a mock of it (the spec sheet's frame A shows the gap). The ticket anchors it to the inset.
  */
+/** The reference's `ChangeFullSheet` top spacer (`height: 62`), under the status bar. Local: the picker's own
+ * geometry, not a spacing step. */
+private val SHEET_TOP_SPACER = 62.dp
+
 @Composable
 fun ChangeFullSheet(
     footer: @Composable () -> Unit,
@@ -163,7 +167,7 @@ fun ChangeFullSheet(
     var footerPx by remember { mutableIntStateOf(0) }
     val footerDp = with(LocalDensity.current) { footerPx.toDp() }
     Box(Modifier.fillMaxSize().background(Cream)) {
-        Column(Modifier.fillMaxSize().statusBarsPadding().padding(top = Spacing.md)) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().padding(top = SHEET_TOP_SPACER)) {
             Column(
                 Modifier
                     .weight(1f)
