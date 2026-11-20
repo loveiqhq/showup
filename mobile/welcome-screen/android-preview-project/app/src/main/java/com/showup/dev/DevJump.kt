@@ -207,7 +207,7 @@ fun devJump(
  */
 data class DevState(val id: String, val ticket: String, val label: String)
 
-/** Every frame of SHOWUP-178 to 184's, 193's, 194's and 195's evidence, in ticket order -- plus the states between them. */
+/** Every frame of SHOWUP-178 to 184's, 193's, 194's, 195's and 196's evidence, in ticket order -- plus the states between them. */
 val DEV_STATES: List<DevState> = listOf(
     DevState("178A", "SHOWUP-178 Intro + gate", "A · Intro"),
     DevState("178B", "SHOWUP-178 Intro + gate", "B · Date search not available"),
@@ -268,6 +268,20 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("195F", "SHOWUP-195 Arrival check-in", "F · Chat chip, guard over the chat"),
     DevState("195G", "SHOWUP-195 Arrival check-in", "G · Date location gate (denied)"),
     DevState("195H", "SHOWUP-195 Arrival check-in", "H · Leonie arrived card"),
+    DevState("196A", "SHOWUP-196 Change time and place", "A · Time picker"),
+    DevState("196B", "SHOWUP-196 Change time and place", "B · Place picker"),
+    DevState("196C", "SHOWUP-196 Change time and place", "C · Sent, waiting"),
+    DevState("196D", "SHOWUP-196 Change time and place", "D · Date screen, yours waiting"),
+    DevState("196E", "SHOWUP-196 Change time and place", "E · Change request, chat open"),
+    DevState("196F", "SHOWUP-196 Change time and place", "F · Answering in the chat"),
+    DevState("196G", "SHOWUP-196 Change time and place", "G · Agreed"),
+    DevState("196H", "SHOWUP-196 Change time and place", "H · Expired"),
+    DevState("196I", "SHOWUP-196 Change time and place", "I · Before the chat opens"),
+    DevState("196J", "SHOWUP-196 Change time and place", "J · Change request, chat locked"),
+    DevState("196K", "SHOWUP-196 Change time and place", "K · Suggest failed"),
+    DevState("196L", "SHOWUP-196 Change time and place", "L · I agree failed"),
+    DevState("196M", "SHOWUP-196 Change time and place", "M · Places couldn't load"),
+    DevState("196N", "SHOWUP-196 Change time and place", "N · No place found"),
 )
 
 /** The developer menu's Date actions (SHOWUP-193), each a dev-server route. */

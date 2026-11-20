@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -52,6 +53,8 @@ import androidx.compose.ui.unit.sp
 import com.showup.chat.messageTime
 import com.showup.date.pressable
 import com.showup.designsystem.BaselineWrap
+import com.showup.designsystem.ButtonPair
+import com.showup.designsystem.PAIR_BUTTON_PADDING
 import com.showup.designsystem.Border
 import com.showup.designsystem.BorderSoft
 import com.showup.designsystem.Elevated
@@ -218,30 +221,39 @@ private fun CardButtons(agreeing: Boolean, onAgree: () -> Unit, onCounter: () ->
     val pill = RoundedCornerShape(percent = 50)
     // Merging, so the card (itself a merged element) keeps the inert button as a node of its own.
     val inert = Modifier.semantics(mergeDescendants = true) { role = Role.Button; disabled() }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            Modifier
-                .weight(1f).height(44.dp)
-                .testTag(CHANGE_CARD_COUNTER_TAG)
-                .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onCounter))
-                .background(Elevated, pill)
-                .border(1.dp, Border, pill),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(ChangeCopy.SUGGEST_ANOTHER, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = Fg))
-        }
-        Box(
-            Modifier
-                .weight(1f).height(44.dp)
-                .alpha(if (agreeing) 0.6f else 1f)
-                .testTag(CHANGE_CARD_AGREE_TAG)
-                .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onAgree))
-                .roundedShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), 22.dp, ShadowCta)
-                .clip(pill)
-                .cssLinearGradient(135f, SunsetStops.map { it.second }, SunsetStops.map { it.first }),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(ChangeCopy.I_AGREE, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White))
-        }
-    }
+    // Side by side while both labels fit a half, stacked full width (Suggest another on top, the binding I agree
+    // below) when one does not; a pill is at least 44 and grows with its text, so nothing is cut at any type size.
+    ButtonPair(
+        gap = 8.dp,
+        first = {
+            Box(
+                Modifier
+                    .heightIn(min = 44.dp)
+                    .testTag(CHANGE_CARD_COUNTER_TAG)
+                    .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onCounter))
+                    .background(Elevated, pill)
+                    .border(1.dp, Border, pill)
+                    .padding(horizontal = PAIR_BUTTON_PADDING, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(ChangeCopy.SUGGEST_ANOTHER, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = Fg))
+            }
+        },
+        second = {
+            Box(
+                Modifier
+                    .heightIn(min = 44.dp)
+                    .alpha(if (agreeing) 0.6f else 1f)
+                    .testTag(CHANGE_CARD_AGREE_TAG)
+                    .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onAgree))
+                    .roundedShadows(Brush.linearGradient(colorStops = SunsetStops.toTypedArray()), 22.dp, ShadowCta)
+                    .clip(pill)
+                    .cssLinearGradient(135f, SunsetStops.map { it.second }, SunsetStops.map { it.first })
+                    .padding(horizontal = PAIR_BUTTON_PADDING, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(ChangeCopy.I_AGREE, style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.White))
+            }
+        },
+    )
 }

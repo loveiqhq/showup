@@ -141,11 +141,15 @@ struct ChangeSuggestionCard: View {
 
     /// `Suggest another` first, `I agree` second: h 44 pills, gap 8. While `agreeing` both are inert and `I agree`
     /// is at .6.
+    ///
+    /// Side by side while both labels fit a half, stacked full width (Suggest another on top, the binding I agree below)
+    /// when one does not; a pill is at least 44 and grows with its text, so nothing is cut at any type size.
     private var buttons: some View {
-        HStack(spacing: 8) {
+        ButtonPair(gap: 8) {
             Button(action: onCounter) {
                 Text(ChangeCopy.suggestAnother).font(F.manrope(13.5, .bold)).foregroundColor(.liqFg)
-                    .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
+                    .padding(.horizontal, pairButtonPadding).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .background(Capsule().fill(Color.liqElevated))
                     .overlay(Capsule().strokeBorder(Color.liqBorder, lineWidth: 1))
             }
@@ -154,7 +158,8 @@ struct ChangeSuggestionCard: View {
             .disabled(agreeing)
             Button(action: onAgree) {
                 Text(ChangeCopy.iAgree).font(F.manrope(14, .bold)).foregroundColor(.white)
-                    .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 44)
+                    .padding(.horizontal, pairButtonPadding).padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, minHeight: 44)
                     .background(SunsetFill(shape: Capsule(), shadows: shadowCta))
                     .opacity(agreeing ? 0.6 : 1)
             }

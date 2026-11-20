@@ -14,6 +14,9 @@ package com.showup.change
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -41,6 +44,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +59,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -69,6 +74,7 @@ import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -85,6 +91,7 @@ import com.showup.designsystem.Cream
 import com.showup.designsystem.CssShadow
 import com.showup.designsystem.Elevated
 import com.showup.designsystem.Fg
+import com.showup.designsystem.fitWordsOf
 import com.showup.designsystem.FgSubtle
 import com.showup.designsystem.Lora
 import com.showup.designsystem.Manrope
@@ -147,7 +154,12 @@ private val FooterLift = listOf(CssShadow(Fg.copy(alpha = 0.08f), offsetY = (-10
  * and the ticket says to anchor to the safe-area insets.
  */
 @Composable
-fun ChangeFullSheet(footer: @Composable () -> Unit, content: @Composable () -> Unit) {
+fun ChangeFullSheet(
+    footer: @Composable () -> Unit,
+    // Hoisted only so the fit sweep can scroll the list to its end and measure the last row against the footer.
+    scroll: ScrollState = rememberScrollState(),
+    content: @Composable () -> Unit,
+) {
     var footerPx by remember { mutableIntStateOf(0) }
     val footerDp = with(LocalDensity.current) { footerPx.toDp() }
     Box(Modifier.fillMaxSize().background(Cream)) {
@@ -156,7 +168,7 @@ fun ChangeFullSheet(footer: @Composable () -> Unit, content: @Composable () -> U
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scroll)
                     // The footer is over the list: its last row must be able to scroll clear of the footer, at
                     // 280 as drawn and at the footer's own height plus the row gap when that is taller (the
                     // largest type, a gesture bar).
@@ -298,6 +310,7 @@ fun TimeChangeSheet(
     onSelect: (Instant) -> Unit,
     onSuggest: () -> Unit,
     onCancel: () -> Unit,
+    scroll: ScrollState = rememberScrollState(),
 ) {
     val latest = latestSlot(ctx.slots)?.let { changeClock(it, ctx.zone) }.orEmpty()
     ChangeFullSheet(
@@ -308,6 +321,7 @@ fun TimeChangeSheet(
                 onSuggest = onSuggest, onCancel = onCancel,
             )
         },
+        scroll = scroll,
     ) {
         ChangeSheetHead(
             title = ChangeCopy.TIME_TITLE,
@@ -322,10 +336,15 @@ fun TimeChangeSheet(
 /** The pinned footer both pickers share: K's error or the binding note, then the primary and Cancel. */
 @Composable
 private fun ChangeFooter(ctx: ChangeSheetContext, ui: ChangePickerUi, primary: String, onSuggest: () -> Unit, onCancel: () -> Unit) {
-    if (ui.sendFailed) {
-        ChangeError(ChangeCopy.SEND_FAILED)
-    } else {
-        BindingNote(ctx.name, ctx.time, ctx.bindingPlace, ctx.deadline)
+    // The note (or K's error) scrolls inside a quarter of the screen: at the largest type on a short window it alone
+    // is taller than the screen, and a footer pushed off it takes both buttons with it. The buttons stay pinned.
+    val cap = (LocalConfiguration.current.screenHeightDp * 0.25f).dp
+    Column(Modifier.heightIn(max = cap).verticalScroll(rememberScrollState())) {
+        if (ui.sendFailed) {
+            ChangeError(ChangeCopy.SEND_FAILED)
+        } else {
+            BindingNote(ctx.name, ctx.time, ctx.bindingPlace, ctx.deadline)
+        }
     }
     SheetPrimaryButton(
         label = primary,
@@ -337,35 +356,53 @@ private fun ChangeFooter(ctx: ChangeSheetContext, ui: ChangePickerUi, primary: S
     SheetSecondaryButton(ChangeCopy.CANCEL, onCancel, Modifier.testTag(CHANGE_CANCEL_TAG), inert = ui.sending)
 }
 
+/** The columns the slot grid starts from, as drawn; it takes fewer when the widest label does not fit a cell. */
 private const val SLOT_COLUMNS = 4
+private val SlotCellGap = 6.dp
+
+/** A cell's side padding: keeps the label off the rounded ends once the cells are as narrow as their text. */
+private val SlotCellPadding = 6.dp
 
 private val SlotText = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp, fontFeatureSettings = "tnum")
 
 @Composable
 private fun SlotGrid(ctx: ChangeSheetContext, selected: Instant?, enabled: Boolean, onSelect: (Instant) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        ctx.slots.chunked(SLOT_COLUMNS).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+        // The largest of 4, 3, 2 columns at which the widest label (measured, at this type size) stays on one line.
+        val widest = with(density) {
+            ctx.slots.maxOfOrNull { measurer.measure(changeClock(it, ctx.zone), SlotText).size.width }?.toDp() ?: 0.dp
+        }
+        val columns = (SLOT_COLUMNS downTo 2).firstOrNull { n ->
+            (maxWidth - SlotCellGap * (n - 1)) / n >= widest + SlotCellPadding * 2
+        } ?: 2
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(SlotCellGap)) {
+        ctx.slots.chunked(columns).forEach { row ->
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(SlotCellGap)) {
                 row.forEach { slot ->
                     val on = slot == selected
                     val shape = RoundedCornerShape(12.dp)
                     Box(
                         Modifier
                             .weight(1f)
-                            .height(44.dp)
+                            .fillMaxHeight()
+                            .heightIn(min = 44.dp)
                             .testTag(slotTag(slot))
                             .semantics { this.selected = on }
                             .then(if (enabled) Modifier.pressable(Role.RadioButton) { onSelect(slot) } else Modifier)
                             .background(if (on) Purple else Elevated, shape)
-                            .then(if (on) Modifier else Modifier.border(1.dp, Border, shape)),
+                            .then(if (on) Modifier else Modifier.border(1.dp, Border, shape))
+                            .padding(horizontal = SlotCellPadding),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(changeClock(slot, ctx.zone), style = SlotText, color = if (on) Color.White else Fg)
+                        Text(changeClock(slot, ctx.zone), style = SlotText, color = if (on) Color.White else Fg, maxLines = 1)
                     }
                 }
-                // A short last row keeps its columns: the grid is 4 equal tracks, not a stretched row.
-                repeat(SLOT_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
+                // A short last row keeps its columns: the grid is equal tracks, not a stretched row.
+                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
+        }
         }
     }
 }
@@ -386,6 +423,7 @@ fun PlaceChangeSheet(
     onRetry: () -> Unit,
     onSuggest: () -> Unit,
     onCancel: () -> Unit,
+    scroll: ScrollState = rememberScrollState(),
 ) {
     ChangeFullSheet(
         footer = {
@@ -395,6 +433,7 @@ fun PlaceChangeSheet(
                 onSuggest = onSuggest, onCancel = onCancel,
             )
         },
+        scroll = scroll,
     ) {
         ChangeSheetHead(
             title = ChangeCopy.PLACE_TITLE,
@@ -427,33 +466,41 @@ private val SearchFieldText = TextStyle(fontFamily = Manrope, fontWeight = FontW
 @Composable
 private fun SearchField(query: String, onQuery: (String) -> Unit) {
     val shape = RoundedCornerShape(14.dp)
-    Row(
-        Modifier
+    // The input IS the whole 48-tall field: its box carries the fill, the border and the padding, and the icon and the
+    // placeholder are drawn inside its decoration, so a tap anywhere in the field focuses it. (A 20.5 dp input in a
+    // 48 dp row answered only its middle: the 196 fit sweep.)
+    BasicTextField(
+        value = query,
+        onValueChange = onQuery,
+        modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 12.dp)
-            .height(48.dp)
+            .heightIn(min = 48.dp)
             .background(Elevated, shape)
             .border(1.5.dp, Border, shape)
             // Pad 0 14 plus the 1.5 border.
-            .padding(horizontal = 15.5.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(BrandIcon.Search, 18.dp, tint = FgSubtle, strokeWidth = 2.2f)
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (query.isEmpty()) Text(ChangeCopy.SEARCH_PLACEHOLDER, style = SearchFieldText.copy(color = FgSubtle))
-            BasicTextField(
-                value = query,
-                onValueChange = onQuery,
-                modifier = Modifier.fillMaxWidth().testTag(CHANGE_SEARCH_TAG),
-                singleLine = true,
-                textStyle = SearchFieldText,
-                cursorBrush = SolidColor(Purple),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(),
-            )
-        }
-    }
+            .padding(horizontal = 15.5.dp)
+            .testTag(CHANGE_SEARCH_TAG),
+        singleLine = true,
+        textStyle = SearchFieldText,
+        cursorBrush = SolidColor(Purple),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(),
+        decorationBox = { input ->
+            // The placeholder wraps rather than being cut at a large type size, and the field grows with it.
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(BrandIcon.Search, 18.dp, tint = FgSubtle, strokeWidth = 2.2f)
+                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) Text(ChangeCopy.SEARCH_PLACEHOLDER, style = SearchFieldText.copy(color = FgSubtle))
+                    input()
+                }
+            }
+        },
+    )
 }
 
 private val ListLabel = TextStyle(
@@ -516,13 +563,16 @@ private fun PlaceRow(place: PlaceOption, on: Boolean, enabled: Boolean, onClick:
             Icon(BrandIcon.MapPin, 18.dp, tint = Purple, strokeWidth = 2.2f)
         }
         Column(Modifier.weight(1f)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(place.name, style = RowName, modifier = Modifier.weight(1f, fill = false))
+            // Name and TYPE on one line while both fit; the tag under the name when one more word would break it.
+            com.showup.date.InlineOrStack(gap = 7.dp) {
+                Text(place.name, style = RowName)
                 Text(placeTypeTag(place.type), style = RowTag)
             }
+            val address = "${place.address} · ${formatDistance(place.distanceMeters)}"
+            // A street name is one long word on a narrow card at a large type size: shrunk to the column, never broken.
             Text(
-                "${place.address} · ${formatDistance(place.distanceMeters)}",
-                modifier = Modifier.padding(top = 2.dp),
+                address,
+                modifier = Modifier.padding(top = 2.dp).fitWordsOf(address, RowAddress),
                 style = RowAddress,
             )
         }
@@ -600,9 +650,10 @@ fun ChangePickerScreen(
     onRetry: () -> Unit,
     onSuggest: () -> Unit,
     onCancel: () -> Unit,
+    scroll: ScrollState = rememberScrollState(),
 ) {
     when (ui.kind) {
-        ChangeKind.Time -> TimeChangeSheet(ctx, ui, onSelectSlot, onSuggest, onCancel)
-        ChangeKind.Place -> PlaceChangeSheet(ctx, ui, onQuery, onSelectPlace, onRetry, onSuggest, onCancel)
+        ChangeKind.Time -> TimeChangeSheet(ctx, ui, onSelectSlot, onSuggest, onCancel, scroll)
+        ChangeKind.Place -> PlaceChangeSheet(ctx, ui, onQuery, onSelectPlace, onRetry, onSuggest, onCancel, scroll)
     }
 }

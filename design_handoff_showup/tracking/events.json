@@ -4405,7 +4405,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "The full-screen time or place picker is shown. Fires after action_chip_used when it was opened from a chat chip or a Coordinate-card tile; on its own when it was opened by Suggest another. NEW 1.4.28, Date 05, 10 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "change_picker_dismissed",
@@ -4433,7 +4433,7 @@
           "sensitivity_class": 0,
           "backend_status": "Client only",
           "trigger": "The picker closed WITHOUT a suggestion being sent — Cancel, back gesture or swipe. Nothing is stored. Sending closes the picker and fires change_suggested instead, never this. NEW 1.4.28, Date 05, 10 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "change_suggested",
@@ -4481,7 +4481,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "A time or place suggestion is stored. Server, on the accepted write. The binding values do NOT change. Never the place name, address, coordinates or distance. NEW 1.4.28, Date 05, 10 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "change_agreed",
@@ -4517,7 +4517,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "I agree accepted: the suggestion becomes binding and the system line is posted. Server, on the accepted write — a tap the server rejects (already replaced or expired) fires nothing. NEW 1.4.28, Date 05, 10 Nov 2026.",
-          "implemented": false
+          "implemented": true
         },
         {
           "name": "change_expired",
@@ -4541,7 +4541,7 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "The expiry job found a suggestion still pending at binding meet time − 0:30. The original stays binding; the system line is posted. A replaced suggestion never expires. NEW 1.4.28, Date 05, 10 Nov 2026.",
-          "implemented": false
+          "implemented": true
         }
       ]
     },

@@ -218,9 +218,12 @@ class DateChangeScreenTest {
         onAllNodesWithText("Open chat").assertCountEquals(0)
         onAllNodesWithText("Messaging available from 17:30").assertCountEquals(0)
         onAllNodesWithText("Change meet time").assertCountEquals(0)
-        val first = onNodeWithTag(DATE_REQUEST_FIRST_TAG).fetchSemanticsNode()
-        val agree = onNodeWithTag(DATE_REQUEST_AGREE_TAG).fetchSemanticsNode()
-        assertTrue(first.boundsInRoot.left < agree.boundsInRoot.left)
+        // First in reading order: left of I agree when the two share a row, above it when they stack
+        // (Robolectric's 320 dp default cannot fit "Suggest another" in half the card, so it stacks).
+        val first = onNodeWithTag(DATE_REQUEST_FIRST_TAG).fetchSemanticsNode().boundsInRoot
+        val agree = onNodeWithTag(DATE_REQUEST_AGREE_TAG).fetchSemanticsNode().boundsInRoot
+        val sameRow = first.top == agree.top
+        assertTrue(if (sameRow) first.left < agree.left else first.bottom <= agree.top)
         onNodeWithTag(DATE_REQUEST_FIRST_TAG).performClick()
         assertEquals(listOf(ChangeKind.Time), counters)
     }

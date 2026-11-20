@@ -15,6 +15,8 @@ struct SheetPrimaryButton: View {
     let label: String
     var enabled = true
     var waiting = false
+    /// The fit tests' name for this button's frame, when one is measured.
+    var anchor: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -27,6 +29,7 @@ struct SheetPrimaryButton: View {
         }
         .buttonStyle(PressScale())
         .fitTapArea()
+        .fitAnchor(ifGiven: anchor)
         .disabled(!enabled || waiting)
     }
 }
@@ -35,6 +38,8 @@ struct SheetPrimaryButton: View {
 struct SheetSecondaryButton: View {
     let label: String
     var inert = false
+    /// The fit tests' name for this button's frame, when one is measured.
+    var anchor: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -47,6 +52,7 @@ struct SheetSecondaryButton: View {
         }
         .buttonStyle(PressScale())
         .fitTapArea()
+        .fitAnchor(ifGiven: anchor)
         .disabled(inert)
     }
 }

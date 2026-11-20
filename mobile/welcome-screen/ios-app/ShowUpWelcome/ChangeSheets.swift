@@ -32,18 +32,40 @@ struct ChangeSheetContext: Equatable, Sendable {
 ///
 /// It is a `safeAreaInset`, so it rides the keyboard and the home indicator instead of being placed by a Y, and the
 /// list ends above it. The reference's 30 bottom padding is the mock home indicator; here the real inset replaces it.
+private struct ChangeNoteCapKey: EnvironmentKey {
+    static let defaultValue: CGFloat = .infinity
+}
+
+extension EnvironmentValues {
+    /// The tallest the footer's note may be before it scrolls (a quarter of the sheet): the buttons stay pinned.
+    fileprivate var changeNoteCap: CGFloat {
+        get { self[ChangeNoteCapKey.self] }
+        set { self[ChangeNoteCapKey.self] = newValue }
+    }
+}
+
 struct ChangeFullSheet<Content: View, Footer: View>: View {
     @ViewBuilder let content: () -> Content
     @ViewBuilder let footer: () -> Footer
 
     var body: some View {
+        // A quarter of the screen caps the footer's note, which scrolls inside it, so at the largest type on a short
+        // phone the note never pushes the buttons off the screen. Android's `ChangeFooter`.
+        GeometryReader { proxy in
+            sheet(footerCap: proxy.size.height * 0.25)
+        }
+    }
+
+    private func sheet(footerCap: CGFloat) -> some View {
         ScrollView {
             VStack(spacing: 0) { content() }
                 .padding(EdgeInsets(top: Spacing.md, leading: 20, bottom: 16, trailing: 20))
+                .fitAnchor("change:list")
         }
         .background(Color.liqCream.ignoresSafeArea())
         .safeAreaInset(edge: .bottom, spacing: 0) {
             footer()
+                .environment(\.changeNoteCap, footerCap)
                 // Pad 14 20 plus the 1 pt rule CSS counts in the box.
                 .padding(EdgeInsets(top: 15, leading: 20, bottom: 14, trailing: 20))
                 .frame(maxWidth: .infinity)
@@ -52,6 +74,7 @@ struct ChangeFullSheet<Content: View, Footer: View>: View {
                         .shadow(color: Color.liqFg.opacity(0.08), radius: 14, y: -10)
                         .ignoresSafeArea(edges: .bottom))
                 .overlay(alignment: .top) { Rectangle().fill(Color.liqBorderSoft).frame(height: 1) }
+                .fitAnchor("change:footer")
                 .fitPinnedBar()
         }
     }
@@ -158,17 +181,26 @@ private struct ChangeFooter: View {
     let primary: String
     let onSuggest: () -> Void
     let onCancel: () -> Void
+    @Environment(\.changeNoteCap) private var noteCap
+
+    @ViewBuilder private var note: some View {
+        if ui.sendFailed {
+            ChangeError(message: ChangeCopy.sendFailed)
+        } else {
+            BindingNote(name: ctx.name, time: ctx.time, place: ctx.bindingPlace, deadline: ctx.deadline)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 10) {
-            if ui.sendFailed {
-                ChangeError(message: ChangeCopy.sendFailed)
-            } else {
-                BindingNote(name: ctx.name, time: ctx.time, place: ctx.bindingPlace, deadline: ctx.deadline)
+            ViewThatFits(in: .vertical) {
+                note
+                ScrollView(.vertical, showsIndicators: false) { note }
             }
-            SheetPrimaryButton(label: primary, enabled: ui.hasSelection, waiting: ui.sending, action: onSuggest)
+            .frame(maxHeight: noteCap)
+            SheetPrimaryButton(label: primary, enabled: ui.hasSelection, waiting: ui.sending, anchor: "change:primary", action: onSuggest)
                 .accessibilityIdentifier("change-primary")
-            SheetSecondaryButton(label: ChangeCopy.cancel, inert: ui.sending, action: onCancel)
+            SheetSecondaryButton(label: ChangeCopy.cancel, inert: ui.sending, anchor: "change:cancel", action: onCancel)
                 .accessibilityIdentifier("change-cancel")
         }
     }
@@ -202,26 +234,49 @@ struct TimeChangeSheet: View {
         }
     }
 
+    /// The largest of 4, 3, 2 columns at which the widest label stays on one line: `ViewThatFits` takes the first grid
+    /// whose one-line ideal width fits the column (each label is `fixedSize` and padded), so the choice follows the
+    /// measured text at the current type size. A cell is at least 44 and grows with its text; the gap stays 6.
     private var slotGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
-            ForEach(ctx.slots, id: \.self) { slot in
-                let on = slot == ui.slot
-                let shape = RoundedRectangle(cornerRadius: 12)
-                Button { onSelect(slot) } label: {
-                    Text(changeClock(slot, zone: ctx.zone))
-                        .font(F.manrope(15, .bold)).monospacedDigit()
-                        .foregroundColor(on ? .white : .liqFg)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(shape.fill(on ? Color.liqPurple : Color.liqElevated))
-                        .overlay { if !on { shape.strokeBorder(Color.liqBorder, lineWidth: 1) } }
-                }
-                .buttonStyle(PressScale())
-                .fitTapArea()
-                .disabled(ui.sending)
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
+        ViewThatFits(in: .horizontal) {
+            slotRows(columns: 4)
+            slotRows(columns: 3)
+            slotRows(columns: 2)
         }
         .padding(.bottom, 16)
+    }
+
+    private func slotRows(columns: Int) -> some View {
+        let rows = stride(from: 0, to: ctx.slots.count, by: columns).map { Array(ctx.slots[$0..<min($0 + columns, ctx.slots.count)]) }
+        return VStack(spacing: 6) {
+            ForEach(rows.indices, id: \.self) { r in
+                HStack(spacing: 6) {
+                    ForEach(rows[r], id: \.self) { slot in slotCell(slot) }
+                    // A short last row keeps its columns: the grid is equal tracks, not a stretched row.
+                    ForEach(0..<(columns - rows[r].count), id: \.self) { _ in Color.clear.frame(maxWidth: .infinity, minHeight: 0) }
+                }
+            }
+        }
+    }
+
+    private func slotCell(_ slot: Date) -> some View {
+        let on = slot == ui.slot
+        let shape = RoundedRectangle(cornerRadius: 12)
+        return Button { onSelect(slot) } label: {
+            Text(changeClock(slot, zone: ctx.zone))
+                .font(F.manrope(15, .bold)).monospacedDigit()
+                .foregroundColor(on ? .white : .liqFg)
+                .lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 6)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(shape.fill(on ? Color.liqPurple : Color.liqElevated))
+                .overlay { if !on { shape.strokeBorder(Color.liqBorder, lineWidth: 1) } }
+        }
+        .buttonStyle(PressScale())
+        .fitTapArea()
+        .fitAnchor(ifGiven: slot == ctx.slots.last ? "change:last-row" : nil)
+        .disabled(ui.sending)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
 
@@ -231,6 +286,7 @@ struct TimeChangeSheet: View {
 /// field is usable in every one of them; the primary reads `Pick a place` (disabled) until a row is selected, then
 /// `Suggest {venue}`.
 struct PlaceChangeSheet: View {
+    @FocusState private var searchFocused: Bool
     let ctx: ChangeSheetContext
     let ui: ChangePickerUi
     let onQuery: (String) -> Void
@@ -260,20 +316,32 @@ struct PlaceChangeSheet: View {
         let shape = RoundedRectangle(cornerRadius: 14)
         return HStack(spacing: 10) {
             BrandIconView(icon: .search, size: 18, stroke: 2.2, tint: .liqSubtle).accessibilityHidden(true)
-            TextField("", text: Binding(get: { ui.query }, set: { onQuery($0) }),
-                      prompt: Text(ChangeCopy.searchPlaceholder).foregroundColor(.liqSubtle))
+            // The placeholder is a Text of its own so it wraps instead of being cut at a large type size.
+            ZStack(alignment: .leading) {
+                if ui.query.isEmpty {
+                    Text(ChangeCopy.searchPlaceholder).font(F.manrope(15, .medium)).foregroundColor(.liqSubtle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .allowsHitTesting(false).accessibilityHidden(true)
+                }
+                TextField("", text: Binding(get: { ui.query }, set: { onQuery($0) }))
                 .font(F.manrope(15, .medium))
                 .foregroundColor(.liqFg)
                 .submitLabel(.search)
+                .focused($searchFocused)
                 .autocorrectionDisabled()
                 .accessibilityLabel(ChangeCopy.searchPlaceholder)
                 .accessibilityIdentifier("change-search")
+            }
         }
-        .frame(height: 48)
+        .padding(.vertical, 10)
+        .frame(minHeight: 48)
         // Pad 0 14 plus the 1.5 border.
         .padding(.horizontal, 15.5)
         .background(shape.fill(Color.liqElevated))
         .overlay(shape.strokeBorder(Color.liqBorder, lineWidth: 1.5))
+        // The whole 48-tall field answers a tap and focuses the input, not only the text line inside it.
+        .contentShape(shape)
+        .onTapGesture { searchFocused = true }
         .padding(.bottom, 12)
     }
 
@@ -305,6 +373,7 @@ struct PlaceChangeSheet: View {
             VStack(spacing: 8) {
                 ForEach(places, id: \.placeId) { place in
                     PlaceRow(place: place, on: place.placeId == ui.place?.placeId, enabled: !ui.sending) { onSelect(place) }
+                        .fitAnchor(ifGiven: place.placeId == places.last?.placeId ? "change:last-row" : nil)
                 }
             }
             if google {
@@ -338,6 +407,7 @@ struct PlaceChangeSheet: View {
             }
             .buttonStyle(PressScale())
             .fitTapArea()
+            .fitAnchor("change:try-again")
         }
         .frame(maxWidth: .infinity)
         .padding(EdgeInsets(top: 28, leading: 12, bottom: 28, trailing: 12))
@@ -364,6 +434,14 @@ private struct PlaceRow: View {
     let enabled: Bool
     let action: () -> Void
 
+    private var nameText: some View {
+        Text(place.name).font(F.manrope(15, .bold)).foregroundColor(.liqFg).fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var tagText: some View {
+        Text(placeTypeTag(place.type)).font(F.manrope(10.5, .heavy)).tracking(0.05).foregroundColor(.liqPurple)
+    }
+
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 16)
         // The border counts in the box: the selected 1.5 is wider than the resting 1, as in CSS.
@@ -374,10 +452,10 @@ private struct PlaceRow: View {
                     .frame(width: 40, height: 40)
                     .overlay(BrandIconView(icon: .mapPin, size: 18, stroke: 2.2, tint: .liqPurple))
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 7) {
-                        Text(place.name).font(F.manrope(15, .bold)).foregroundColor(.liqFg)
-                        Text(placeTypeTag(place.type)).font(F.manrope(10.5, .heavy)).tracking(0.05)
-                            .foregroundColor(.liqPurple)
+                    // Name and TYPE on one line while both fit; the tag under the name when one more word would break it.
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 7) { nameText; tagText }
+                        VStack(alignment: .leading, spacing: 3.5) { nameText; tagText }
                     }
                     Text("\(place.address) · \(formatDistance(place.distanceMeters))")
                         .font(F.manrope(12.5, .regular)).foregroundColor(.liqMuted)

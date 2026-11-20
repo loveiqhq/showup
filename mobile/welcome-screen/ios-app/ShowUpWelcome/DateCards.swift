@@ -665,32 +665,38 @@ private struct RequestButtons: View {
     let onAgree: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        // Side by side while both labels fit a half, stacked full width (the first on top, the binding I agree below)
+        // when one does not: a pill is 48 as drawn and grows with its text, never truncated (the 196 fit sweep).
+        ButtonPair(gap: 8) {
             Button(action: onFirst) {
                 HStack(spacing: 7) {
                     BrandIconView(icon: locked ? .refresh : .messageCircle, size: 17, stroke: 2.2, tint: tone.fg)
                     Text(locked ? ChangeCopy.suggestAnother : DateCopy.openChat)
-                        .font(F.manrope(15, .bold)).foregroundColor(tone.fg).lineLimit(1).minimumScaleFactor(0.7)
+                        .font(F.manrope(15, .bold)).foregroundColor(tone.fg)
                 }
-                .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
+                .padding(.horizontal, pairButtonPadding).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 48)
                 .background(Capsule().fill(Color.white))
                 .overlay(Capsule().strokeBorder(tone.chipBorder, lineWidth: 1.5))
             }
             .buttonStyle(PressScale())
             .fitTapArea()
+            .fitAnchor("date:request-first")
             .disabled(agreeing)
             .accessibilityIdentifier("date:request-first")
             Button(action: onAgree) {
                 HStack(spacing: 7) {
                     BrandIconView(icon: .check, size: 17, stroke: 2.6, tint: .white)
-                    Text(ChangeCopy.iAgree).font(F.manrope(15, .bold)).foregroundColor(.white).lineLimit(1).minimumScaleFactor(0.7)
+                    Text(ChangeCopy.iAgree).font(F.manrope(15, .bold)).foregroundColor(.white)
                 }
-                .frame(maxWidth: .infinity, minHeight: 48, maxHeight: 48)
+                .padding(.horizontal, pairButtonPadding).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, minHeight: 48)
                 .background(ShadowedPill(fill: tone.fg, shadows: shadowCta))
                 .opacity(agreeing ? 0.6 : 1)
             }
             .buttonStyle(PressScale())
             .fitTapArea()
+            .fitAnchor("date:request-agree")
             .disabled(agreeing)
             .accessibilityIdentifier("date:request-agree")
         }

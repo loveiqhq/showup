@@ -39,6 +39,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import com.showup.designsystem.ButtonPair
+import com.showup.designsystem.shrinkToFit
+import com.showup.designsystem.PAIR_BUTTON_PADDING
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -595,6 +599,10 @@ private fun HoistedCoordinate(
                                     fontSize = 10.sp,
                                     letterSpacing = 0.05.sp,
                                     maxLines = 1,
+                                    softWrap = false,
+                                    // Shrinks rather than widens the card where even the stacked form leaves it too little
+                                    // room (iOS: `minimumScaleFactor(0.5)`); `CHANGE REQUEST` at 200 % on a 320 phone.
+                                    modifier = Modifier.shrinkToFit(0.5f, 0f),
                                 )
                             }
                         }
@@ -743,39 +751,46 @@ private fun RequestCoordinate(
 private fun RequestButtons(tone: ReasonTone, locked: Boolean, agreeing: Boolean, onFirst: () -> Unit, onAgree: () -> Unit) {
     val pill = RoundedCornerShape(50)
     val inert = Modifier.semantics(mergeDescendants = true) { role = Role.Button; disabled() }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            Modifier
-                .weight(1f)
-                .height(48.dp)
-                .testTag(DATE_REQUEST_FIRST_TAG)
-                .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onFirst))
-                .background(Color.White, pill)
-                .border(1.5.dp, tone.chipBorder, pill),
-            horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(if (locked) BrandIcon.Refresh else BrandIcon.MessageCircle, 17.dp, tint = tone.fg, strokeWidth = 2.2f)
-            Text(
-                if (locked) ChangeCopy.SUGGEST_ANOTHER else DateCopy.OPEN_CHAT,
-                color = tone.fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1,
-            )
-        }
-        Row(
-            Modifier
-                .weight(1f)
-                .height(48.dp)
-                .alpha(if (agreeing) 0.6f else 1f)
-                .testTag(DATE_REQUEST_AGREE_TAG)
-                .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onAgree))
-                .pillShadows(SolidColor(tone.fg), ShadowCta),
-            horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(BrandIcon.Check, 17.dp, tint = Color.White, strokeWidth = 2.6f)
-            Text(ChangeCopy.I_AGREE, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1)
-        }
-    }
+    // Side by side while both labels fit a half, stacked full width (the first on top, the binding I agree below)
+    // when one does not: a pill is 48 as drawn and grows with its text, never truncated (the 196 fit sweep).
+    ButtonPair(
+        gap = 8.dp,
+        first = {
+            Row(
+                Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag(DATE_REQUEST_FIRST_TAG)
+                    .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onFirst))
+                    .background(Color.White, pill)
+                    .border(1.5.dp, tone.chipBorder, pill)
+                    .padding(horizontal = PAIR_BUTTON_PADDING, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(if (locked) BrandIcon.Refresh else BrandIcon.MessageCircle, 17.dp, tint = tone.fg, strokeWidth = 2.2f)
+                Text(
+                    if (locked) ChangeCopy.SUGGEST_ANOTHER else DateCopy.OPEN_CHAT,
+                    color = tone.fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                )
+            }
+        },
+        second = {
+            Row(
+                Modifier
+                    .heightIn(min = 48.dp)
+                    .alpha(if (agreeing) 0.6f else 1f)
+                    .testTag(DATE_REQUEST_AGREE_TAG)
+                    .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onAgree))
+                    .pillShadows(SolidColor(tone.fg), ShadowCta)
+                    .padding(horizontal = PAIR_BUTTON_PADDING, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(BrandIcon.Check, 17.dp, tint = Color.White, strokeWidth = 2.6f)
+                Text(ChangeCopy.I_AGREE, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+        },
+    )
 }
 
 /**
@@ -925,7 +940,7 @@ private fun MatchAvatar(match: DateMatch, count: Int, tone: Color) {
  * second is never cut.
  */
 @Composable
-private fun InlineOrStack(gap: Dp, content: @Composable () -> Unit) {
+internal fun InlineOrStack(gap: Dp, content: @Composable () -> Unit) {
     Layout(content) { measurables, constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val (first, second) = measurables.map { it.measure(loose) }

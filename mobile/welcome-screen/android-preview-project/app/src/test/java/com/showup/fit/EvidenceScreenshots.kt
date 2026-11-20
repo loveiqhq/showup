@@ -1316,4 +1316,24 @@ class EvidenceScreenshots {
         shoot("SHOWUP-195", "audit-A-largest", fontScale = 2f, devices = small) { dateScreen(open) }
         written.drop(before).forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
     }
+
+    /**
+     * SHOWUP-196's evidence: A to N at the three frames the acceptance criteria name -- 42 images, named
+     * `<letter>-<name>` (the iOS twin writes the same names). The frames are [com.showup.change.ChangeSamples],
+     * the ticket's kit props; the animations are frozen as everywhere here.
+     */
+    @Test
+    fun `SHOWUP-196 change meet time and place, A to N`() {
+        val names = listOf(
+            "A" to "time-picker", "B" to "place-picker", "C" to "sent-waiting", "D" to "date-yours-waiting",
+            "E" to "request-chat-open", "F" to "answer-in-chat", "G" to "agreed", "H" to "expired",
+            "I" to "locked-tiles", "J" to "request-chat-locked", "K" to "suggest-failed", "L" to "agree-failed",
+            "M" to "places-failed", "N" to "no-place-found",
+        )
+        val before = written.size
+        for ((letter, name) in names) shoot("SHOWUP-196", "$letter-$name") { com.showup.change.ChangeSamples.frame(letter) }
+        val images = written.drop(before)
+        assertEquals("A to N at the three frames", 42, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+    }
 }
