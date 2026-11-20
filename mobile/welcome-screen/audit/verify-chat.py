@@ -119,24 +119,25 @@ mutated = kt.replace(victim, "")
 check("the copy check reports a string removed from the source (mutation)",
       any(victim in m for m in missing_from(mutated, "Android")))
 
-# ── the chips: six shown in order (SHOWUP-195 R13 added `arrived`), two hidden, on both ───────────────────────────────────────
+# ── the chips: all eight exist, in order; the two Date 05 chips are GATED at run time (SHOWUP-196 R7) ────────────────────────
 ORDER = ["on_my_way", "arrived", "cant_find", "when_arrive", "change_time", "change_place", "running_late", "cant_make_it"]
-SHOWN = ["on_my_way", "arrived", "cant_find", "when_arrive", "running_late", "cant_make_it"]
-HIDDEN = {"change_time", "change_place"}
+GATED = {"change_time", "change_place"}
 
 kt_reasons = read(os.path.join(KT, "ChatReasons.kt"))
 kt_entries = re.findall(r'^\s*\w+\("([a-z_]+)",.*,\s*(true|false)\),?\s*$', kt_reasons, re.M)
 check("Android: the vocabulary is the registry's eight, in order", [w for w, _ in kt_entries] == ORDER)
-check("Android: the six shown chips, in order (SHOWUP-195 R13)", [w for w, s in kt_entries if s == "true"] == SHOWN)
-check("Android: the two Date 05 chips hidden (SHOWUP-195 R13)", {w for w, s in kt_entries if s == "false"} == HIDDEN)
+check("Android: all eight chips are shipped (the two changes are gated by the payload, not by a flag)", [w for w, s in kt_entries if s == "true"] == ORDER)
+kt_change_rules = read(os.path.join(os.path.dirname(KT), "change", "ChangeRules.kt"))
+check("Android: the two Date 05 chips are drawn only while `visibleReasons` allows them",
+      "fun visibleReasons" in kt_change_rules and "changeTilesFor" in kt_change_rules)
 
 sw_reasons = read(os.path.join(SW, "ChatReasons.swift"))
 sw_cases = re.findall(r'^\s*case \w+ = "([a-z_]+)"', sw_reasons, re.M)
 check("iOS: the vocabulary is the registry's eight, in order", sw_cases == ORDER)
-hidden_case = re.search(r"var shown: Bool \{.*?case ([^:]+): return false", sw_reasons, re.S)
-sw_case_names = dict(re.findall(r'^\s*case (\w+) = "([a-z_]+)"', sw_reasons, re.M))
-sw_hidden = {sw_case_names.get(c.strip().lstrip(".")) for c in hidden_case.group(1).split(",")} if hidden_case else set()
-check("iOS: the two Date 05 chips hidden (SHOWUP-195 R13)", sw_hidden == HIDDEN)
+check("iOS: all eight chips are shipped", re.search(r"var shown: Bool \{ true \}", sw_reasons) is not None)
+sw_change_rules = read(os.path.join(SW, "ChangeRules.swift"))
+check("iOS: the two Date 05 chips are drawn only while `visibleReasons` allows them",
+      "func visibleReasons" in sw_change_rules and "changeTilesFor" in sw_change_rules)
 
 # ── no heading line above the chips ─────────────────────────────────────────────────────────────
 check("Android: no `Tap a chip` line", "Tap a chip" not in kt)

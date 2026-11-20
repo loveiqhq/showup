@@ -26,6 +26,7 @@ import {
 } from 'class-validator';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { ChangeKind } from '../dates/entities/date-change-suggestion.entity';
 import {
   CHAT_MESSAGE_MAX_LENGTH,
   ChatReason,
@@ -59,6 +60,27 @@ export class DevDateMessageDto {
   @IsNotEmpty()
   @MaxLength(CHAT_MESSAGE_MAX_LENGTH)
   body: string;
+}
+
+/** The test match's change suggestion (Date 05). */
+export class DevDateChangeDto {
+  @ApiProperty({ enum: ChangeKind, enumName: 'ChangeKind' })
+  @IsEnum(ChangeKind)
+  kind: ChangeKind;
+
+  @ApiPropertyOptional({
+    type: 'integer',
+    minimum: 1,
+    maximum: 720,
+    default: 30,
+    description:
+      'kind `time`: minutes after the meet time, moved to a listed slot when there is one',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(720)
+  minutesLater?: number;
 }
 
 /**
@@ -131,6 +153,42 @@ export class DateDevController {
   async arrival(@CurrentUser() user: User): Promise<void> {
     this.refuseInProduction();
     await this.dev.partnerArrives(user.id);
+  }
+
+  /**
+   * The test match suggests a new time or place for the caller's test date (Date 05), through the real
+   * path, so the push, the event and the replacement of an open one behave as in production.
+   */
+  @Post('change')
+  @HttpCode(204)
+  @ApiOperation({ operationId: 'createDevDateChange' })
+  @ApiNoContentResponse()
+  async change(
+    @CurrentUser() user: User,
+    @Body() dto: DevDateChangeDto,
+  ): Promise<void> {
+    this.refuseInProduction();
+    await this.dev.suggestChange(user.id, dto.kind, dto.minutesLater ?? 30);
+  }
+
+  /** The test match agrees to the caller's open suggestion (Date 05). 404 when there is none. */
+  @Post('change/agree')
+  @HttpCode(204)
+  @ApiOperation({ operationId: 'agreeDevDateChange' })
+  @ApiNoContentResponse()
+  async agreeChange(@CurrentUser() user: User): Promise<void> {
+    this.refuseInProduction();
+    await this.dev.agreeChange(user.id);
+  }
+
+  /** Makes the test date's open suggestions due now and runs the expiry once (Date 05). */
+  @Post('change/expire')
+  @HttpCode(204)
+  @ApiOperation({ operationId: 'expireDevDateChange' })
+  @ApiNoContentResponse()
+  async expireChange(@CurrentUser() user: User): Promise<void> {
+    this.refuseInProduction();
+    await this.dev.expireChanges(user.id);
   }
 
   private refuseInProduction(): void {

@@ -119,7 +119,7 @@ private struct SheetTitle: View {
     }
 }
 
-/// A sunset button, radius 18, h 56, 16.5 / 700 white, under `--liq-shadow-cta`. Waiting reads at alpha .6.
+/// The shared sunset sheet button (`SheetButtons.swift`), anchored for the fit tests. Waiting reads at alpha .6.
 private struct SunsetSheetButton: View {
     let label: String
     let waiting: Bool
@@ -127,17 +127,8 @@ private struct SunsetSheetButton: View {
     let anchor: String
 
     var body: some View {
-        Button(action: action) {
-            Text(label).font(F.manrope(16.5, .bold)).foregroundColor(.white)
-                .frame(maxWidth: .infinity, minHeight: 56)
-                // The glow behind, then the reference's 135deg sunset clipped to the radius-18 shape.
-                .background(SunsetFill(shape: RoundedRectangle(cornerRadius: 18), shadows: shadowCta))
-                .opacity(waiting ? 0.6 : 1)
-        }
-        .buttonStyle(PressScale())
-        .fitTapArea()
-        .fitAnchor(anchor)
-        .disabled(waiting)
+        SheetPrimaryButton(label: label, waiting: waiting, action: action)
+            .fitAnchor(anchor)
     }
 }
 

@@ -7,13 +7,21 @@
     "No new events. A check-in that was not stored (Date 03 C2) fires no arrival_confirmed.",
     "coordinate_unlocked — RESPECIFIED: the chat also opens on the first committed arrival check-in. NEW payload cause: time | arrival_check_in. Still once per date, whichever comes first."
   ],
-  "merge_note_1_4_31": "1.4.28–1.4.30 (Date 05 / 06 / 07) are not merged here: their tickets carry them.",
+  "merge_note_1_4_31": "1.4.28 (Date 05) is merged here; 1.4.29-1.4.30 (Date 06 / 07) are not: their tickets carry them.",
+  "changed_in_1_4_28": [
+    "Date 05 (Change meet time and place), 10 Nov 2026 — five NEW events in family K: change_picker_opened · change_picker_dismissed (client) · change_suggested · change_agreed · change_expired (server). §42 change_entry NEW.",
+    "A suggestion is NOT a message: message_sent / message_received never fire for it. action_chip_used still fires on the chip / tile tap (reason change_time | change_place, surface dock | entry | coordinate_card).",
+    "Replaced is not an event: change_suggested.replaces says which open suggestion it replaced. Suggest another = change_suggested with replaces theirs.",
+    "No change_declined: there is no decline — the answers are I agree, Suggest another, or no answer (change_expired).",
+    "Never in any change payload: place name, address, coordinates, distance.",
+    "event_count 308 → 313."
+  ],
   "changed_in_1_4_24": [
     "Search 01 decisions, 27 Oct 2026: filters_active compares saved genders with checkinGenderDefault on the viewer's current profile and lists true dealbreakers; gender values are never sent. Search filter saves add opened_from: search to check_in_filters_changed without Check-In funnel events. Returning from Filters is a new Search visit, position resets to 1, and the coach remains suppressed. The no-results state emits search_empty_shown with reason no_results."
   ],
   "reconciled_against": "loveiqhq/showup development @ 8540ee4",
   "generated": "2026-09-25",
-  "event_count": 308,
+  "event_count": 313,
   "changed_in_1_4_27": [
     "Date 03 (Arrival check-in, incl. the folded Date 04), 6 Nov 2026 — family M arrival events respecified for the arrival check-in.",
     "arrival_confirm_shown — NEW (client): the guard is shown. entry §41 NEW. Not yet fires nothing.",
@@ -4369,6 +4377,170 @@
           "sensitivity_class": 0,
           "backend_status": "Not built",
           "trigger": "A quick-action tile (Directions · Order Ride · Share Date · Calendar) or the Copy address pill on the Date screen is tapped — on the tap, before the OS hand-off; whether the user completes the OS sheet is not ours and is not measured. NEW 1.4.25, Date 01, 2 Nov 2026.",
+          "implemented": true
+        },
+        {
+          "name": "change_picker_opened",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "kind",
+              "type": "\"time\"|\"place\""
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §42 change_entry"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "The full-screen time or place picker is shown. Fires after action_chip_used when it was opened from a chat chip or a Coordinate-card tile; on its own when it was opened by Suggest another. NEW 1.4.28, Date 05, 10 Nov 2026.",
+          "implemented": true
+        },
+        {
+          "name": "change_picker_dismissed",
+          "code_anchor": null,
+          "source": "client",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "kind",
+              "type": "\"time\"|\"place\""
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §42 change_entry"
+            },
+            {
+              "name": "had_selection",
+              "type": "bool — a slot or place was selected before Cancel"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Client only",
+          "trigger": "The picker closed WITHOUT a suggestion being sent — Cancel, back gesture or swipe. Nothing is stored. Sending closes the picker and fires change_suggested instead, never this. NEW 1.4.28, Date 05, 10 Nov 2026.",
+          "implemented": true
+        },
+        {
+          "name": "change_suggested",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "suggestion_id",
+              "type": "str"
+            },
+            {
+              "name": "kind",
+              "type": "\"time\"|\"place\""
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §42 change_entry"
+            },
+            {
+              "name": "replaces",
+              "type": "\"none\"|\"own\"|\"theirs\" — an open suggestion of the same kind was replaced, and whose it was. theirs = the answer was Suggest another"
+            },
+            {
+              "name": "offset_min",
+              "type": "int|null — time only: suggested − binding meet time, in minutes (always > 0); null for place"
+            },
+            {
+              "name": "from_search",
+              "type": "bool|null — place only: picked from a search result rather than the nearby list; null for time"
+            },
+            {
+              "name": "minutes_to_deadline",
+              "type": "int — until binding meet time − 0:30"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "A time or place suggestion is stored. Server, on the accepted write. The binding values do NOT change. Never the place name, address, coordinates or distance. NEW 1.4.28, Date 05, 10 Nov 2026.",
+          "implemented": true
+        },
+        {
+          "name": "change_agreed",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "suggestion_id",
+              "type": "str"
+            },
+            {
+              "name": "kind",
+              "type": "\"time\"|\"place\""
+            },
+            {
+              "name": "surface",
+              "type": "\"coordinate_card\"|\"thread\" — I agree on the hoisted Coordinate card (Date screen) or on the suggestion card in the chat"
+            },
+            {
+              "name": "seconds_since_suggested",
+              "type": "int"
+            },
+            {
+              "name": "minutes_to_deadline",
+              "type": "int — before the deadline that applied to this suggestion"
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "I agree accepted: the suggestion becomes binding and the system line is posted. Server, on the accepted write — a tap the server rejects (already replaced or expired) fires nothing. NEW 1.4.28, Date 05, 10 Nov 2026.",
+          "implemented": true
+        },
+        {
+          "name": "change_expired",
+          "code_anchor": null,
+          "source": "server",
+          "tier": "T2",
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "suggestion_id",
+              "type": "str"
+            },
+            {
+              "name": "kind",
+              "type": "\"time\"|\"place\""
+            }
+          ],
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "trigger": "The expiry job found a suggestion still pending at binding meet time − 0:30. The original stays binding; the system line is posted. A replaced suggestion never expires. NEW 1.4.28, Date 05, 10 Nov 2026.",
           "implemented": true
         }
       ]

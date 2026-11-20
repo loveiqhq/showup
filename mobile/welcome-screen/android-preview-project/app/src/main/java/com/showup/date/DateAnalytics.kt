@@ -36,7 +36,8 @@ object DateAnalytics {
     fun dateScreenViewed(date: ActiveDate, state: DateState, now: Instant) = DATE_SCREEN_VIEWED to buildMap<String, Any> {
         put("date_id", date.id)
         put("state", if (state == DateState.Locked) "locked" else "available")
-        put("has_unread", state == DateState.Unread)
+        // True while the change request card shows too (Date 05: the ticket's tracking rule).
+        put("has_unread", state == DateState.Unread || requestShown(date))
         put("checked_in", date.checkedIn)
         put("minutes_before_start", minutesBeforeStart(date.meetAt, now))
         putAll(Stamp.of(0))

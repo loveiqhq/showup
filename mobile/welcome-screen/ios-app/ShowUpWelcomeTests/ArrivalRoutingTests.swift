@@ -89,6 +89,20 @@ final class ArrivalRoutingTests: XCTestCase {
         XCTAssertEqual(shown, expected, "nothing else moves")
     }
 
+    func testACommittedCheckInClosesNewSuggestionsAtOnceOnTheCommittersPhoneToo() {
+        var before = date(checkedIn: false)
+        before.coordinateOpen = false
+        before.change = DateChange(cutoffAt: Date(timeIntervalSince1970: 0), allowed: true, slots: [], timeWas: nil,
+                                   placeWas: nil, pending: [])
+        let shown = committedView(before, committed: true)
+        XCTAssertEqual(shown.change?.allowed, false, "the tiles and change chips hide with the Check-in bar (Date 05)")
+        var expected = before
+        expected.checkedIn = true
+        expected.coordinateOpen = true
+        expected.change?.allowed = false
+        XCTAssertEqual(shown, expected, "nothing else moves")
+    }
+
     func testAnUncommittedSessionOrADateAlreadyCheckedInIsLeftExactlyAsItIs() {
         var before = date(checkedIn: false)
         before.coordinateOpen = false

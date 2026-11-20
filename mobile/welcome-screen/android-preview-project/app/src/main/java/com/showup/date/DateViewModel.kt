@@ -24,6 +24,9 @@
  */
 package com.showup.date
 
+import com.showup.change.AgreeResult
+import com.showup.change.AgreeSurface
+import com.showup.change.ChangeStore
 import com.showup.chat.ChipSurface
 import com.showup.chat.ChatReason
 import com.showup.chat.ChatAnalytics
@@ -62,6 +65,10 @@ data class DateUi(
      * [date] stays as it was, for the match's face on that screen.
      */
     val ended: EndedInChat? = null,
+    /** `I agree` on the request card is on its way (Date 05 L): both buttons are inert and `I agree` sits at .6. */
+    val agreeing: Boolean = false,
+    /** The last `I agree` on the card got no server OK: the red line shows, and nothing else has changed. */
+    val agreeFailed: Boolean = false,
 ) {
     val state: DateState? get() = date?.let { dateState(now, it.unlockAt, it.unread, it.coordinateOpen) }
 }
@@ -71,6 +78,8 @@ class DateViewModel(
     private val analytics: AnalyticsTracker? = null,
     private val clock: () -> Instant = Instant::now,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
+    /** Date 05's calls; null where nothing agrees (the card's `I agree` then does nothing). */
+    private val changes: ChangeStore? = null,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(DateUi(now = clock()))
@@ -176,6 +185,31 @@ class DateViewModel(
     /** G or H has been seen and left: no date is held, so Search, Likes and Instant open again. */
     fun outcomeShown() = _state.update { it.copy(date = null, ended = null, left = false, failed = null) }
 
+    /**
+     * `I agree` on the request card (Date 05 R22): the server decides, and NOTHING on screen changes until it has.
+     * Agreed or 409 (it is no longer pending): read the date again, which clears the card or shows its real state --
+     * no error and no event here, the server fired its own. No response or 5xx: the red line, retried by a tap on it
+     * or on `I agree`. Both buttons stay inert while it is on its way, through the re-read.
+     */
+    fun agreeRequest() {
+        val store = changes ?: return
+        val ui = _state.value
+        val date = ui.date ?: return
+        val request = date.changeRequest ?: return
+        if (ui.agreeing) return
+        _state.update { it.copy(agreeing = true, agreeFailed = false) }
+        viewModelScope.launch {
+            try {
+                when (store.agree(date.id, request.id, AgreeSurface.CoordinateCard)) {
+                    is AgreeResult.Agreed, AgreeResult.Stale -> readNow()
+                    is AgreeResult.Failed -> _state.update { it.copy(agreeFailed = true) }
+                }
+            } finally {
+                _state.update { it.copy(agreeing = false) }
+            }
+        }
+    }
+
     /** The clock moved. The state follows it; nothing is reported. */
     fun tick() = _state.update { it.copy(now = clock()) }
 
@@ -204,23 +238,31 @@ class DateViewModel(
     }
 
     private fun read() {
-        viewModelScope.launch {
-            val answer = repo.active(zone().id)
-            val now = clock()
-            when (answer) {
-                is Outcome.Ok -> when (val read = answer.value) {
-                    is DateRead.Active -> {
-                        // `left` back to false: a new date after one that went away is shown, not left.
-                        _state.update { it.copy(date = withoutCleared(read.date), now = now, loading = false, failed = null, left = false, ended = null) }
-                        reportVisit(read.date, now)
+        viewModelScope.launch { readNow() }
+    }
+
+    private suspend fun readNow() {
+        val answer = repo.active(zone().id)
+        val now = clock()
+        when (answer) {
+            is Outcome.Ok -> when (val read = answer.value) {
+                is DateRead.Active -> {
+                    // `left` back to false: a new date after one that went away is shown, not left. The red line
+                    // belongs to the request it failed on: a read that brings none, or another, drops it.
+                    _state.update {
+                        it.copy(
+                            date = withoutCleared(read.date), now = now, loading = false, failed = null, left = false, ended = null,
+                            agreeFailed = it.agreeFailed && read.date.changeRequest?.id == it.date?.changeRequest?.id,
+                        )
                     }
-                    is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, failed = null, ended = read.outcome) }
-                    DateRead.None -> _state.update { it.copy(now = now, loading = false, failed = null, left = true) }
+                    reportVisit(read.date, now)
                 }
-                // A failure is shown only where nothing else is: a dropped poll under a date on screen
-                // left one behind, and after the date the next visit opened on `Couldn't load your date`.
-                is Outcome.Failed -> _state.update { it.copy(now = now, loading = false, failed = if (it.date == null) answer.why else null) }
+                is DateRead.Ended -> _state.update { it.copy(now = now, loading = false, failed = null, ended = read.outcome) }
+                DateRead.None -> _state.update { it.copy(now = now, loading = false, failed = null, left = true) }
             }
+            // A failure is shown only where nothing else is: a dropped poll under a date on screen
+            // left one behind, and after the date the next visit opened on `Couldn't load your date`.
+            is Outcome.Failed -> _state.update { it.copy(now = now, loading = false, failed = if (it.date == null) answer.why else null) }
         }
     }
 

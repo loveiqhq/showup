@@ -8,6 +8,12 @@
  */
 package com.showup.date
 
+import com.showup.change.ChangeCopy
+import com.showup.change.ChangeKind
+import com.showup.change.ChangeStatus
+import com.showup.change.ChangeSuggestion
+import com.showup.change.changeClock
+import com.showup.change.changeDeadline
 import com.showup.chat.ChatReason
 import com.showup.search.interestLabel
 import com.showup.search.meetTime
@@ -36,18 +42,14 @@ fun dateState(now: Instant, unlockAt: Instant, unread: DateUnread?, coordinateOp
 }
 
 /**
- * Whether a card is hoisted under the hero: the match's arrival (Date 03) or an unread message. The arrival
- * outranks a message in that slot (R11); both clear together.
+ * Whether a card is hoisted under the hero: the match's arrival (Date 03), the match's change request (Date 05)
+ * or an unread message, in that order (R11, R8: the request has a deadline, a message does not). The slot holds one.
  */
-fun hoisted(state: DateState, arrival: DateArrival?): Boolean = arrival != null || state == DateState.Unread
+fun hoisted(state: DateState, arrival: DateArrival?, request: ChangeSuggestion? = null): Boolean =
+    arrival != null || request != null || state == DateState.Unread
 
-/**
- * The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet
- * time` and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the
- * vocabulary's own switch. They are hidden until Date 05 ships (epic rule 8): the day Date 05 shows those
- * chips, the tiles and their line appear with them, and nothing on the Date screen changes.
- */
-val CHANGE_TILES: List<ChatReason> = listOf(ChatReason.ChangeTime, ChatReason.ChangePlace).filter { it.shown }
+/** The request card shows: the server sent one and the match's arrival, which outranks it, is not in the slot. */
+fun requestShown(date: ActiveDate): Boolean = date.arrival == null && date.changeRequest != null
 
 /**
  * How often the Date screen re-reads the date while it is on screen (SHOWUP-194, the design's §3):
@@ -163,3 +165,71 @@ private val HYPHEN_UNMARKED = Regex("-(?!\u200B)")
 fun withBreakableNames(date: ActiveDate): ActiveDate = date.copy(
     match = date.match.copy(name = breakAfterHyphens(date.match.name), district = date.match.district?.let(::breakAfterHyphens)),
 )
+
+// ── Date 05: the purple card's change tags and note, and the request card's text ─────────────
+
+/** What sits under the time or place value on the purple card: the viewer's own waiting suggestion, or the agreed change. */
+sealed interface ChangeTagText {
+    /** `Waiting for {name} to agree` / `You suggested {value}`: amber, the BINDING value stays big above it. */
+    data class Waiting(val value: String) : ChangeTagText
+
+    /** `Changed · was {original}`: the ORIGINAL only, never a chain. */
+    data class Changed(val was: String) : ChangeTagText
+}
+
+/**
+ * The tag under the [kind]'s value (the reference's `shownTag`). The match's pending suggestion never gets one: purple
+ * is what is real, orange what needs a reaction (3 Nov 2026). The viewer's own waiting suggestion wins over an earlier
+ * agreed change of the same kind: it is the one that needs an answer from the match. `Changed` is hidden after the
+ * meet time, and appears only once a change was agreed (the server sends the original then).
+ */
+fun changeTagFor(date: ActiveDate, kind: ChangeKind, now: Instant, zone: ZoneId): ChangeTagText? {
+    val change = date.change ?: return null
+    val own = change.pending.firstOrNull { it.byYou && it.kind == kind && it.status == ChangeStatus.Pending }
+    if (own != null) {
+        val value = if (kind == ChangeKind.Time) own.time?.let { changeClock(it, zone) } else own.place?.name
+        return value?.let { ChangeTagText.Waiting(it) }
+    }
+    val was = if (kind == ChangeKind.Time) change.timeWas?.let { changeClock(it, zone) } else change.placeWas
+    return if (was != null && now < date.meetAt) ChangeTagText.Changed(was) else null
+}
+
+/** The compact binding note's values: the CURRENT binding time and place and the binding deadline (D). */
+data class BindingNoteValues(val time: String, val place: String, val deadline: String)
+
+/** One note at the card's bottom while the viewer has ANY own pending suggestion -- one, even with a time and a place. */
+fun bindingNoteFor(date: ActiveDate, zone: ZoneId): BindingNoteValues? {
+    val pending = date.change?.pending?.any { it.byYou && it.status == ChangeStatus.Pending } == true
+    if (!pending) return null
+    return BindingNoteValues(changeClock(date.meetAt, zone), date.place?.name.orEmpty(), changeClock(changeDeadline(date.meetAt), zone))
+}
+
+/** Every string the request card (E, J) draws from the date and the request. */
+data class RequestCardText(
+    val reason: ChatReason,
+    val needs: String,
+    val value: String,
+    val was: String,
+    /** `{Type} · {address}`, a place's only. */
+    val placeLine: String?,
+    val deadline: String,
+    val bindingTime: String,
+    val bindingPlace: String,
+    /** J's `Messaging opens at {opensAt}`: the unlock, meet - 1:30. */
+    val opensLine: String,
+)
+
+fun requestCardText(date: ActiveDate, request: ChangeSuggestion, now: Instant, zone: ZoneId): RequestCardText {
+    val isTime = request.kind == ChangeKind.Time
+    return RequestCardText(
+        reason = if (isTime) ChatReason.ChangeTime else ChatReason.ChangePlace,
+        needs = ChangeCopy.NEEDS_ANSWER.format(unreadTime(request.createdAt, now, zone)),
+        value = if (isTime) request.time?.let { changeClock(it, zone) }.orEmpty() else request.place?.name.orEmpty(),
+        was = if (isTime) changeClock(request.wasTime, zone) else request.wasPlaceName.orEmpty(),
+        placeLine = request.place?.takeIf { !isTime }?.let { "${com.showup.change.placeTypeLabel(it.type)} · ${it.address}" },
+        deadline = changeClock(request.deadline, zone),
+        bindingTime = changeClock(date.meetAt, zone),
+        bindingPlace = date.place?.name.orEmpty(),
+        opensLine = ChangeCopy.MESSAGING_OPENS.format(changeClock(date.unlockAt, zone)),
+    )
+}

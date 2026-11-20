@@ -18,6 +18,8 @@ export const QUEUE_LIKE_EXPIRY = 'like-expiry';
 /** Coordinate unlock (Date 01): sends `coordinate_unlocked` at meet − 1:30, once per date. */
 export const QUEUE_COORDINATE_UNLOCK = 'coordinate-unlock';
 
+/** Change expiry (Date 05): expires change suggestions nobody answered by meet - 0:30, every minute. */
+export const QUEUE_CHANGE_EXPIRY = 'change-expiry';
 /** Arrival retention (Date 03, R14): deletes arrival check-ins older than a year, once a day. */
 export const QUEUE_ARRIVAL_RETENTION = 'arrival-retention';
 

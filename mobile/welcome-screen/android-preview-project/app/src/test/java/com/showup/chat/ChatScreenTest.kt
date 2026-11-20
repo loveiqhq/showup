@@ -41,6 +41,9 @@ import java.time.ZoneId
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w390dp-h844dp-xhdpi")
 class ChatScreenTest {
+    /** The chips drawn when the payload carries no change block: the six, without Date 05's two. */
+    private val SHOWN = com.showup.change.visibleReasons(null, java.time.Instant.EPOCH)
+
     private val berlin = ZoneId.of("Europe/Berlin")
     private val picks = mutableListOf<Pair<ChatReason, ChipSurface>>()
     private var kept = 0
@@ -68,11 +71,11 @@ class ChatScreenTest {
     @Test
     fun `B shows the chips as tiles in two columns, the privacy line, and no field`() = runComposeUiTest {
         setContent { Screen(ChatSamples.B) }
-        for (r in SHOWN_REASONS) onNodeWithText(r.label).assertExists()
+        for (r in SHOWN) onNodeWithText(r.label).assertExists()
         for (r in listOf(ChatReason.ChangeTime, ChatReason.ChangePlace)) {
             onAllNodesWithText(r.label).assertCountEquals(0)
         }
-        val lefts = SHOWN_REASONS.map { onNodeWithTag(chipTag(it, ChipSurface.Entry)).fetchSemanticsNode().boundsInRoot.left }
+        val lefts = SHOWN.map { onNodeWithTag(chipTag(it, ChipSurface.Entry)).fetchSemanticsNode().boundsInRoot.left }
         assertEquals("two columns", 2, lefts.map { it.toInt() }.toSet().size)
         onNodeWithText("We log which reason you pick — never what you type.").assertExists()
         onNodeWithText("Start with a reason", substring = true).assertExists()
@@ -102,7 +105,7 @@ class ChatScreenTest {
         setContent { Screen(ChatSamples.C) }
         onAllNodesWithText("Tap a chip", substring = true).assertCountEquals(0)
         onAllNodesWithText("Quick", substring = true).assertCountEquals(0)
-        for (r in SHOWN_REASONS) {
+        for (r in SHOWN) {
             val face = onNodeWithTag(chipFaceTag(r, ChipSurface.Dock), useUnmergedTree = true).fetchSemanticsNode()
             val touch = onNodeWithTag(chipTag(r, ChipSurface.Dock), useUnmergedTree = true).fetchSemanticsNode()
             val dp = face.layoutInfo.density.density
@@ -242,5 +245,51 @@ class ChatScreenTest {
         assertEquals(endBefore, end)
         onNodeWithTag(END_SHEET_END_TAG).performClick()
         assertEquals("End date tries again", 1, ended)
+    }
+
+    // ── Date 05 R7: the two change chips come with the payload, in place ───────────────────────────
+
+    private fun withChange(base: ChatUi, allowed: Boolean = true, slots: Int = 1, cutoffAfterNow: Boolean = true): ChatUi {
+        val cutoff = if (cutoffAfterNow) base.now.plusSeconds(600) else base.now.minusSeconds(1)
+        val change = com.showup.change.DateChange(
+            cutoffAt = cutoff, allowed = allowed, slots = List(slots) { base.now.plusSeconds(3600L + it) },
+            timeWas = null, placeWas = null, pending = emptyList(),
+        )
+        return base.copy(date = base.date!!.copy(change = change))
+    }
+
+    @Test
+    fun `the start grid and the dock show the two change chips while the payload allows them, and a tap reports them`() = runComposeUiTest {
+        setContent { Screen(withChange(ChatSamples.B)) }
+        onNodeWithText("Change meet time").assertExists()
+        onNodeWithText("Change location").assertExists()
+        onNodeWithTag(chipTag(ChatReason.ChangeTime, ChipSurface.Entry)).performClick()
+        assertEquals(listOf(ChatReason.ChangeTime to ChipSurface.Entry), picks)
+    }
+
+    @Test
+    fun `the dock draws them too`() = runComposeUiTest {
+        setContent { Screen(withChange(ChatSamples.C)) }
+        onNodeWithTag(chipTag(ChatReason.ChangePlace, ChipSurface.Dock)).assertExists()
+    }
+
+    @Test
+    fun `past the cutoff neither change chip is drawn`() = runComposeUiTest {
+        setContent { Screen(withChange(ChatSamples.C, cutoffAfterNow = false)) }
+        onAllNodesWithText("Change meet time").assertCountEquals(0)
+        onAllNodesWithText("Change location").assertCountEquals(0)
+    }
+
+    @Test
+    fun `after a check-in neither is drawn, and with no later slot only the place is`() = runComposeUiTest {
+        setContent { Screen(withChange(ChatSamples.C, allowed = false)) }
+        onAllNodesWithText("Change location").assertCountEquals(0)
+    }
+
+    @Test
+    fun `with no later slot only the place chip is drawn`() = runComposeUiTest {
+        setContent { Screen(withChange(ChatSamples.C, slots = 0)) }
+        onAllNodesWithTag(chipTag(ChatReason.ChangeTime, ChipSurface.Dock)).assertCountEquals(0)
+        onNodeWithTag(chipTag(ChatReason.ChangePlace, ChipSurface.Dock)).assertExists()
     }
 }

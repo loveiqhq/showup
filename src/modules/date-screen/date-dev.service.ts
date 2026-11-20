@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -12,7 +13,20 @@ import { CheckInWindow } from '../check-ins/entities/check-in-window.entity';
 import { CheckInVibe } from '../check-ins/util/check-in-flow';
 import { ArrivalCheckInsService } from '../dates/arrival-check-ins.service';
 import { ArrivalEntry } from '../dates/util/arrival';
+import { ChangeSuggestionsService } from '../dates/change-suggestions.service';
+import { DateChangeService } from '../dates/date-change.service';
 import { DatesService } from '../dates/dates.service';
+import {
+  ChangeEntry,
+  ChangeKind,
+  ChangeStatus,
+  DateChangeSuggestion,
+} from '../dates/entities/date-change-suggestion.entity';
+import { isBindingVenue } from '../dates/util/change-suggestions';
+import {
+  PLACES_PROVIDER,
+  type PlacesProvider,
+} from '../places/places.provider';
 import { DateEntity } from '../dates/entities/date.entity';
 import { DateStatus } from '../dates/util/date-lifecycle';
 import { ChatReason } from '../dates/util/pre-date-chat';
@@ -32,6 +46,8 @@ const VENUE = {
 };
 /** Where the test match arrives when the date has no venue point. */
 const BERLIN = { lat: 52.52, lng: 13.405 };
+/** The zone the test match's slots are read in: the product's. */
+const DEV_TZ = 'Europe/Berlin';
 /** About 1 km north: far enough that About reads "~1 km away", near enough to be plausible. */
 const PARTNER_OFFSET_LAT = 0.009;
 
@@ -53,6 +69,9 @@ export class DateDevService {
     private readonly checkIns: CheckInsService,
     private readonly screen: DateScreenService,
     private readonly arrivals: ArrivalCheckInsService,
+    private readonly changes: ChangeSuggestionsService,
+    private readonly changeSlots: DateChangeService,
+    @Inject(PLACES_PROVIDER) private readonly places: PlacesProvider,
   ) {}
 
   /**
@@ -121,6 +140,102 @@ export class DateDevService {
       clientId: randomUUID(),
     });
     await this.arrivals.commit(date.id, partnerId);
+  }
+
+  /**
+   * The test match suggests a change for the caller's test date, through the real path (Date 05), so
+   * the push, the event and the one-open-per-kind replacement are exactly production's.
+   * Time: the meet time + `minutesLater`, moved to the first listed slot at or after it when the
+   * caller's free hours have one, else used as is (the slot check is skipped for it, so a test date
+   * with no hours can still walk the cards). Place: the first place the provider lists near the
+   * meet place that is not the meet place itself.
+   */
+  async suggestChange(
+    userId: string,
+    kind: ChangeKind,
+    minutesLater: number,
+  ): Promise<void> {
+    const { date, partnerId } = await this.testDate(userId);
+    const clientId = randomUUID();
+    if (kind === ChangeKind.Time) {
+      const wanted = new Date(
+        date.scheduledAt.getTime() + minutesLater * 60_000,
+      );
+      const slots = await this.changeSlots.matchSlots(date, partnerId, DEV_TZ);
+      const slot = slots.find((s) => s.getTime() >= wanted.getTime());
+      await this.changes.suggest(
+        date.id,
+        partnerId,
+        {
+          kind,
+          time: (slot ?? wanted).toISOString(),
+          entry: ChangeEntry.ChatChip,
+          clientId,
+          tz: DEV_TZ,
+        },
+        new Date(),
+        { skipSlotCheck: slot === undefined },
+      );
+      return;
+    }
+    const [venue] = date.venueId
+      ? await this.db.query<
+          Array<{
+            name: string;
+            place_id: string | null;
+            lat: number;
+            lng: number;
+          }>
+        >(
+          `SELECT "name", "place_id", ST_Y("location"::geometry) AS "lat", ST_X("location"::geometry) AS "lng"
+             FROM "venues" WHERE "id" = $1 AND "location" IS NOT NULL`,
+          [date.venueId],
+        )
+      : [];
+    const origin = venue
+      ? { lat: Number(venue.lat), lng: Number(venue.lng) }
+      : BERLIN;
+    const binding = venue
+      ? { name: venue.name, placeId: venue.place_id, location: origin }
+      : null;
+    const other = (await this.places.nearby(origin)).find(
+      (p) => !isBindingVenue(binding, p),
+    );
+    if (!other) throw new NotFoundException('No other place to suggest');
+    await this.changes.suggest(date.id, partnerId, {
+      kind,
+      placeId: other.placeId,
+      entry: ChangeEntry.ChatChip,
+      fromSearch: false,
+      clientId,
+    });
+  }
+
+  /** The test match agrees to the caller's open suggestion (earliest deadline first), through the real path. */
+  async agreeChange(userId: string): Promise<void> {
+    const { date, partnerId } = await this.testDate(userId);
+    const row = await this.db.getRepository(DateChangeSuggestion).findOne({
+      where: {
+        dateId: date.id,
+        senderId: userId,
+        status: ChangeStatus.Pending,
+      },
+      order: { deadline: 'ASC', kind: 'ASC' },
+    });
+    if (!row) throw new NotFoundException('No open suggestion to agree to');
+    await this.changes.agree(date.id, row.id, partnerId, { surface: 'thread' });
+  }
+
+  /** Makes every open suggestion on the caller's test date due now, then runs the expiry once. */
+  async expireChanges(userId: string): Promise<void> {
+    const { date } = await this.testDate(userId);
+    const now = new Date();
+    await this.db.query(
+      `UPDATE "date_change_suggestions" SET "deadline" = $2
+        WHERE "date_id" = $1 AND "status" = 'pending'`,
+      [date.id, now],
+    );
+    await this.changes.expireDue(now);
   }
 
   /** Cancels the caller's confirmed dates with the test match -- the dev escape from the Date screen. */
@@ -219,7 +334,7 @@ export class DateDevService {
 
     const windows = this.db.getRepository(CheckInWindow);
     await windows.delete({ userId: partner.id });
-    await windows.save(
+    const partnerWindow = await windows.save(
       windows.create({
         userId: partner.id,
         closesAt: new Date(Date.now() + 48 * 3_600_000),
@@ -239,22 +354,41 @@ export class DateDevService {
     await this.db.query(`DELETE FROM "check_ins" WHERE "user_id" = $1`, [
       partner.id,
     ]);
-    await this.checkIns.create(partner.id, {
+    const run = await this.checkIns.create(partner.id, {
       availabilityStart: new Date(Date.now() + 60_000).toISOString(),
       availabilityEnd: new Date(Date.now() + 6 * 3_600_000).toISOString(),
       preparationMinutes: 20,
       latitude: (here?.lat ?? VENUE.lat) + PARTNER_OFFSET_LAT,
       longitude: here?.lng ?? VENUE.lng,
     });
+    // Linked to her window, as the real Check-In flow links every run: Date 05's slots read the match's runs
+    // of their latest committed window, so an unlinked run gave the test date no later time to suggest.
+    await this.db.query(
+      `UPDATE "check_ins" SET "check_in_window_id" = $1 WHERE "id" = $2`,
+      [partnerWindow.id, run.id],
+    );
     return partner.id;
   }
 
-  /** Cafe Krone, made if missing. */
+  /**
+   * Cafe Krone, made if missing. Found by name, not by an ON CONFLICT: since Date 05 a venue name is
+   * no longer unique (two Google places can share one), so there is no constraint to conflict on.
+   */
   private async venue(): Promise<string> {
+    const [existing] = await this.db.query<Array<{ id: string }>>(
+      // Wrapped in a CTE so the driver returns rows: a bare UPDATE ... RETURNING comes back as
+      // [rows, count] from pg.
+      `WITH "upd" AS (
+         UPDATE "venues" SET "address" = $2 WHERE "id" =
+           (SELECT "id" FROM "venues" WHERE "name" = $1 ORDER BY "created_at" LIMIT 1)
+         RETURNING "id")
+       SELECT "id" FROM "upd"`,
+      [VENUE.name, VENUE.address],
+    );
+    if (existing) return existing.id;
     const [row] = await this.db.query<Array<{ id: string }>>(
       `INSERT INTO "venues" ("name", "address", "location")
        VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography)
-       ON CONFLICT ("name") DO UPDATE SET "address" = EXCLUDED."address"
        RETURNING "id"`,
       [VENUE.name, VENUE.address, VENUE.lng, VENUE.lat],
     );

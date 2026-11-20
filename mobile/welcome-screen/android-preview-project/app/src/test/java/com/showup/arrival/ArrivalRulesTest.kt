@@ -57,10 +57,10 @@ class ArrivalRulesTest {
     }
 
     @Test
-    fun `six chips are shown, arrived among them`() {
+    fun `six chips are drawn without a change block, arrived among them`() {
         assertEquals(
             listOf(ChatReason.OnMyWay, ChatReason.Arrived, ChatReason.CantFind, ChatReason.WhenArrive, ChatReason.RunningLate, ChatReason.CantMakeIt),
-            SHOWN_REASONS,
+            com.showup.change.visibleReasons(null, java.time.Instant.EPOCH),
         )
     }
 

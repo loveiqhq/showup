@@ -204,6 +204,39 @@ struct ChatBubble: View {
     }
 }
 
+// MARK: - SystemLine
+
+/// `SystemLine` of the Date 02 reference: a centred pill, at most 86 % wide, pad 6 12, gap 6, `icon` 12 / 2.4 and the
+/// sentence 11.5 / 600 / 1.35. `success`: green on green at 10 % (an agreed change); otherwise subtle ink on ink at
+/// 5 % (an expiry). Android's `SystemLine`.
+struct SystemLine: View {
+    let text: String
+    let icon: BrandIcon
+    let success: Bool
+    /// The thread's width: the pill is at most 86 % of it.
+    let width: CGFloat
+
+    var body: some View {
+        let ink: Color = success ? .liqSuccessFg : .liqSubtle
+        let fill: Color = success ? Color.liqSuccess.opacity(0.10) : Color.liqFg.opacity(0.05)
+        HStack(spacing: 6) {
+            BrandIconView(icon: icon, size: 12, stroke: 2.4, tint: ink)
+            Text(lastWordsTogether(text))
+                .font(F.manrope(11.5, .semibold))
+                .lineSpacing(TypeMetrics.lineSpacing(PS.manropeSemi, size: 11.5, multiple: 1.35))
+                .foregroundColor(ink)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(Capsule().fill(fill))
+        .frame(maxWidth: width * 0.86)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 // MARK: - ThreadScroll
 
 /// The scroll's measures, in its own coordinate space: where the content is and how tall the foot is.

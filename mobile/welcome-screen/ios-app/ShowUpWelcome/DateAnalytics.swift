@@ -31,7 +31,8 @@ enum DateAnalytics {
         (dateScreenViewedName, [
             "date_id": date.id,
             "state": state == .locked ? "locked" : "available",
-            "has_unread": state == .unread,
+            // True while the change request card shows too (Date 05: the ticket's tracking rule).
+            "has_unread": state == .unread || requestShown(date),
             "checked_in": date.checkedIn,
             "minutes_before_start": minutesBeforeStart(meetAt: date.meetAt, now: now),
         ].merging(Stamp.of(0)) { a, _ in a })

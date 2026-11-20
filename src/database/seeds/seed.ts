@@ -3,7 +3,7 @@ import { AppDataSource } from '../data-source';
 
 /**
  * Local seed script. Inserts a few sample venues with real coordinates so the location logic and
- * the nearby/within-radius queries have data to work against. Idempotent (upsert on name).
+ * the nearby/within-radius queries have data to work against. Idempotent (updates by name, else inserts).
  * Run with: npm run seed
  */
 const VENUES = [
@@ -44,12 +44,21 @@ async function main() {
   await AppDataSource.initialize();
   try {
     for (const v of VENUES) {
-      await AppDataSource.query(
-        `INSERT INTO venues (name, address, location)
-         VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography)
-         ON CONFLICT (name) DO UPDATE SET location = EXCLUDED.location, address = EXCLUDED.address`,
+      // By name, not ON CONFLICT: a venue name is no longer unique (Date 05), so update-then-insert (the CTE keeps pg from returning [rows, count]).
+      const updated = await AppDataSource.query<unknown[]>(
+        `WITH upd AS (
+           UPDATE venues SET location = ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, address = $2
+            WHERE name = $1 RETURNING id)
+         SELECT id FROM upd`,
         [v.name, v.address, v.lng, v.lat],
       );
+      if (updated.length === 0) {
+        await AppDataSource.query(
+          `INSERT INTO venues (name, address, location)
+           VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography)`,
+          [v.name, v.address, v.lng, v.lat],
+        );
+      }
     }
     const [{ c }] = await AppDataSource.query<Array<{ c: number }>>(
       'SELECT COUNT(*)::int AS c FROM venues',

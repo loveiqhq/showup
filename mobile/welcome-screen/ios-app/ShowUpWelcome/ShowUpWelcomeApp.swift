@@ -129,6 +129,7 @@ private struct TutorialFlow: View {
         _hideAgeStored = SceneStorage(wrappedValue: false,
                                       SceneKey.scoped("basics.hideAge", epoch: epoch))
         _searchLikeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("search.like", epoch: epoch))
+        _changeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("change.picker", epoch: epoch))
     }
 
     // SceneStorage, not State: a process death mid-tutorial should not silently drop the user back
@@ -286,13 +287,17 @@ private struct TutorialFlow: View {
                                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
     /// An open like sheet and its message, so a process the system ended reopens them (`attachSearch`).
     @SceneStorage private var searchLikeStored: String
+    /// The open picker's selection, field and send id (`ChangePickerDraft`), epoch-scoped like every key here. The
+    /// pushed destination is not restored after the process dies; opening the same picker again finds this.
+    @SceneStorage private var changeStored: String
 
     // ── the date (SHOWUP-193) ─────────────────────────────────────────────────
     //
     // The Date screen's owner and the match's read-only profile's (Android's DateViewModel and
     // DateProfileViewModel). Replaced by `beginNewAccount` like every account-scoped model.
     private let dateStore = DateRepository(api: APIAccess.client)
-    @State private var dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+    @State private var dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
+                                      changes: ChangeRepository(api: APIAccess.client))
     @State private var dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
                                                            analytics: AppAnalytics.shared, players: sharedMediaPlayer)
     /// The read-only profile as it last was, drawn while it slides away.
@@ -305,6 +310,10 @@ private struct TutorialFlow: View {
     // ChatViewModel and its three routes.
     private let chatStore = ChatRepository(api: APIAccess.client)
     @State private var chatModel: ChatModel?
+    // The time or place picker (SHOWUP-196, Date 05), over the Date screen or the chat: one model per showing,
+    // made when a chip, a tile or Suggest another opens it. Android's route-scoped `ChangePickerViewModel`.
+    private let changeStore = ChangeRepository(api: APIAccess.client)
+    @State private var changeModel: ChangePickerModel?
     @State private var chatDateId: String?
     /// The tutorial, the chat or G / H, pushed over the Date screen; empty when none is up.
     @State private var chatPath: [AppRoute] = []
@@ -381,7 +390,12 @@ private struct TutorialFlow: View {
                 set: { path in
                     // A swipe back off a chat destination: the chat closes, G or H moves on to Search.
                     if !chatPath.isEmpty {
-                        if path.count < chatPath.count { leaveChatRoute() }
+                        if path.count < chatPath.count {
+                            // Back off the picker is Cancel (fires `change_picker_dismissed`); the model refuses
+                            // it while a send is in flight, and the path then stays as it is.
+                            if case .changePicker? = chatPath.last { changeModel?.cancel(); return }
+                            leaveChatRoute()
+                        }
                         return
                     }
                     if path.isEmpty, dateProfileModel.state != nil {
@@ -767,7 +781,8 @@ private struct TutorialFlow: View {
                                places: CLPlaceReader())
         search = SearchModel(store: SearchRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
                              players: sharedMediaPlayer)
-        dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared)
+        dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
+                                      changes: ChangeRepository(api: APIAccess.client))
         dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
                                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
         arrivalGate = ArrivalGateModel(store: ArrivalRepository(api: APIAccess.client),
@@ -1141,8 +1156,14 @@ private struct TutorialFlow: View {
             // needs a tab it switched from, and no tab is active here.
             onTab: { tab in if tab == .settings { go(to: .checkInSettings) } },
             onRetry: { dateModel.retry() },
-            // The tile's event now; the Date 05 picker it opens arrives with Date 05.
-            onChangeTile: { dateModel.changeTile($0) })
+            // `action_chip_used` first, then the picker (whose own open fires `change_picker_opened`).
+            onChangeTile: { reason in
+                dateModel.changeTile(reason)
+                if let route = changePickerRoute(reason, surface: .coordinateCard) { openChangePicker(route) }
+            },
+            onAgree: { dateModel.agreeRequest() },
+            // Only `change_picker_opened`: no chip was tapped (the ticket's tracking rule).
+            onSuggestAnother: { kind in openChangePicker(counterCardRoute(kind)) })
     }
 
     private func routeArrivalUndoOnDate() {
@@ -1161,7 +1182,7 @@ private struct TutorialFlow: View {
         if chatModel == nil || chatDateId != date.id {
             // `message_received` once per message across launches: what was reported is kept on the phone.
             chatModel = ChatModel(store: chatStore, dates: dateStore, analytics: AppAnalytics.shared,
-                                  received: UserDefaultsReceivedLedger())
+                                  received: UserDefaultsReceivedLedger(), changes: changeStore)
             chatDateId = date.id
         }
         chatPath = [chatRoute(date, entry: chatEntryFor(date))]
@@ -1175,6 +1196,8 @@ private struct TutorialFlow: View {
 
     /// `Find your next date`: the date is over, so Search, Likes and Instant open, and Search shows.
     private func findNextDate() {
+        // The date is over: a picker draft kept for it would never match another date's id, and is dropped.
+        changeStored = ""
         dateModel.outcomeShown()
         dateProfileModel.close()
         checkIn.refresh()
@@ -1193,6 +1216,58 @@ private struct TutorialFlow: View {
         default:
             chatPath = []
         }
+    }
+
+    /// The picker for `route`, pushed over whatever is up (the Date screen, or the chat above it). Suggest another
+    /// (Date 05 cards) calls this with `counter_card` / `counter_thread`, which fires only `change_picker_opened`.
+    func openChangePicker(_ route: AppRoute) {
+        guard case .changePicker(let kind, let entry) = route, let dateId = dateModel.state.date?.id else { return }
+        let stored = $changeStored
+        let restored = ChangePickerDraft.decode(changeStored).flatMap { $0.dateId == dateId && $0.kind == kind.rawValue ? $0 : nil }
+        changeModel = ChangePickerModel(kind: kind, entry: entry, store: changeStore, analytics: AppAnalytics.shared,
+                                        restoring: restored, persist: { stored.wrappedValue = $0 })
+        chatPath.append(route)
+    }
+
+    /// A time or place picker: the model's `done` closes it with the date read again, `closed` closes it as Cancel.
+    @ViewBuilder private var changePickerView: some View {
+        if let model = changeModel, let date = dateModel.state.date {
+            ChangePickerScreen(
+                ctx: ChangeSheetContext(name: date.match.name, bindingTime: date.meetAt,
+                                        bindingPlace: date.place?.name ?? "", slots: date.change?.slots ?? [],
+                                        zone: .current),
+                ui: model.ui,
+                onSelectSlot: { model.selectSlot($0) },
+                onSelectPlace: { model.selectPlace($0) },
+                onQuery: { model.setQuery($0) },
+                onRetry: { model.retryPlaces() },
+                onSuggest: { model.suggest() },
+                onCancel: { model.cancel() })
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationBarBackButtonHidden(true)
+                // Once per showing; the model keeps the first date it was given.
+                .onFirstAppear { model.open(date) }
+                // The server confirmed: back to where it was opened, with the date read again (the chat reads
+                // itself on its poll). Nothing was shown as changed before this.
+                .onChange(of: model.ui.done) { _, done in
+                    if done {
+                        dateModel.foreground()
+                        popChangePicker()
+                    }
+                }
+                .onChange(of: model.ui.closed) { _, closed in if closed { popChangePicker() } }
+                // 409: the cutoff passed or someone checked in. No error: close, and read the date again.
+                .onChange(of: model.ui.stale) { _, stale in
+                    if stale {
+                        dateModel.foreground()
+                        popChangePicker()
+                    }
+                }
+        }
+    }
+
+    private func popChangePicker() {
+        if case .changePicker? = chatPath.last { chatPath.removeLast() }
     }
 
     /// A: the chat tutorial over the Date screen.
@@ -1242,6 +1317,15 @@ private struct TutorialFlow: View {
                 // `I arrived at the spot` before check-in opens the gate instead: the chip's event first, then
                 // the confirm's.
                 onPick: { reason, surface in
+                    if let route = changePickerRoute(reason, surface: surface) {
+                        // A change chip opens its picker (Date 05): the chip's event, then the route. Nothing is
+                        // selected or drafted, and the keyboard goes away first, as for the guard.
+                        model.pick(reason, surface: surface)
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
+                        openChangePicker(route)
+                        return
+                    }
                     onChatChip(reason, surface, arrivalGate, pick: { model.pick($0, surface: $1, gated: $2) },
                                // The guard opens over the composer: put the keyboard away first.
                                beforeGate: {
@@ -1256,7 +1340,14 @@ private struct TutorialFlow: View {
                 onKeep: { model.keepDate() },
                 onEnd: { model.endDate() },
                 onRetry: { model.retry() },
-                onResend: { model.resend($0) })
+                onResend: { model.resend($0) },
+                onAgree: { model.agree($0) },
+                // Suggest another on a card in the thread: change_picker_opened only, entry counter_thread.
+                onCounter: { kind in
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                    to: nil, from: nil, for: nil)
+                    openChangePicker(counterThreadRoute(kind))
+                })
             }
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationBarBackButtonHidden(true)
@@ -1873,6 +1964,10 @@ private struct TutorialFlow: View {
                         case .matchCantMakeIt: _ = await store.messageFromMatch(reason: .cantMakeIt, body: ChatSamples.matchCantMakeIt)
                         case .matchEndsInChat: _ = await store.matchEndsInChat()
                         case .partnerChecksIn: _ = await store.partnerChecksIn()
+                        case .matchSuggestsTime: _ = await store.matchSuggests(kind: .time)
+                        case .matchSuggestsPlace: _ = await store.matchSuggests(kind: .place)
+                        case .matchAgrees: _ = await store.matchAgrees()
+                        case .expireSuggestions: _ = await store.expireSuggestions()
                         case .end: _ = await store.endTestDate()
                         }
                         // The Date screen's own read shows the result: a new date or message lands in place,
@@ -1965,6 +2060,7 @@ private struct TutorialFlow: View {
                     case .chatTutorial: chatTutorialView
                     case .chat(let entry): chatView(entry)
                     case .dateEnded(let outcome, let photoURL): dateEndedView(outcome, photoURL: photoURL)
+                    case .changePicker: changePickerView
                     }
                 }
         }

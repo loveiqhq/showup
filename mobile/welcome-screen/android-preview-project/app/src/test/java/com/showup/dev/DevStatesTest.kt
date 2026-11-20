@@ -45,7 +45,8 @@ class DevStatesTest {
         // and a first read that failed).
         // 194: the sheet's A to K (I, J and K, the three failures, 9 Nov 2026).
         // 195: A to H plus C2 (16 Nov) -- the bar, the guard, no fix, check-in not saved, done, after Close, the chat chip, the date gate, the arrival card.
-        assertEquals(mapOf("178" to 2, "179" to 5, "180" to 3, "181" to 5, "182" to 3, "183" to 5, "184" to 10, "193" to 6, "194" to 11, "195" to 9), perTicket)
+        // 196: A to N, the ticket's fourteen frames (L's thread variant is a preview and fit frame only).
+        assertEquals(mapOf("178" to 2, "179" to 5, "180" to 3, "181" to 5, "182" to 3, "183" to 5, "184" to 10, "193" to 6, "194" to 11, "195" to 9, "196" to 14), perTicket)
     }
 
     @Test

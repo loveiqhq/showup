@@ -33,6 +33,7 @@
  */
 package com.showup.date
 
+import com.showup.change.changeTilesFor
 import com.showup.chat.ChatReason
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
@@ -166,10 +167,17 @@ fun DateScreen(
     onRetry: () -> Unit = {},
     /** The scroll, hoisted only so the evidence harness can photograph frame D's end. */
     scroll: ScrollState = rememberScrollState(),
-    /** The locked card's change tiles: [CHANGE_TILES], empty until Date 05 ships; the evidence passes both. */
-    changeTiles: List<ChatReason> = CHANGE_TILES,
-    /** A change tile was tapped: the Date 05 picker opens, once it exists. */
+    /**
+     * The locked card's change tiles. Null: the payload decides (`changeTilesFor`, the one gate shared with the
+     * chat's chips), evaluated with [DateUi.now] so they hide in place at the cutoff. The evidence passes both.
+     */
+    changeTiles: List<ChatReason>? = null,
+    /** A change tile was tapped: its Date 05 picker opens (the host's route). */
     onChangeTile: (ChatReason) -> Unit = {},
+    /** `I agree` on the request card (Date 05): the model agrees with surface `coordinate_card`. */
+    onAgree: () -> Unit = {},
+    /** `Suggest another` on the request card while the chat is locked: the picker of that kind, entry `counter_card`. */
+    onSuggestAnother: (com.showup.change.ChangeKind) -> Unit = {},
 ) {
     val density = LocalDensity.current
     var frameHeight by remember { mutableIntStateOf(0) }
@@ -204,7 +212,7 @@ fun DateScreen(
                 val holes = remember { WashHoles() }
                 Box(Modifier.onPlaced { holes.origin = it }) {
                     CompositionLocalProvider(LocalWashHoles provides holes) {
-                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles, onChangeTile)
+                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles ?: changeTilesFor(date.change, ui.now), onChangeTile, onAgree, onSuggestAnother)
                     }
                     // ① The sunset wash: top 0, h 320, opacity .18, blur 40 -- scrolling with the content,
                     // drawn after it (see the header).
@@ -280,6 +288,8 @@ private fun DateContent(
     matchMate: @Composable () -> Unit,
     changeTiles: List<ChatReason>,
     onChangeTile: (ChatReason) -> Unit,
+    onAgree: () -> Unit,
+    onSuggestAnother: (com.showup.change.ChangeKind) -> Unit,
 ) {
     Column(
         Modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
@@ -295,14 +305,18 @@ private fun DateContent(
                 state, date, ui.now, zone, onOpenChat,
                 Modifier.testTag(if (date.arrival != null) DATE_ARRIVAL_TAG else DATE_COORDINATE_TAG),
                 // Only in A: from B on, the chat's chips do the same job.
-                changeTiles = if (state == DateState.Locked) changeTiles else emptyList(),
+                changeTiles = if (state == DateState.Locked && date.changeRequest == null) changeTiles else emptyList(),
                 onChangeTile = onChangeTile,
+                agreeing = ui.agreeing,
+                agreeFailed = ui.agreeFailed,
+                onAgree = onAgree,
+                onSuggestAnother = onSuggestAnother,
             )
         }
-        // The match's arrival and an unread message are both hoisted under the hero (R11).
-        val hoist = hoisted(state, date.arrival)
+        // The match's arrival, her change request and an unread message are hoisted under the hero, in that order (R11, R8).
+        val hoist = hoisted(state, date.arrival, date.changeRequest)
         if (hoist) coordinate()
-        TimePlaceCard(date, zone, ui.copied, onCopy, Modifier.testTag(DATE_TIME_CARD_TAG))
+        TimePlaceCard(date, zone, ui.copied, onCopy, Modifier.testTag(DATE_TIME_CARD_TAG), ui.now)
         if (!hoist) coordinate()
         ReportRow(onReport, Modifier.testTag(DATE_REPORT_TAG))
         IntentCard(date, Modifier.testTag(DATE_INTENT_TAG))

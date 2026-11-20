@@ -1,4 +1,10 @@
 import {
+  CHANGE_AGREED,
+  CHANGE_EXPIRED,
+  CHANGE_SUGGESTED,
+  changeAgreedEvent,
+  changeExpiredEvent,
+  changeSuggestedEvent,
   COORDINATE_UNLOCKED,
   DATE_CANCELLED,
   DATE_COMPLETED,
@@ -86,6 +92,71 @@ describe('date analytics events', () => {
     expect(arrivalUndoneEvent('d7', 'report' as never, 9)).toEqual({
       eventName: ARRIVAL_UNDONE,
       properties: { date_id: 'd7', entry: 'report', seconds_since_confirm: 9 },
+    });
+  });
+
+  it('the Date 05 events carry exactly their registry properties, never a place (1.4.28)', () => {
+    const suggested = changeSuggestedEvent({
+      dateId: 'd1',
+      suggestionId: 's1',
+      kind: 'time',
+      entry: 'chat_chip',
+      replaces: 'theirs',
+      offsetMin: 30,
+      fromSearch: null,
+      minutesToDeadline: 90,
+      minutesBeforeStart: 120,
+    });
+    expect(suggested).toEqual({
+      eventName: CHANGE_SUGGESTED,
+      properties: {
+        date_id: 'd1',
+        suggestion_id: 's1',
+        kind: 'time',
+        entry: 'chat_chip',
+        replaces: 'theirs',
+        offset_min: 30,
+        from_search: null,
+        minutes_to_deadline: 90,
+        minutes_before_start: 120,
+      },
+    });
+    expect(
+      changeSuggestedEvent({
+        dateId: 'd1',
+        suggestionId: 's2',
+        kind: 'place',
+        entry: 'coordinate_tile',
+        replaces: 'none',
+        offsetMin: null,
+        fromSearch: true,
+        minutesToDeadline: 5,
+        minutesBeforeStart: 35,
+      }).properties,
+    ).toMatchObject({ offset_min: null, from_search: true });
+    expect(
+      changeAgreedEvent({
+        dateId: 'd1',
+        suggestionId: 's1',
+        kind: 'place',
+        surface: 'coordinate_card',
+        secondsSinceSuggested: 61,
+        minutesToDeadline: 10,
+      }),
+    ).toEqual({
+      eventName: CHANGE_AGREED,
+      properties: {
+        date_id: 'd1',
+        suggestion_id: 's1',
+        kind: 'place',
+        surface: 'coordinate_card',
+        seconds_since_suggested: 61,
+        minutes_to_deadline: 10,
+      },
+    });
+    expect(changeExpiredEvent('d1', 's1', 'time')).toEqual({
+      eventName: CHANGE_EXPIRED,
+      properties: { date_id: 'd1', suggestion_id: 's1', kind: 'time' },
     });
   });
 });

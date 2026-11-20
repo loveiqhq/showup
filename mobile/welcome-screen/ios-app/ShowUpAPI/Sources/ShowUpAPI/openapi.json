@@ -13,6 +13,24 @@
             "nullable": true,
             "type": "object"
           },
+          "change": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeStateDto"
+              }
+            ],
+            "description": "Date 05: the change-time and change-place state -- cutoff, whether suggesting is allowed, the time slots, the originals after an agreed change, and the open suggestions. Absent from servers before Date 05."
+          },
+          "changeRequest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangePendingDto"
+              }
+            ],
+            "description": "Date 05: the match's open suggestion with the earliest deadline (time first on a tie), for the hoisted request card; null when there is none",
+            "nullable": true,
+            "type": "object"
+          },
           "chatTutorialSeen": {
             "description": "The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial",
             "type": "boolean"
@@ -179,6 +197,21 @@
         ],
         "type": "object"
       },
+      "AgreeChangeDto": {
+        "properties": {
+          "surface": {
+            "enum": [
+              "coordinate_card",
+              "thread"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "surface"
+        ],
+        "type": "object"
+      },
       "Alcohol": {
         "enum": [
           "never",
@@ -324,6 +357,319 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "ChangeEntry": {
+        "description": "Where the person started the suggestion (analytics `entry`, §42)",
+        "enum": [
+          "coordinate_tile",
+          "chat_chip",
+          "counter_card",
+          "counter_thread",
+          "cancel_sheet"
+        ],
+        "type": "string"
+      },
+      "ChangeKind": {
+        "enum": [
+          "time",
+          "place"
+        ],
+        "type": "string"
+      },
+      "ChangePendingDto": {
+        "properties": {
+          "byYou": {
+            "description": "You sent it",
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deadline": {
+            "description": "Meet time - 0:30; unanswered by then, it expires",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeKind"
+              }
+            ]
+          },
+          "place": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangePlaceDto"
+              }
+            ],
+            "description": "kind `place`: the suggested place"
+          },
+          "time": {
+            "description": "kind `time`: the suggested meet time",
+            "format": "date-time",
+            "type": "string"
+          },
+          "wasPlace": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeWasPlaceDto"
+              }
+            ],
+            "description": "The meet place in force when this was suggested",
+            "nullable": true,
+            "type": "object"
+          },
+          "wasTime": {
+            "description": "The meet time in force when this was suggested",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "byYou",
+          "wasTime",
+          "wasPlace",
+          "deadline",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "ChangePlaceDto": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "placeId": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "cafe",
+              "bar",
+              "restaurant"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "placeId",
+          "name",
+          "type",
+          "address"
+        ],
+        "type": "object"
+      },
+      "ChangePlaceWasDto": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "ChangePlacesDto": {
+        "properties": {
+          "attribution": {
+            "description": "'google' only when Google answered, and its terms ask for the attribution line; null for fixtures.",
+            "enum": [
+              "google"
+            ],
+            "nullable": true,
+            "type": "string"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/PlaceOptionDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "attribution",
+          "places"
+        ],
+        "type": "object"
+      },
+      "ChangeStateDto": {
+        "properties": {
+          "allowed": {
+            "description": "False once either person has a committed arrival check-in",
+            "type": "boolean"
+          },
+          "cutoffAt": {
+            "description": "Meet time - 0:30: from here nobody can suggest or agree",
+            "format": "date-time",
+            "type": "string"
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/ChangePendingDto"
+            },
+            "type": "array"
+          },
+          "placeWas": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangePlaceWasDto"
+              }
+            ],
+            "description": "The meet place before the first agreed place change"
+          },
+          "slots": {
+            "description": "Meet times you can suggest: 15-minute starts inside the match's free hours, after the meet time, before local midnight. Empty hides `Change meet time` only.",
+            "items": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "timeWas": {
+            "description": "The meet time before the first agreed time change",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cutoffAt",
+          "allowed",
+          "slots",
+          "pending"
+        ],
+        "type": "object"
+      },
+      "ChangeStatus": {
+        "enum": [
+          "pending",
+          "agreed",
+          "replaced",
+          "expired"
+        ],
+        "type": "string"
+      },
+      "ChangeSuggestionDto": {
+        "properties": {
+          "answeredAt": {
+            "description": "When it was agreed",
+            "format": "date-time",
+            "type": "string"
+          },
+          "byYou": {
+            "description": "You sent it",
+            "type": "boolean"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deadline": {
+            "description": "Meet time - 0:30; unanswered by then, it expires",
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiredAt": {
+            "description": "When it expired",
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiredBindingPlace": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeWasPlaceDto"
+              }
+            ],
+            "description": "Expired: the meet place that stayed binding"
+          },
+          "expiredBindingTime": {
+            "description": "Expired: the meet time that stayed binding",
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeKind"
+              }
+            ]
+          },
+          "place": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangePlaceDto"
+              }
+            ],
+            "description": "kind `place`: the suggested place"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeStatus"
+              }
+            ]
+          },
+          "time": {
+            "description": "kind `time`: the suggested meet time",
+            "format": "date-time",
+            "type": "string"
+          },
+          "wasPlace": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeWasPlaceDto"
+              }
+            ],
+            "description": "The meet place in force when this was suggested",
+            "nullable": true,
+            "type": "object"
+          },
+          "wasTime": {
+            "description": "The meet time in force when this was suggested",
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "byYou",
+          "wasTime",
+          "wasPlace",
+          "deadline",
+          "createdAt",
+          "status"
+        ],
+        "type": "object"
+      },
+      "ChangeWasPlaceDto": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "ChatMessageDto": {
@@ -1024,6 +1370,28 @@
         },
         "required": [
           "token"
+        ],
+        "type": "object"
+      },
+      "DevDateChangeDto": {
+        "properties": {
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeKind"
+              }
+            ]
+          },
+          "minutesLater": {
+            "default": 30,
+            "description": "kind `time`: minutes after the meet time, moved to a listed slot when there is one",
+            "maximum": 720,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kind"
         ],
         "type": "object"
       },
@@ -1938,6 +2306,44 @@
           "moderationStatus",
           "position",
           "createdAt"
+        ],
+        "type": "object"
+      },
+      "PlaceOptionDto": {
+        "properties": {
+          "address": {
+            "example": "Lausitzer Platz 9, Kreuzberg",
+            "type": "string"
+          },
+          "distanceMeters": {
+            "description": "Whole metres from the date’s current meet place; the clients format it.",
+            "example": 350,
+            "type": "number"
+          },
+          "name": {
+            "example": "Bar Lenz",
+            "type": "string"
+          },
+          "placeId": {
+            "description": "The provider's stable id for the place.",
+            "example": "ChIJ_bar_lenz",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "cafe",
+              "bar",
+              "restaurant"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "placeId",
+          "name",
+          "type",
+          "address",
+          "distanceMeters"
         ],
         "type": "object"
       },
@@ -2971,6 +3377,54 @@
           "subjectType",
           "subjectId",
           "to"
+        ],
+        "type": "object"
+      },
+      "SuggestChangeDto": {
+        "properties": {
+          "clientId": {
+            "description": "The id the phone gave this Suggest tap, the same on every resend: a resend is answered with the stored suggestion and fires nothing",
+            "format": "uuid",
+            "type": "string"
+          },
+          "entry": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeEntry"
+              }
+            ],
+            "description": "Where the person started the suggestion (analytics `entry`, §42)"
+          },
+          "fromSearch": {
+            "description": "kind `place`: picked from a search result rather than the nearby list",
+            "type": "boolean"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ChangeKind"
+              }
+            ]
+          },
+          "placeId": {
+            "description": "kind `place`: the id of a place from `GET /dates/:id/change/places`; the server fetches the place itself, so nothing else about it is trusted from the phone.",
+            "type": "string"
+          },
+          "time": {
+            "description": "kind `time`: the new meet time, one of the `change.slots` of the date payload (the match's free hours).",
+            "format": "date-time",
+            "type": "string"
+          },
+          "tz": {
+            "description": "The person's IANA time zone, for the slot list (as `GET /me/date?tz=`). Absent: UTC, which only matters near local midnight.",
+            "example": "Europe/Berlin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "entry",
+          "clientId"
         ],
         "type": "object"
       },
@@ -5100,6 +5554,82 @@
         ]
       }
     },
+    "/dates/{id}/change/places": {
+      "get": {
+        "operationId": "listChangePlaces",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Search text; empty or absent lists what is nearby.",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangePlacesDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
     "/dates/{id}/chat": {
       "get": {
         "operationId": "listDateChatMessages",
@@ -5628,6 +6158,233 @@
         ]
       }
     },
+    "/dates/{id}/suggestions": {
+      "get": {
+        "operationId": "listDateChangeSuggestions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ChangeSuggestionDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      },
+      "post": {
+        "operationId": "suggestDateChange",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SuggestChangeDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSuggestionDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
+    "/dates/{id}/suggestions/{sid}/agree": {
+      "post": {
+        "operationId": "agreeDateChange",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgreeChangeDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeSuggestionDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dates"
+        ]
+      }
+    },
     "/dev/date": {
       "post": {
         "operationId": "createDevDate",
@@ -5691,6 +6448,146 @@
     "/dev/date/arrival": {
       "post": {
         "operationId": "devPartnerCheckIn",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/dev/date/change": {
+      "post": {
+        "operationId": "createDevDateChange",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevDateChangeDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/dev/date/change/agree": {
+      "post": {
+        "operationId": "agreeDevDateChange",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/dev/date/change/expire": {
+      "post": {
+        "operationId": "expireDevDateChange",
         "parameters": [],
         "responses": {
           "204": {

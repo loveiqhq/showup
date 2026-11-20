@@ -194,9 +194,8 @@ kt_reasons = read(os.path.join(KT_ROOT, "chat", "ChatReasons.kt"))
 m = re.search(r'^\s*Arrived\("arrived",.*,\s*(true|false)\),?\s*$', kt_reasons, re.M)
 check("Android: ChatReason.Arrived is shown", bool(m) and m.group(1) == "true")
 sw_reasons = read(os.path.join(SW, "ChatReasons.swift"))
-hidden = re.search(r"var shown: Bool \{.*?case ([^:]+): return false", sw_reasons, re.S)
 check("iOS: ChatReason.arrived exists", re.search(r'case arrived = "arrived"', sw_reasons) is not None)
-check("iOS: ChatReason.arrived is shown", bool(hidden) and ".arrived" not in hidden.group(1))
+check("iOS: ChatReason.arrived is shown", re.search(r"var shown: Bool \{ true \}", sw_reasons) is not None)
 
 # Analytics: exact keys, none of the forbidden ones.
 FORBIDDEN = re.compile(r"lat|lng|lon\b|longitude|latitude|coord|accuracy|distance|place|address|meters|metres|geohash|location", re.I)

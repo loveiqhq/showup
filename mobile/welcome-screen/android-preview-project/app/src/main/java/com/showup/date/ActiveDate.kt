@@ -7,6 +7,8 @@
  */
 package com.showup.date
 
+import com.showup.change.ChangeSuggestion
+import com.showup.change.DateChange
 import com.showup.chat.ChatReason
 import java.time.Instant
 
@@ -58,6 +60,13 @@ data class ActiveDate(
     val chatTutorialSeen: Boolean,
     /** The match's committed check-in the viewer has not seen; null once seen (Date 03). */
     val arrival: DateArrival? = null,
+    /**
+     * Date 05: the cutoff, the later slots and the open suggestions. Null from a server before Date 05, which
+     * shows no change tile or chip (the one gate, `ChangeRules`).
+     */
+    val change: DateChange? = null,
+    /** Date 05: the match's open suggestion with the earliest deadline, for the hoisted request card. */
+    val changeRequest: ChangeSuggestion? = null,
 )
 
 /**
