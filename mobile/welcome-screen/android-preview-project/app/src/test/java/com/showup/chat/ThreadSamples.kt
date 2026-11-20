@@ -18,8 +18,9 @@ object ThreadSamples {
     val DATE = ChatSamples.DATE.copy(
         meetAt = Instant.parse("2026-11-03T17:00:00Z"),
         // New suggestions still allowed (a cutoff after the sample clock, ChatSamples.NOW 16:42Z), so a pending card
-        // from the match offers Suggest another; a test that closes them sets `allowed = false`.
-        change = DateChange(Instant.parse("2026-11-03T23:00:00Z"), allowed = true, slots = emptyList(), timeWas = null, placeWas = null, pending = emptyList()),
+        // from the match offers Suggest another (a time needs a later slot too); a test that closes them sets
+        // `allowed = false`.
+        change = DateChange(Instant.parse("2026-11-03T23:00:00Z"), allowed = true, slots = listOf(Instant.parse("2026-11-03T17:30:00Z")), timeWas = null, placeWas = null, pending = emptyList()),
     )
 
     private fun at(hhmmBerlin: String) = Instant.parse("2026-11-03T$hhmmBerlin:00Z").minusSeconds(3600)
