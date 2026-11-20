@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import { EndedInChatDto } from '../date-screen/dto/active-date.dto';
 import {
@@ -20,6 +21,14 @@ import {
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
+import { PlacesService } from '../places/places.service';
+import { ChangePlacesDto, ChangePlacesQueryDto } from './dto/change-places.dto';
+import {
+  AgreeChangeDto,
+  ChangeSuggestionDto,
+  SuggestChangeDto,
+} from './dto/change.dto';
+import { ChangeSuggestionsService } from './change-suggestions.service';
 import { ArrivalCheckInDto, CreateArrivalCheckInDto } from './dto/arrival.dto';
 import { ArrivalCheckInsService } from './arrival-check-ins.service';
 import {
@@ -38,6 +47,8 @@ export class DatesController {
   constructor(
     private readonly dates: DatesService,
     private readonly arrivals: ArrivalCheckInsService,
+    private readonly places: PlacesService,
+    private readonly changes: ChangeSuggestionsService,
   ) {}
 
   /** The dates the user is part of. */
@@ -220,5 +231,73 @@ export class DatesController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<void> {
     await this.arrivals.commit(id, user.id);
+  }
+
+  /**
+   * Cafes, bars and restaurants a date could move to (Date 05, SHOWUP-196), nearest first, measured
+   * from the date's CURRENT meet place. `q` empty lists what is nearby; otherwise it searches.
+   * `attribution` is `google` only when Google answered. 404 unknown date, 403 not yours, 409 when the
+   * date has no meet place with a location to measure from, 503 when places cannot be fetched.
+   */
+  @Get('dates/:id/change/places')
+  @ApiOperation({ operationId: 'listChangePlaces' })
+  @ApiOkResponse({ type: ChangePlacesDto })
+  async changePlaces(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ChangePlacesQueryDto,
+  ): Promise<ChangePlacesDto> {
+    return this.places.listFor(id, user.id, query.q);
+  }
+
+  /**
+   * Suggest a new meet time or place (Date 05). The binding values do not change until the other
+   * person agrees. 404 unknown date, 403 not yours, 400 a missing value or a non-public place, 409 past
+   * meet - 0:30, after a check-in, for a time outside the slots or for the current place, 503 when
+   * places cannot be fetched. A resend of a `clientId` answers 201 with the stored suggestion.
+   */
+  @Post('dates/:id/suggestions')
+  @ApiOperation({ operationId: 'suggestDateChange' })
+  @HttpCode(201)
+  @ApiCreatedResponse({ type: ChangeSuggestionDto })
+  async suggestChange(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SuggestChangeDto,
+  ): Promise<ChangeSuggestionDto> {
+    return this.changes.suggest(id, user.id, dto);
+  }
+
+  /**
+   * `I agree` to the other person's pending suggestion (Date 05): it becomes the binding time or
+   * place. 409 when it is not pending any more (replaced, expired, agreed), is your own, or someone has
+   * arrived; the phone re-reads and shows the real state.
+   */
+  @Post('dates/:id/suggestions/:sid/agree')
+  @ApiOperation({ operationId: 'agreeDateChange' })
+  @HttpCode(200)
+  @ApiOkResponse({ type: ChangeSuggestionDto })
+  async agreeChange(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('sid', ParseUUIDPipe) sid: string,
+    @Body() dto: AgreeChangeDto,
+  ): Promise<ChangeSuggestionDto> {
+    return this.changes.agree(id, sid, user.id, dto);
+  }
+
+  /**
+   * The date's change suggestions with their history, oldest first: the thread's cards and system
+   * lines (`Meet time is now`, `No answer by`) are derived from it. Beside the chat read, so the
+   * chat's own array response is unchanged.
+   */
+  @Get('dates/:id/suggestions')
+  @ApiOperation({ operationId: 'listDateChangeSuggestions' })
+  @ApiOkResponse({ type: [ChangeSuggestionDto] })
+  async listChanges(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ChangeSuggestionDto[]> {
+    return this.changes.listFor(id, user.id);
   }
 }

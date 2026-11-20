@@ -296,4 +296,22 @@ final class EvidenceShots: XCTestCase {
             try shoot(SearchGridView(state: grid, zone: SearchSamples.zone), "grid", on: device, into: dir)
         }
     }
+
+    /// SHOWUP-196's evidence: A to N at the three frames the acceptance criteria name -- 42 images, named
+    /// `<letter>-<name>-<w>x<h>.png`. Android's `SHOWUP-196` block, frame for frame (the frames are `ChangeSamples`).
+    func testChangeTimeAndPlaceEvidence() throws {
+        let dir = try folder("196-change-time-place")
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        let names: [(String, String)] = [
+            ("A", "time-picker"), ("B", "place-picker"), ("C", "sent-waiting"), ("D", "date-yours-waiting"),
+            ("E", "request-chat-open"), ("F", "answer-in-chat"), ("G", "agreed"), ("H", "expired"),
+            ("I", "locked-tiles"), ("J", "request-chat-locked"), ("K", "suggest-failed"), ("L", "agree-failed"),
+            ("M", "places-failed"), ("N", "no-place-found"),
+        ]
+        for device in frames {
+            for (letter, name) in names {
+                try shoot(ChangeSamples.frame(letter), "\(letter)-\(name)", on: device, into: dir)
+            }
+        }
+    }
 }

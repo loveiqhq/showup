@@ -25,11 +25,12 @@ fun chatRoute(date: ActiveDate, entry: ChatEntry): AppRoute =
 
 /**
  * Which button opened the chat. The Date screen shows `Open chat` (B) or `Read & reply` (C), never
- * both: C is B with an unread message, so the waiting message says which it was. The match's arrival
+ * both: C is B with an unread message, so the waiting message says which it was. The match's change
+ * request card (Date 05 E) is read-and-answer too, so its `Open chat` is `read_reply`. The match's arrival
  * card (Date 03) says `Open chat` whatever else waits.
  */
 fun chatEntryFor(date: ActiveDate): ChatEntry =
-    if (date.arrival == null && date.unread != null) ChatEntry.ReadReply else ChatEntry.OpenChat
+    if (date.arrival == null && (date.unread != null || date.changeRequest != null)) ChatEntry.ReadReply else ChatEntry.OpenChat
 
 /**
  * `Open chat` on the match's arrival card. The route and the entry are decided from the date AS THE

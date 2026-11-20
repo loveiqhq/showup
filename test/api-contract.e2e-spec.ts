@@ -88,6 +88,7 @@ const PROTECTED: Route[] = [
   { method: 'post', path: `/dates/${ID}/confirm` },
   { method: 'post', path: `/dates/${ID}/no-show` },
   { method: 'get', path: `/dates/${ID}/chat` },
+  { method: 'get', path: `/dates/${ID}/change/places` },
   { method: 'post', path: `/dates/${ID}/chat` },
   // SHOWUP-193 -- the Date screen: the active date and the match's profile are the viewer's own.
   { method: 'post', path: `/dates/${ID}/chat/read` },
@@ -102,6 +103,13 @@ const PROTECTED: Route[] = [
   { method: 'delete', path: `/dates/${ID}/arrival` },
   { method: 'post', path: `/dates/${ID}/arrival/commit` },
   { method: 'post', path: '/dev/date/arrival' },
+  // SHOWUP-196 -- change meet time / place: suggest, agree, the thread's history, the dev routes.
+  { method: 'post', path: `/dates/${ID}/suggestions` },
+  { method: 'get', path: `/dates/${ID}/suggestions` },
+  { method: 'post', path: `/dates/${ID}/suggestions/${ID}/agree` },
+  { method: 'post', path: '/dev/date/change' },
+  { method: 'post', path: '/dev/date/change/agree' },
+  { method: 'post', path: '/dev/date/change/expire' },
   // matching.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/discovery' },
   { method: 'post', path: '/likes' },

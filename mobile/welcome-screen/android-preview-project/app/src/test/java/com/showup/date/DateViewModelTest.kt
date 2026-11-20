@@ -440,4 +440,8 @@ class FakeDateStore : DateStore {
         partnerCheckIns++
         return Result.success(true)
     }
+
+    override suspend fun matchSuggests(kind: com.showup.change.ChangeKind) = Result.success(true)
+    override suspend fun matchAgrees() = Result.success(true)
+    override suspend fun expireSuggestions() = Result.success(true)
 }

@@ -26,6 +26,10 @@ struct ChatScreen: View {
     var onRetry: () -> Void = {}
     /// J: the line under a failed message, by its `clientId`.
     var onResend: (String) -> Void = { _ in }
+    /// Date 05: `I agree` on a card in the thread, by suggestion id.
+    var onAgree: (String) -> Void = { _ in }
+    /// Date 05: `Suggest another` on a card in the thread, with its kind.
+    var onCounter: (ChangeKind) -> Void = { _ in }
 
     @FocusState private var fieldFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -85,7 +89,7 @@ struct ChatScreen: View {
                            lineHeight: 14 * 1.5, color: .liqMuted, centered: true)
                     .frame(maxWidth: 290)
                     .padding(.top, 8)
-                ChipGrid(reasons: shownReasons, selected: nil, compact: false) { onPick($0, .entry) }
+                ChipGrid(reasons: visibleReasons(ui.date?.change, now: ui.now), selected: nil, compact: false) { onPick($0, .entry) }
                     .padding(.top, 20)
                 LockLine(text: ChatCopy.startPrivacy)
                     .padding(.top, 18)
@@ -104,21 +108,39 @@ struct ChatScreen: View {
     private func thread(_ date: ActiveDate) -> some View {
         let guide = ui.selected == .cantMakeIt
         let waiting = guide && ui.guide == .locked
+        // Messages, suggestion cards and system lines in one time order (a suggestion is not a message).
+        let items = buildThread(messages: ui.messages, suggestions: ui.suggestions, zone: zone)
         let footKey: String? = guide ? (ui.guide == .acked ? "guide-acked" : "guide-locked") : (ui.endCardShown ? "end-card" : nil)
         return ThreadScroll(
             padding: waiting ? EdgeInsets(top: 6, leading: 14, bottom: 6, trailing: 14)
                              : EdgeInsets(top: 14, leading: 14, bottom: 8, trailing: 14),
-            messageCount: ui.messages.count,
+            messageCount: items.count,
             footKey: footKey,
             messages: { width in
-                ForEach(Array(ui.messages.enumerated()), id: \.element.id) { i, message in
-                    if message.failed {
-                        UnsentMessage(message: message, date: date, zone: zone, width: width,
-                                      resending: message.clientId.map { ui.resending.contains($0) } ?? false, onResend: onResend)
-                    } else {
-                        let lastOfRun = !message.fromYou && (i == ui.messages.count - 1 || ui.messages[i + 1].fromYou)
-                        ChatBubble(message: message, name: date.match.name, photoURL: date.match.photoUrl,
-                                   showAvatar: lastOfRun, zone: zone, width: width)
+                ForEach(Array(items.enumerated()), id: \.element.id) { i, item in
+                    switch item {
+                    case .message(let message):
+                        if message.failed {
+                            UnsentMessage(message: message, date: date, zone: zone, width: width,
+                                          resending: message.clientId.map { ui.resending.contains($0) } ?? false, onResend: onResend)
+                        } else {
+                            // The avatar ends a run of the match's messages; a card or a line after it ends the run too.
+                            let lastOfRun = endsRun(message, at: i, in: items)
+                            ChatBubble(message: message, name: date.match.name, photoURL: date.match.photoUrl,
+                                       showAvatar: lastOfRun, zone: zone, width: width)
+                        }
+                    case .card(let suggestion):
+                        ChangeSuggestionCard(suggestion: suggestion, name: date.match.name, bindingTime: date.meetAt,
+                                             bindingPlace: date.place?.name ?? "", zone: zone, width: width,
+                                             agreeing: ui.agreeing.contains(suggestion.id),
+                                             agreeFailed: ui.agreeFailed.contains(suggestion.id),
+                                             onAgree: { onAgree(suggestion.id) },
+                                             // Suggest another only while a new suggestion can still be made
+                                             // (the tiles' and chips' one rule); I agree stays until the deadline.
+                                             onCounter: changeKindAvailable(date.change, kind: suggestion.kind, now: ui.now)
+                                                 ? { onCounter(suggestion.kind) } : nil)
+                    case .system(_, let text, let agreed, _):
+                        SystemLine(text: text, icon: agreed ? .check : .clock, success: agreed, width: width)
                     }
                 }
                 if !guide && ui.endCardShown { EndDateCard(onEnd: onEndCard) }
@@ -128,6 +150,13 @@ struct ChatScreen: View {
             })
             .background(Color.liqElevated)
             .fitAnchor("chat:thread")
+    }
+
+    /// The avatar ends a run of the match's messages: the next item is not another message of theirs.
+    private func endsRun(_ message: ChatMessage, at i: Int, in items: [ThreadItem]) -> Bool {
+        guard !message.fromYou else { return false }
+        guard i + 1 < items.count, case .message(let following) = items[i + 1] else { return true }
+        return following.fromYou
     }
 
     // MARK: the dock
@@ -152,7 +181,8 @@ struct ChatScreen: View {
     /// Pad 2 14 10, plus the 1 the field's row gives up (its 9 is 8 here): the top row's chips answer 3 above
     /// themselves, and where the chips scroll the scroll clips at its top. Android's `DockChips`.
     private var dockChips: some View {
-        ChipGrid(reasons: shownReasons, selected: ui.selected, compact: true) { onPick($0, .dock) }
+        // The two change chips come and go with the payload and the clock (Date 05 R7), in place.
+        ChipGrid(reasons: visibleReasons(ui.date?.change, now: ui.now), selected: ui.selected, compact: true) { onPick($0, .dock) }
             .padding(EdgeInsets(top: 3, leading: 14, bottom: 10, trailing: 14))
     }
 
@@ -217,8 +247,7 @@ struct ChatScreen: View {
 }
 
 /// J (9 Nov 2026): a message whose send failed -- the bubble at opacity .6 with no receipt, and 4 under it,
-/// right-aligned, the line that resends it: `alert-circle` 14 / 2.4, gap 6, the sentence 12 / 600 / 1.35 in the
-/// danger ink at most 280, the line at least 44 high. It announces itself, as `role="alert"` does. While the
+/// right-aligned, the line that resends it (`ChangeRetryLine`, shared with Date 05's L). While the
 /// resend is on its way the line does nothing. Android's `UnsentMessage`.
 private struct UnsentMessage: View {
     let message: ChatMessage
@@ -233,26 +262,8 @@ private struct UnsentMessage: View {
             ChatBubble(message: message, name: date.match.name, photoURL: date.match.photoUrl,
                        showAvatar: false, zone: zone, width: width)
                 .opacity(0.6)
-            Button(action: { if !resending, let id = message.clientId { onResend(id) } }) {
-                HStack(spacing: 6) {
-                    BrandIconView(icon: .alertCircle, size: 14, stroke: 2.4, tint: .liqDangerFg)
-                    // Right-aligned as the reference's `text-align: right`, which PrettyText does not draw; the
-                    // last two words kept together for its `text-wrap: pretty`.
-                    Text(lastWordsTogether(ChatCopy.sendFailed))
-                        .font(F.manrope(12, .semibold))
-                        .lineSpacing(TypeMetrics.lineSpacing(PS.manropeSemi, size: 12, multiple: 1.35))
-                        .foregroundColor(.liqDangerFg)
-                        .multilineTextAlignment(.trailing)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(.horizontal, 2)
-                .frame(maxWidth: 280, minHeight: 44, alignment: .trailing)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(PressScale())
-            .fitTapArea()
-            .accessibilityLabel(ChatCopy.sendFailed)
-            .onAppear { UIAccessibility.post(notification: .announcement, argument: ChatCopy.sendFailed) }
+            ChangeRetryLine(message: ChatCopy.sendFailed, trailing: true,
+                            onRetry: { if !resending, let id = message.clientId { onResend(id) } })
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
     }

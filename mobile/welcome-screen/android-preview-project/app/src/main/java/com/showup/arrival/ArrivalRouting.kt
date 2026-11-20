@@ -80,4 +80,10 @@ fun onAppStopped(gate: ArrivalGateViewModel, changingConfigurations: Boolean) {
  * `coordinateOpen`. A date the server already reports as checked in is left as it is.
  */
 fun committedView(date: ActiveDate, committed: Boolean): ActiveDate =
-    if (committed && !date.checkedIn) date.copy(checkedIn = true, coordinateOpen = true) else date
+    // A committed check-in also closes new suggestions (Date 05: hidden after either check-in), at
+    // once rather than on the next read, so the tiles and change chips go with the Check-in bar.
+    if (committed && !date.checkedIn) {
+        date.copy(checkedIn = true, coordinateOpen = true, change = date.change?.copy(allowed = false))
+    } else {
+        date
+    }

@@ -99,12 +99,10 @@ enum ChatReason: String, CaseIterable, Sendable {
         }
     }
 
-    var shown: Bool {
-        switch self {
-        case .changeTime, .changePlace: return false
-        default: return true
-        }
-    }
+    /// False for a chip whose ticket has not shipped; all eight have. The two changes are shipped but GATED at run
+    /// time (Date 05 R7, `visibleReasons`): the payload decides whether they show, so `shownReasons` is what exists,
+    /// not what is drawn.
+    var shown: Bool { true }
 
     /// The chip a wire value names, or nil for none: a message sent with no chip, and a name this build
     /// does not know. Nil, not the reference's first-entry fallback -- a badge saying "I'm on my way"
@@ -114,5 +112,5 @@ enum ChatReason: String, CaseIterable, Sendable {
     }
 }
 
-/// The chips the grid shows today, in its order.
+/// The chips that exist, in the grid's order. What a screen draws is `visibleReasons`: the two changes need the payload.
 let shownReasons: [ChatReason] = ChatReason.allCases.filter(\.shown)

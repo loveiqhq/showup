@@ -157,6 +157,20 @@ let devStates: [DevState] = [
     DevState(id: "195F", ticket: "SHOWUP-195 Arrival check-in", label: "F · Chat chip, guard over the chat"),
     DevState(id: "195G", ticket: "SHOWUP-195 Arrival check-in", label: "G · Date location gate (denied)"),
     DevState(id: "195H", ticket: "SHOWUP-195 Arrival check-in", label: "H · Leonie arrived card"),
+    DevState(id: "196A", ticket: "SHOWUP-196 Change time and place", label: "A · Time picker"),
+    DevState(id: "196B", ticket: "SHOWUP-196 Change time and place", label: "B · Place picker"),
+    DevState(id: "196C", ticket: "SHOWUP-196 Change time and place", label: "C · Sent, waiting"),
+    DevState(id: "196D", ticket: "SHOWUP-196 Change time and place", label: "D · Date screen, yours waiting"),
+    DevState(id: "196E", ticket: "SHOWUP-196 Change time and place", label: "E · Change request, chat open"),
+    DevState(id: "196F", ticket: "SHOWUP-196 Change time and place", label: "F · Answering in the chat"),
+    DevState(id: "196G", ticket: "SHOWUP-196 Change time and place", label: "G · Agreed"),
+    DevState(id: "196H", ticket: "SHOWUP-196 Change time and place", label: "H · Expired"),
+    DevState(id: "196I", ticket: "SHOWUP-196 Change time and place", label: "I · Before the chat opens"),
+    DevState(id: "196J", ticket: "SHOWUP-196 Change time and place", label: "J · Change request, chat locked"),
+    DevState(id: "196K", ticket: "SHOWUP-196 Change time and place", label: "K · Suggest failed"),
+    DevState(id: "196L", ticket: "SHOWUP-196 Change time and place", label: "L · I agree failed"),
+    DevState(id: "196M", ticket: "SHOWUP-196 Change time and place", label: "M · Places couldn't load"),
+    DevState(id: "196N", ticket: "SHOWUP-196 Change time and place", label: "N · No place found"),
 ]
 
 /// The tickets, in the order their frames are listed.
@@ -178,6 +192,7 @@ enum DevFrame: Equatable, CaseIterable {
     case chatTutorial, chatStart, chatThread, chatGuide, chatEndCard, chatEndSheet, chatYouEnded, chatMatchEnded
     case chatLoadFailed, chatSendFailed, chatEndFailed
     case arrivalBar, arrivalGuard, arrivalNoFix, arrivalNotSaved, arrivalDone, arrivalAfterClose, arrivalChip, arrivalDateGate, arrivalCard
+    case changeA, changeB, changeC, changeD, changeE, changeF, changeG, changeH, changeI, changeJ, changeK, changeL, changeM, changeN
 
     static func of(_ id: String) -> DevFrame? {
         switch id {
@@ -234,6 +249,20 @@ enum DevFrame: Equatable, CaseIterable {
         case "195F": return .arrivalChip
         case "195G": return .arrivalDateGate
         case "195H": return .arrivalCard
+        case "196A": return .changeA
+        case "196B": return .changeB
+        case "196C": return .changeC
+        case "196D": return .changeD
+        case "196E": return .changeE
+        case "196F": return .changeF
+        case "196G": return .changeG
+        case "196H": return .changeH
+        case "196I": return .changeI
+        case "196J": return .changeJ
+        case "196K": return .changeK
+        case "196L": return .changeL
+        case "196M": return .changeM
+        case "196N": return .changeN
         default: return nil
         }
     }
@@ -329,6 +358,8 @@ struct CheckInGalleryFrame: View {
         case .arrivalBar?, .arrivalGuard?, .arrivalNoFix?, .arrivalNotSaved?, .arrivalDone?, .arrivalAfterClose?, .arrivalChip?,
              .arrivalDateGate?, .arrivalCard?:
             ArrivalGalleryFrame(state: state, leave: leave)
+        case .changeA?, .changeB?, .changeC?, .changeD?, .changeE?, .changeF?, .changeG?, .changeH?, .changeI?, .changeJ?, .changeK?, .changeL?, .changeM?, .changeN?:
+            ChangeSamples.frame(String(state.dropFirst(3)))
         case nil:
             // Loud, never a quiet fallback: a menu entry with no frame must be seen.
             Text("Unknown state \(state)")

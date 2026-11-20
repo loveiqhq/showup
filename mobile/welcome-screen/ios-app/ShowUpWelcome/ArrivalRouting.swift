@@ -76,5 +76,8 @@ func committedView(_ date: ActiveDate, committed: Bool) -> ActiveDate {
     var shown = date
     shown.checkedIn = true
     shown.coordinateOpen = true
+    // A committed check-in also closes new suggestions (Date 05: hidden after either check-in), at
+    // once rather than on the next read, so the tiles and change chips go with the Check-in bar.
+    shown.change?.allowed = false
     return shown
 }

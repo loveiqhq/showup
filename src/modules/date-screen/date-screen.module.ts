@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { CheckInsModule } from '../check-ins/check-ins.module';
 import { DatesModule } from '../dates/dates.module';
+import { PlacesModule } from '../places/places.module';
 import { SearchModule } from '../search/search.module';
 import { DateDevController } from './date-dev.controller';
 import { DateDevService } from './date-dev.service';
@@ -13,7 +14,7 @@ import { DateScreenService } from './date-screen.service';
  * profile builder, and Search already imports Dates -- folding this into either would close a loop.
  */
 @Module({
-  imports: [SearchModule, DatesModule, CheckInsModule],
+  imports: [SearchModule, DatesModule, CheckInsModule, PlacesModule],
   controllers: [DateScreenController, DateDevController],
   providers: [DateScreenService, DateDevService],
   exports: [DateScreenService],

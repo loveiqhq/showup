@@ -39,6 +39,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import com.showup.designsystem.ButtonPair
+import com.showup.designsystem.shrinkToFit
+import com.showup.designsystem.PAIR_BUTTON_PADDING
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -60,7 +64,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -77,6 +80,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
@@ -84,6 +88,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.arrival.ArrivalCopy
+import com.showup.change.BindingNote
+import com.showup.change.ChangeCopy
+import com.showup.change.ChangeKind
+import com.showup.change.ChangeRetryLine
+import com.showup.change.ChangeSuggestion
+import com.showup.change.DeadlineBox
 import com.showup.chat.ReasonBadge
 import com.showup.chat.ReasonTone
 import com.showup.designsystem.BlushStops
@@ -112,8 +122,12 @@ import com.showup.designsystem.ShowUpCount
 import com.showup.designsystem.ShowUpCountSize
 import com.showup.designsystem.ShowUpEasing
 import com.showup.designsystem.Success
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.role
 import com.showup.designsystem.SuccessFg
 import com.showup.designsystem.cssBlurToShadowRadius
+import com.showup.designsystem.BaselineWrap
 import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.fitWords
 import com.showup.designsystem.fitWordsOf
@@ -229,37 +243,6 @@ internal fun DateHero(photoUrl: String?, modifier: Modifier = Modifier) {
 
 // ── ③ time + place ──────────────────────────────────────────────────────────
 
-/**
- * A label and a value on one baseline, gap 8, the value dropping to its own line when the two do not
- * fit -- the reference's `display: flex; align-items: baseline; flex-wrap: wrap; gap: 8`. A long place
- * name wraps rather than truncating.
- */
-@Composable
-private fun BaselineWrap(label: @Composable () -> Unit, value: @Composable () -> Unit) {
-    Layout(contents = listOf(label, value)) { (l, v), constraints ->
-        val loose = constraints.copy(minWidth = 0, minHeight = 0)
-        val labelP = l.first().measure(loose)
-        // The value at most a full line wide: a name longer than that wraps inside it, as CSS's does.
-        val valueP = v.first().measure(loose)
-        val gap = 8.dp.roundToPx()
-        if (labelP.width + gap + valueP.width <= constraints.maxWidth) {
-            val base = maxOf(labelP[FirstBaseline], valueP[FirstBaseline])
-            val labelTop = base - labelP[FirstBaseline]
-            val valueTop = base - valueP[FirstBaseline]
-            layout(constraints.maxWidth, maxOf(labelTop + labelP.height, valueTop + valueP.height)) {
-                labelP.place(0, labelTop)
-                valueP.place(labelP.width + gap, valueTop)
-            }
-        } else {
-            // `flex-wrap` with `gap: 8`, which is also the row gap: the value on its own line.
-            layout(constraints.maxWidth, labelP.height + gap + valueP.height) {
-                labelP.place(0, 0)
-                valueP.place(0, labelP.height + gap)
-            }
-        }
-    }
-}
-
 @Composable
 private fun MeetLabel(text: String) = Text(
     text,
@@ -281,6 +264,8 @@ internal fun TimePlaceCard(
     copied: Boolean,
     onCopy: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The clock tick: `Changed · was` is hidden after the meet time. */
+    now: Instant = Instant.MIN,
 ) {
     Card(
         modifier,
@@ -304,8 +289,9 @@ internal fun TimePlaceCard(
         Row(verticalAlignment = Alignment.Top) {
             IconTile(40.dp, 13.dp, SolidColor(Elevated), BrandIcon.Clock, 19.dp, Purple, 2.2f)
             Spacer(Modifier.width(12.dp))
-            Box(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f)) {
                 BaselineWrap({ MeetLabel(DateCopy.MEETING_TIME) }, { MeetValue(com.showup.search.meetTime(date.meetAt, zone)) })
+                changeTagFor(date, ChangeKind.Time, now, zone)?.let { ChangeTag(it, date.match.name, DATE_TIME_TAG) }
             }
         }
         date.place?.let { place ->
@@ -321,8 +307,80 @@ internal fun TimePlaceCard(
                     } else {
                         Box(Modifier.padding(top = 3.dp)) { CopyAddress(copied, onCopy) }
                     }
+                    changeTagFor(date, ChangeKind.Place, now, zone)?.let { ChangeTag(it, date.match.name, DATE_PLACE_TAG) }
                 }
             }
+        }
+        // ONE compact note while the viewer has any own suggestion waiting, with the CURRENT binding values.
+        bindingNoteFor(date, zone)?.let {
+            BindingNote(
+                date.match.name, it.time, it.place, it.deadline,
+                Modifier.padding(top = 12.dp).testTag(DATE_BINDING_NOTE_TAG), compact = true,
+            )
+        }
+    }
+}
+
+const val DATE_TIME_TAG = "date:time-change-tag"
+const val DATE_PLACE_TAG = "date:place-change-tag"
+const val DATE_BINDING_NOTE_TAG = "date:binding-note"
+
+private val AmberInk = Color(0xFF78350F)
+private val AmberBody = Color(0xFF92400E)
+private val AmberIcon = Color(0xFFB45309)
+
+/**
+ * The line under the time or place value while a change is live (`ChangeTag`). Waiting: the amber box (pad 9 11,
+ * radius 12, `clock` 15 / 2.4, gap 9, 8 above), `Waiting for {name} to agree` 13.5 / 700 over `You suggested {value}`
+ * 12.5 / 500 with the value bold. Changed: `refresh` 12 / 2.4, gap 6, 4 above, 12.5 muted, `Changed` bold in ink and
+ * `was {original}` struck. Both are the full width of the row, so they sit under the value, never beside it.
+ *
+ * The amber is the kit's pending tone (the deadline box's), which no colour token holds: Date 05's alone, as there.
+ */
+@Composable
+private fun ChangeTag(tag: ChangeTagText, name: String, testTag: String) {
+    when (tag) {
+        is ChangeTagText.Waiting -> {
+            val body = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Medium, fontSize = 12.5.sp, lineHeight = (12.5 * 1.4).sp, color = AmberBody)
+            val text = buildAnnotatedString {
+                append(ChangeCopy.YOU_SUGGESTED)
+                append(" ")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = AmberInk)) { append(tag.value) }
+            }
+            Row(
+                Modifier
+                    .padding(top = 8.dp)
+                    .fillMaxWidth()
+                    .testTag(testTag)
+                    .background(Color(0xFFF59E0B).copy(alpha = 0.09f), RoundedCornerShape(12.dp))
+                    .padding(horizontal = 11.dp, vertical = 9.dp),
+                horizontalArrangement = Arrangement.spacedBy(9.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Box(Modifier.padding(top = 1.dp).clearAndSetSemantics {}) { Icon(BrandIcon.Clock, 15.dp, tint = AmberIcon, strokeWidth = 2.4f) }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        ChangeCopy.WAITING_TO_AGREE.format(name),
+                        style = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, color = AmberInk),
+                    )
+                    Text(text, modifier = Modifier.prettyWrap(text, body).cssLineBox(body.lineHeight), style = body)
+                }
+            }
+        }
+        is ChangeTagText.Changed -> Row(
+            Modifier.padding(top = 4.dp).fillMaxWidth().testTag(testTag),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.clearAndSetSemantics {}) { Icon(BrandIcon.Refresh, 12.dp, tint = Muted, strokeWidth = 2.4f) }
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Fg)) { append(ChangeCopy.CHANGED) }
+                    append(ChangeCopy.CHANGED_WAS)
+                    withStyle(SpanStyle(textDecoration = TextDecoration.LineThrough)) { append(tag.was) }
+                },
+                style = TextStyle(fontFamily = Manrope, fontSize = 12.5.sp, color = Muted),
+            )
         }
     }
 }
@@ -405,9 +463,15 @@ internal fun CoordinateModule(
     zone: ZoneId,
     onOpenChat: () -> Unit,
     modifier: Modifier = Modifier,
-    /** The change tiles under the locked line: [CHANGE_TILES], empty until Date 05 ships. */
+    /** The change tiles under the locked line: `changeTilesFor`, empty when the payload hides them. */
     changeTiles: List<ChatReason> = emptyList(),
     onChangeTile: (ChatReason) -> Unit = {},
+    /** Date 05 L: `I agree` is on its way / got no server OK. The card holds neither: the Date screen's model does. */
+    agreeing: Boolean = false,
+    agreeFailed: Boolean = false,
+    onAgree: () -> Unit = {},
+    /** `Suggest another` while the chat is locked: the picker of the request's kind (the host's route). */
+    onSuggestAnother: (ChangeKind) -> Unit = {},
 ) {
     val unread = date.unread
     // Date 03 H: the match's check-in outranks an unread message (R11), locked or not.
@@ -415,6 +479,14 @@ internal fun CoordinateModule(
         // Open chat always opens the chat (16 Nov): the card only exists after a committed check-in, and that
         // check-in has opened the chat, so there is no locked-only clear any more.
         ArrivalCoordinate(date.match, arrival, now, zone, onOpenChat, modifier)
+        return
+    }
+    // Date 05 E / J: the match's change request outranks an unread message (R8), locked or not.
+    date.changeRequest?.let { request ->
+        RequestCoordinate(
+            date, request, state == DateState.Locked, now, zone, agreeing, agreeFailed, onOpenChat, onAgree,
+            { onSuggestAnother(request.kind) }, modifier,
+        )
         return
     }
     if (state == DateState.Unread && unread != null) {
@@ -463,6 +535,18 @@ internal fun CoordinateModule(
     }
 }
 
+/** The one 48-tall CTA under a hoisted card's panel, 14 below it, in the card's tone. */
+@Composable
+private fun ColumnScope.ToneCta(tone: ReasonTone, label: String, onCta: () -> Unit) {
+    Spacer(Modifier.height(14.dp))
+    val shadows = when (tone) {
+        ReasonTone.Orange -> ShadowCta
+        ReasonTone.Danger -> emptyList()
+        else -> ShadowViolet
+    }
+    CoordinateCta(label, tone.fg, shadows, onCta)
+}
+
 /**
  * The hoisted card's ONE frame (⑧ and Date 03's H): a 1.5 border and a 4 top rail in the tone, the avatar
  * with its count badge, the name and the tag, the `{line} · {time}` line, the tinted snippet panel and
@@ -476,9 +560,9 @@ private fun HoistedCoordinate(
     tone: ReasonTone,
     tag: String,
     line: String,
-    ctaLabel: String,
-    onCta: () -> Unit,
     modifier: Modifier,
+    /** What sits under the panel: the single CTA of the unread and arrival cards, the request's answers. */
+    footer: @Composable ColumnScope.() -> Unit,
     snippet: @Composable ColumnScope.() -> Unit,
 ) {
     // The rail and the body sit inside the 1.5 border, as CSS's `overflow: hidden` card has them.
@@ -515,6 +599,10 @@ private fun HoistedCoordinate(
                                     fontSize = 10.sp,
                                     letterSpacing = 0.05.sp,
                                     maxLines = 1,
+                                    softWrap = false,
+                                    // Shrinks rather than widens the card where even the stacked form leaves it too little
+                                    // room (iOS: `minimumScaleFactor(0.5)`); `CHANGE REQUEST` at 200 % on a 320 phone.
+                                    modifier = Modifier.shrinkToFit(0.5f, 0f),
                                 )
                             }
                         }
@@ -536,13 +624,7 @@ private fun HoistedCoordinate(
                     verticalArrangement = Arrangement.spacedBy(7.dp),
                     content = snippet,
                 )
-                Spacer(Modifier.height(14.dp))
-                val shadows = when (tone) {
-                    ReasonTone.Orange -> ShadowCta
-                    ReasonTone.Danger -> emptyList()
-                    else -> ShadowViolet
-                }
-                CoordinateCta(ctaLabel, tone.fg, shadows, onCta)
+                footer()
             }
         }
     }
@@ -568,7 +650,8 @@ private fun UnreadCoordinate(
     HoistedCoordinate(
         match, unread.count, tone, unreadTag(unread.count),
         DateCopy.NEEDS_RESPONSE.format(unreadTime(unread.sentAt, now, zone)),
-        DateCopy.READ_AND_REPLY, onOpenChat, modifier,
+        modifier,
+        footer = { ToneCta(tone, DateCopy.READ_AND_REPLY, onOpenChat) },
     ) {
         reason?.let { ReasonBadge(it, onLight = true) }
         unread.body?.let {
@@ -592,6 +675,124 @@ private fun UnreadCoordinate(
     }
 }
 
+const val DATE_REQUEST_FIRST_TAG = "date:request-first"
+const val DATE_REQUEST_AGREE_TAG = "date:request-agree"
+const val DATE_REQUEST_RETRY_TAG = "date:request-retry"
+const val DATE_REQUEST_OPENS_TAG = "date:request-opens"
+
+/**
+ * Date 05 E and J: the match suggested a new time or place. The hoisted card's frame in orange whatever the reason
+ * (one look for every "needs a reaction" card; the badge inside keeps its own tone), count 1 with the pulse, the 4
+ * rail. Panel: the reason badge, `{name} suggested`, the value (Lora 700 22 / 1.15) with the old one struck on its
+ * baseline, a place's `{Type} · {address}`. Under it the amber deadline box, then two 48 pills, gap 8: the first
+ * `Open chat` (the chat is open, E) or `Suggest another` (locked, J), the second `I agree` -- the binding action
+ * sits second, so a quick tap on the first never agrees. L's red line retries; J adds `Messaging opens at {opensAt}`.
+ */
+@Composable
+private fun RequestCoordinate(
+    date: ActiveDate,
+    request: ChangeSuggestion,
+    locked: Boolean,
+    now: Instant,
+    zone: ZoneId,
+    agreeing: Boolean,
+    agreeFailed: Boolean,
+    onOpenChat: () -> Unit,
+    onAgree: () -> Unit,
+    onSuggestAnother: () -> Unit,
+    modifier: Modifier,
+) {
+    val tone = ReasonTone.Orange
+    val text = requestCardText(date, request, now, zone)
+    HoistedCoordinate(
+        date.match, 1, tone, ChangeCopy.REQUEST_TAG, text.needs, modifier,
+        footer = {
+            Spacer(Modifier.height(10.dp))
+            DeadlineBox(text.deadline, text.bindingTime, text.bindingPlace)
+            Spacer(Modifier.height(14.dp))
+            RequestButtons(tone, locked, agreeing, if (locked) onSuggestAnother else onOpenChat, onAgree)
+            if (agreeFailed) {
+                // Date 02's tappable red line, 4 under the buttons; a tap retries.
+                ChangeRetryLine(ChangeCopy.AGREE_FAILED, onAgree, DATE_REQUEST_RETRY_TAG, Modifier.padding(top = 4.dp))
+            }
+            if (locked) {
+                Text(
+                    text.opensLine,
+                    modifier = Modifier.padding(top = 10.dp).fillMaxWidth().testTag(DATE_REQUEST_OPENS_TAG),
+                    textAlign = TextAlign.Center,
+                    color = Muted,
+                    fontFamily = Manrope,
+                    fontSize = 12.5.sp,
+                )
+            }
+        },
+    ) {
+        ReasonBadge(text.reason, onLight = true)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(ChangeCopy.CARD_THEY.format(date.match.name), color = Muted, fontFamily = Manrope, fontSize = 13.sp)
+            val value = TextStyle(fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = (22 * 1.15).sp, color = Fg)
+            BaselineWrap(
+                first = { Text(text.value, Modifier.cssLineBox(value.lineHeight), style = value) },
+                second = {
+                    Text(text.was, color = FgSubtle, fontFamily = Manrope, fontSize = 13.sp, textDecoration = TextDecoration.LineThrough)
+                },
+                gap = 10.dp,
+            )
+            text.placeLine?.let { Text(it, color = Muted, fontFamily = Manrope, fontSize = 12.5.sp) }
+        }
+    }
+}
+
+/**
+ * The request card's two answers (h 48, pills, gap 8). While [agreeing] both are inert -- merged, so the card keeps
+ * one node per button for TalkBack -- and `I agree` sits at .6, as the 194 End date and 195 waits do.
+ */
+@Composable
+private fun RequestButtons(tone: ReasonTone, locked: Boolean, agreeing: Boolean, onFirst: () -> Unit, onAgree: () -> Unit) {
+    val pill = RoundedCornerShape(50)
+    val inert = Modifier.semantics(mergeDescendants = true) { role = Role.Button; disabled() }
+    // Side by side while both labels fit a half, stacked full width (the first on top, the binding I agree below)
+    // when one does not: a pill is 48 as drawn and grows with its text, never truncated (the 196 fit sweep).
+    ButtonPair(
+        gap = 8.dp,
+        first = {
+            Row(
+                Modifier
+                    .heightIn(min = 48.dp)
+                    .testTag(DATE_REQUEST_FIRST_TAG)
+                    .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onFirst))
+                    .background(Color.White, pill)
+                    .border(1.5.dp, tone.chipBorder, pill)
+                    .padding(horizontal = PAIR_BUTTON_PADDING, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(if (locked) BrandIcon.Refresh else BrandIcon.MessageCircle, 17.dp, tint = tone.fg, strokeWidth = 2.2f)
+                Text(
+                    if (locked) ChangeCopy.SUGGEST_ANOTHER else DateCopy.OPEN_CHAT,
+                    color = tone.fg, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                )
+            }
+        },
+        second = {
+            Row(
+                Modifier
+                    .heightIn(min = 48.dp)
+                    .alpha(if (agreeing) 0.6f else 1f)
+                    .testTag(DATE_REQUEST_AGREE_TAG)
+                    .then(if (agreeing) inert else Modifier.pressable(Role.Button, onClick = onAgree))
+                    .pillShadows(SolidColor(tone.fg), ShadowCta)
+                    .padding(horizontal = PAIR_BUTTON_PADDING, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(BrandIcon.Check, 17.dp, tint = Color.White, strokeWidth = 2.6f)
+                Text(ChangeCopy.I_AGREE, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            }
+        },
+    )
+}
+
 /**
  * Date 03 H: the match has checked in. The unread card's frame in orange with a count of 1 and the pulse
  * ring, `ARRIVED`, `checked in · {time}` (R10, the unread card's formatter), and one line in the panel:
@@ -611,7 +812,8 @@ private fun ArrivalCoordinate(
     HoistedCoordinate(
         match, 1, tone, ArrivalCopy.ARRIVED_TAG,
         ArrivalCopy.ARRIVED_TIME.format(unreadTime(arrival.checkedInAt, now, zone)),
-        ArrivalCopy.OPEN_CHAT, onCta, modifier,
+        modifier,
+        footer = { ToneCta(tone, ArrivalCopy.OPEN_CHAT, onCta) },
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             Box(Modifier.clearAndSetSemantics {}) { Icon(BrandIcon.MapPin, 17.dp, tint = tone.fg, strokeWidth = 2.2f) }
@@ -738,7 +940,7 @@ private fun MatchAvatar(match: DateMatch, count: Int, tone: Color) {
  * second is never cut.
  */
 @Composable
-private fun InlineOrStack(gap: Dp, content: @Composable () -> Unit) {
+internal fun InlineOrStack(gap: Dp, content: @Composable () -> Unit) {
     Layout(content) { measurables, constraints ->
         val loose = constraints.copy(minWidth = 0, minHeight = 0)
         val (first, second) = measurables.map { it.measure(loose) }

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+import { ChangePendingDto, ChangeStateDto } from '../../dates/dto/change.dto';
 import { ChatReason } from '../../dates/util/pre-date-chat';
 
 /** The agreed meeting place. `address` is absent for a venue stored without one. */
@@ -155,6 +156,21 @@ export class ActiveDateDto {
       'The viewer has opened the chat past its tutorial on this date (Date 02); false shows the tutorial',
   })
   chatTutorialSeen: boolean;
+
+  @ApiPropertyOptional({
+    type: ChangeStateDto,
+    description:
+      'Date 05: the change-time and change-place state -- cutoff, whether suggesting is allowed, the time slots, the originals after an agreed change, and the open suggestions. Absent from servers before Date 05.',
+  })
+  change?: ChangeStateDto;
+
+  @ApiPropertyOptional({
+    type: ChangePendingDto,
+    nullable: true,
+    description:
+      "Date 05: the match's open suggestion with the earliest deadline (time first on a tie), for the hoisted request card; null when there is none",
+  })
+  changeRequest?: ChangePendingDto | null;
 }
 
 /**

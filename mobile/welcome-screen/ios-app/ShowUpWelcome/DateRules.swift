@@ -20,9 +20,14 @@ func dateState(now: Date, unlockAt: Date, unread: DateUnread?, coordinateOpen: B
     return unread != nil ? .unread : .available
 }
 
-/// Whether a card is hoisted under the hero: the match's arrival (Date 03) or an unread message. The arrival
-/// outranks a message in that slot (R11); both clear together.
-func hoisted(_ state: DateState, _ arrival: DateArrival?) -> Bool { arrival != nil || state == .unread }
+/// Whether a card is hoisted under the hero: the match's arrival (Date 03), the match's change request (Date 05) or an
+/// unread message, in that order (R11, R8: the request has a deadline, a message does not). The slot holds one.
+func hoisted(_ state: DateState, _ arrival: DateArrival?, _ request: ChangeSuggestion? = nil) -> Bool {
+    arrival != nil || request != nil || state == .unread
+}
+
+/// The request card shows: the server sent one and the match's arrival, which outranks it, is not in the slot.
+func requestShown(_ date: ActiveDate) -> Bool { date.arrival == nil && date.changeRequest != nil }
 
 /// Whole minutes from `now` to the latest agreed meet time, negative after it, rounded toward zero --
 /// the server's `minutesBeforeStart`, so the client's and the server's events agree.
@@ -151,12 +156,6 @@ func endedOutcome(_ read: Result<DateRead, CallFailure>) -> EndedInChat? {
     return nil
 }
 
-/// The locked Coordinate card's change tiles (5 Nov 2026, Philipp's update to this ticket): `Change meet time`
-/// and `Change location`, each opening the Date 05 picker -- the chat's two change chips, by the vocabulary's
-/// own switch. Hidden until Date 05 ships (epic rule 8): the day Date 05 shows those chips, the tiles and their
-/// line appear with them, and nothing on the Date screen changes. Android's `CHANGE_TILES`.
-let changeTileReasons: [ChatReason] = [ChatReason.changeTime, .changePlace].filter(\.shown)
-
 /// How often the Date screen re-reads the date while it is up (SHOWUP-194, the design's §3): the match's End
 /// date lands on H within seconds when the app is open. Polling, as the chat's; there is no socket.
 let datePollSeconds: TimeInterval = 15
@@ -174,4 +173,73 @@ func withBreakableNames(_ date: ActiveDate) -> ActiveDate {
     shown.match.name = breakAfterHyphens(date.match.name)
     shown.match.district = date.match.district.map(breakAfterHyphens)
     return shown
+}
+
+// MARK: - Date 05: the purple card's change tags and note, and the request card's text
+
+/// What sits under the time or place value on the purple card: the viewer's own waiting suggestion, or the agreed change.
+enum ChangeTagText: Equatable, Sendable {
+    /// `Waiting for {name} to agree` / `You suggested {value}`: amber, the BINDING value stays big above it.
+    case waiting(String)
+    /// `Changed · was {original}`: the ORIGINAL only, never a chain.
+    case changed(String)
+}
+
+/// The tag under the `kind`'s value (the reference's `shownTag`). The match's pending suggestion never gets one: purple
+/// is what is real, orange what needs a reaction (3 Nov 2026). The viewer's own waiting suggestion wins over an earlier
+/// agreed change of the same kind: it is the one that needs an answer from the match. `Changed` is hidden after the
+/// meet time, and appears only once a change was agreed (the server sends the original then).
+func changeTagFor(_ date: ActiveDate, kind: ChangeKind, now: Date, zone: TimeZone) -> ChangeTagText? {
+    guard let change = date.change else { return nil }
+    if let own = change.pending.first(where: { $0.byYou && $0.kind == kind && $0.status == .pending }) {
+        let value = kind == .time ? own.time.map { changeClock($0, zone: zone) } : own.place?.name
+        return value.map { ChangeTagText.waiting($0) }
+    }
+    let was = kind == .time ? change.timeWas.map { changeClock($0, zone: zone) } : change.placeWas
+    if let was, now < date.meetAt { return ChangeTagText.changed(was) }
+    return nil
+}
+
+/// The compact binding note's values: the CURRENT binding time and place and the binding deadline (D).
+struct BindingNoteValues: Equatable, Sendable {
+    var time: String
+    var place: String
+    var deadline: String
+}
+
+/// One note at the card's bottom while the viewer has ANY own pending suggestion -- one, even with a time and a place.
+func bindingNoteFor(_ date: ActiveDate, zone: TimeZone) -> BindingNoteValues? {
+    let pending = date.change?.pending.contains { $0.byYou && $0.status == .pending } ?? false
+    guard pending else { return nil }
+    return BindingNoteValues(time: changeClock(date.meetAt, zone: zone), place: date.place?.name ?? "",
+                             deadline: changeClock(changeDeadline(binding: date.meetAt), zone: zone))
+}
+
+/// Every string the request card (E, J) draws from the date and the request.
+struct RequestCardText: Equatable, Sendable {
+    var reason: ChatReason
+    var needs: String
+    var value: String
+    var was: String
+    /// `{Type} · {address}`, a place's only.
+    var placeLine: String?
+    var deadline: String
+    var bindingTime: String
+    var bindingPlace: String
+    /// J's `Messaging opens at {opensAt}`: the unlock, meet - 1:30.
+    var opensLine: String
+}
+
+func requestCardText(_ date: ActiveDate, request: ChangeSuggestion, now: Date, zone: TimeZone) -> RequestCardText {
+    let isTime = request.kind == .time
+    return RequestCardText(
+        reason: isTime ? .changeTime : .changePlace,
+        needs: ChangeCopy.needsAnswer(unreadTime(sentAt: request.createdAt, now: now, zone: zone)),
+        value: isTime ? request.time.map { changeClock($0, zone: zone) } ?? "" : request.place?.name ?? "",
+        was: isTime ? changeClock(request.wasTime, zone: zone) : request.wasPlaceName ?? "",
+        placeLine: isTime ? nil : request.place.map { "\(placeTypeLabel($0.type)) \u{00B7} \($0.address)" },
+        deadline: changeClock(request.deadline, zone: zone),
+        bindingTime: changeClock(date.meetAt, zone: zone),
+        bindingPlace: date.place?.name ?? "",
+        opensLine: ChangeCopy.messagingOpens(changeClock(date.unlockAt, zone: zone)))
 }

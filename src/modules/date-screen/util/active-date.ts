@@ -1,3 +1,4 @@
+import { ChangePendingDto, ChangeStateDto } from '../../dates/dto/change.dto';
 import { DateStatus } from '../../dates/util/date-lifecycle';
 import { chatOpensAt, ChatReason } from '../../dates/util/pre-date-chat';
 import { SearchProfileDto } from '../../search/dto/search.dto';
@@ -43,6 +44,9 @@ export interface ActiveDateSource {
    */
   anyCommittedCheckIn: boolean;
   meetDay: 'today' | 'tomorrow';
+  /** Date 05: the change state and the hoisted request, built by `ChangeSuggestionsService`. */
+  change?: ChangeStateDto;
+  changeRequest?: ChangePendingDto | null;
   now: Date;
 }
 
@@ -148,5 +152,9 @@ export function toActiveDate(src: ActiveDateSource): ActiveDateDto {
     checkedIn: src.checkedIn,
     arrival: src.arrival,
     chatTutorialSeen: src.chatTutorialSeen,
+    ...(src.change ? { change: src.change } : {}),
+    ...(src.changeRequest !== undefined
+      ? { changeRequest: src.changeRequest }
+      : {}),
   };
 }

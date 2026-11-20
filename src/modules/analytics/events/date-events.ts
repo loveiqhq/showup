@@ -124,3 +124,74 @@ export function arrivalUndoneEvent(
     },
   };
 }
+
+export const CHANGE_SUGGESTED = 'change_suggested';
+export const CHANGE_AGREED = 'change_agreed';
+export const CHANGE_EXPIRED = 'change_expired';
+
+/**
+ * `change_suggested` (Date 05, registry 1.4.28, server). On the accepted write only; the binding
+ * values do not change. `offset_min` is time only (suggested minus the binding time, always > 0),
+ * `from_search` place only; the other kind's field is null. Never a place name, address, coordinate
+ * or distance.
+ */
+export function changeSuggestedEvent(p: {
+  dateId: string;
+  suggestionId: string;
+  kind: 'time' | 'place';
+  entry: string;
+  replaces: 'none' | 'own' | 'theirs';
+  offsetMin: number | null;
+  fromSearch: boolean | null;
+  minutesToDeadline: number;
+  minutesBeforeStart: number;
+}): AnalyticsEventSpec {
+  return {
+    eventName: CHANGE_SUGGESTED,
+    properties: {
+      date_id: p.dateId,
+      suggestion_id: p.suggestionId,
+      kind: p.kind,
+      entry: p.entry,
+      replaces: p.replaces,
+      offset_min: p.offsetMin,
+      from_search: p.fromSearch,
+      minutes_to_deadline: p.minutesToDeadline,
+      minutes_before_start: p.minutesBeforeStart,
+    },
+  };
+}
+
+/** `change_agreed`: `I agree` accepted. A tap the server rejects fires nothing. */
+export function changeAgreedEvent(p: {
+  dateId: string;
+  suggestionId: string;
+  kind: 'time' | 'place';
+  surface: 'coordinate_card' | 'thread';
+  secondsSinceSuggested: number;
+  minutesToDeadline: number;
+}): AnalyticsEventSpec {
+  return {
+    eventName: CHANGE_AGREED,
+    properties: {
+      date_id: p.dateId,
+      suggestion_id: p.suggestionId,
+      kind: p.kind,
+      surface: p.surface,
+      seconds_since_suggested: p.secondsSinceSuggested,
+      minutes_to_deadline: p.minutesToDeadline,
+    },
+  };
+}
+
+/** `change_expired`: the expiry job found it still pending at meet - 0:30. A replaced one never expires. */
+export function changeExpiredEvent(
+  dateId: string,
+  suggestionId: string,
+  kind: 'time' | 'place',
+): AnalyticsEventSpec {
+  return {
+    eventName: CHANGE_EXPIRED,
+    properties: { date_id: dateId, suggestion_id: suggestionId, kind },
+  };
+}

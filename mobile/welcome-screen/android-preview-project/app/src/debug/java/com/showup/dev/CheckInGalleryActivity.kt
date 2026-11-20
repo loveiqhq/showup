@@ -19,6 +19,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.showup.arrival.ArrivalSamples
+import com.showup.change.ChangeSamples
 import com.showup.search.messageDraft
 import com.showup.search.SearchUiState
 import com.showup.search.SearchSamples
@@ -159,6 +160,20 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "195F" -> ArrivalSamples.over(ArrivalSamples.F, leave) { ArrivalSamples.chat(leave) }
         "195G" -> ArrivalSamples.gate(LocationState.Denied)
         "195H" -> ArrivalSamples.dateScreen(ArrivalSamples.ARRIVED)
+        "196A" -> ChangeSamples.frame("A")
+        "196B" -> ChangeSamples.frame("B")
+        "196C" -> ChangeSamples.frame("C")
+        "196D" -> ChangeSamples.frame("D")
+        "196E" -> ChangeSamples.frame("E")
+        "196F" -> ChangeSamples.frame("F")
+        "196G" -> ChangeSamples.frame("G")
+        "196H" -> ChangeSamples.frame("H")
+        "196I" -> ChangeSamples.frame("I")
+        "196J" -> ChangeSamples.frame("J")
+        "196K" -> ChangeSamples.frame("K")
+        "196L" -> ChangeSamples.frame("L")
+        "196M" -> ChangeSamples.frame("M")
+        "196N" -> ChangeSamples.frame("N")
         else -> Text("Unknown state $state")
     }
 }

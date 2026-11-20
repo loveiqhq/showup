@@ -49,4 +49,29 @@ export class NotificationsScheduler {
     const job = await this.dateQueue.getJob(this.jobId(dateId));
     if (job) await job.remove();
   }
+
+  /**
+   * An agreed time change (Date 05, R11) moves the reminder by the same amount: the job keeps its id
+   * and recipients and fires `shiftMs` later (or earlier). Nothing schedules reminders yet, so for
+   * now this is a no-op that answers false -- it starts working the day a producer does. The job's
+   * `time` string is dropped, as it would now name the old meet time.
+   */
+  async rescheduleDateReminder(
+    dateId: string,
+    shiftMs: number,
+  ): Promise<boolean> {
+    const job = await this.dateQueue.getJob(this.jobId(dateId));
+    if (!job) return false;
+    const payload = { ...(job.data as DateReminderPayload) };
+    delete payload.time;
+    const sendAtMs = job.timestamp + (job.opts?.delay ?? 0) + shiftMs;
+    try {
+      await job.remove();
+    } catch {
+      // Running or finished: it fires on its old time, or already has.
+      return false;
+    }
+    await this.scheduleDateReminder(payload, new Date(sendAtMs));
+    return true;
+  }
 }

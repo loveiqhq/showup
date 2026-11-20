@@ -31,9 +31,9 @@ enum class ReasonTone(val fg: Color, val bg: Color, val chipBorder: Color) {
 /**
  * One chip, in the grid's order: its §40 wire value, the ticket's label and the draft its tap puts in
  * the composer. Three have no draft: the two changes are Date 05's, and "I can't make it today" is
- * written by the person after the guide, never pre-filled. [shown] is false for the chips whose
- * ticket has not shipped -- `arrived` is Date 03's, the two changes Date 05's -- so the grid shows
- * five until they do.
+ * written by the person after the guide, never pre-filled. [shown] is false for a chip whose ticket
+ * has not shipped; all eight have. The two changes are shipped but GATED at run time (Date 05 R7, `ChangeRules`
+ * `visibleReasons`): the payload decides whether they show, so [SHOWN_REASONS] is what exists, not what is drawn.
  */
 enum class ChatReason(
     val wire: String,
@@ -47,8 +47,8 @@ enum class ChatReason(
     Arrived("arrived", "I arrived at the spot", "I'm here at the meeting spot — see you soon!", BrandIcon.Check, ReasonTone.Orange, true),
     CantFind("cant_find", "I can't spot you", "I'm here but can't spot you — where are you sitting?", BrandIcon.Binoculars, ReasonTone.Orange, true),
     WhenArrive("when_arrive", "When will you arrive?", "When do you think you'll get here?", BrandIcon.Walking, ReasonTone.Orange, true),
-    ChangeTime("change_time", "Change meet time", null, BrandIcon.Clock, ReasonTone.Violet, false),
-    ChangePlace("change_place", "Change location", null, BrandIcon.MapPin, ReasonTone.Violet, false),
+    ChangeTime("change_time", "Change meet time", null, BrandIcon.Clock, ReasonTone.Violet, true),
+    ChangePlace("change_place", "Change location", null, BrandIcon.MapPin, ReasonTone.Violet, true),
     RunningLate("running_late", "I'm running late", "Running about 10 min late — sorry! Almost there.", BrandIcon.Hourglass, ReasonTone.Orange, true),
     CantMakeIt("cant_make_it", "I can't make it today", null, BrandIcon.Frown, ReasonTone.DarkRed, true),
     ;
@@ -63,5 +63,5 @@ enum class ChatReason(
     }
 }
 
-/** The chips the grid shows today, in its order. */
+/** The chips that exist, in the grid's order. What a screen draws is `visibleReasons`: the two changes need the payload. */
 val SHOWN_REASONS: List<ChatReason> = ChatReason.entries.filter { it.shown }

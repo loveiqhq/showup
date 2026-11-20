@@ -443,7 +443,8 @@ struct DevMenu: View {
 /// The developer menu's Date actions (SHOWUP-193, which iOS lacked until 194, and the chat's), each a
 /// dev-server route. Android's `DevDateAction`, with the same labels.
 enum DevDateAction: CaseIterable, Hashable, Sendable {
-    case createIn180, createIn60, message, matchCantMakeIt, matchEndsInChat, partnerChecksIn, end
+    case createIn180, createIn60, message, matchCantMakeIt, matchEndsInChat, partnerChecksIn,
+         matchSuggestsTime, matchSuggestsPlace, matchAgrees, expireSuggestions, end
 
     var label: String {
         switch self {
@@ -453,6 +454,10 @@ enum DevDateAction: CaseIterable, Hashable, Sendable {
         case .matchCantMakeIt: return "Leonie can't make it (End date card, needs B)"
         case .matchEndsInChat: return "Leonie ends the date in the chat (H, needs her can't-make-it)"
         case .partnerChecksIn: return "Leonie checks in (H, the arrival card)"
+        case .matchSuggestsTime: return "Leonie suggests a later time (SHOWUP-196 E / J)"
+        case .matchSuggestsPlace: return "Leonie suggests another place (SHOWUP-196 E / J)"
+        case .matchAgrees: return "Leonie agrees to my suggestion (SHOWUP-196 G)"
+        case .expireSuggestions: return "Expire suggestions now (SHOWUP-196 H)"
         case .end: return "End test date"
         }
     }

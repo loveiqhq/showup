@@ -92,12 +92,44 @@ class DateScreenTest {
         onAllNodesWithText("Open chat").assertCountEquals(0)
     }
 
+    private fun withChange(slots: Int = 1, allowed: Boolean = true, cutoff: Instant = meet.minusSeconds(1800)) = ui().let {
+        it.copy(
+            date = it.date!!.copy(
+                change = com.showup.change.DateChange(cutoff, allowed, List(slots) { n -> meet.plusSeconds(900L * (n + 1)) }, null, null, emptyList()),
+            ),
+        )
+    }
+
     @Test
-    fun `the change line and tiles stay hidden until Date 05 ships`() = runComposeUiTest {
+    fun `with no change block from the server the change line and tiles are hidden`() = runComposeUiTest {
         setContent { DateScreen(ui(), zone = berlin) }
-        assertTrue("no change chip is shown yet", CHANGE_TILES.isEmpty())
         onAllNodesWithText("Request to change the location or meet time.").assertCountEquals(0)
         onAllNodesWithText("Change meet time").assertCountEquals(0)
+    }
+
+    @Test
+    fun `the payload shows both tiles, and they hide in place at the cutoff as the clock ticks`() = runComposeUiTest {
+        var ui by mutableStateOf(withChange())
+        setContent { DateScreen(ui, zone = berlin) }
+        onNodeWithText("Change meet time").assertExists()
+        onNodeWithText("Change location").assertExists()
+        ui = ui.copy(now = meet.minusSeconds(1800))
+        waitForIdle()
+        onAllNodesWithText("Change meet time").assertCountEquals(0)
+        onAllNodesWithText("Change location").assertCountEquals(0)
+    }
+
+    @Test
+    fun `after a check-in neither tile shows`() = runComposeUiTest {
+        setContent { DateScreen(withChange(allowed = false), zone = berlin) }
+        onAllNodesWithText("Change location").assertCountEquals(0)
+    }
+
+    @Test
+    fun `no later slot hides Change meet time alone`() = runComposeUiTest {
+        setContent { DateScreen(withChange(slots = 0), zone = berlin) }
+        onAllNodesWithText("Change meet time").assertCountEquals(0)
+        onNodeWithText("Change location").assertExists()
     }
 
     @Test

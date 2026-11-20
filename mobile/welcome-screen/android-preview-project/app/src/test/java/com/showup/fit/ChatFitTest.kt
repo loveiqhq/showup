@@ -56,6 +56,9 @@ class ChatFitTest {
 
     private val chats: List<Pair<String, ChatUi>> = listOf(
         "B start" to ChatSamples.B,
+        // A payload with a `change` block shows all eight chips (the two change chips included); the one above
+        // has none and fits six, so the 8-chip grid and dock were never measured before Date 05 (SHOWUP-196).
+        "B start, change chips" to com.showup.change.ChangeSamples.CHAT_WITH_CHANGE,
         "C thread" to ChatSamples.C,
         "D guide" to ChatSamples.D,
         "D after Got it" to ChatSamples.D.copy(guide = Guide.Acked),
@@ -238,7 +241,7 @@ class ChatFitTest {
     fun `the chat with the keyboard up is clean on every phone`() {
         // Only where a person can type: not B (no field), D (the field waits), F and K (the sheet is up) or I
         // (no field until the chat has loaded).
-        val typing = chats.filter { (name, _) -> name !in setOf("B start", "D guide", "F end sheet", "I couldn't load", "K end didn't go through") }
+        val typing = chats.filter { (name, _) -> name !in setOf("B start", "B start, change chips", "D guide", "F end sheet", "I couldn't load", "K end didn't go through") }
         val fresh = mutableListOf<String>()
         for (scale in listOf(1f, 1.3f, 2f)) phones.filter { it.height >= FULL_SCREEN_DP }.forEach { d ->
             val keys = keyboardOn(d)

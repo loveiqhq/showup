@@ -76,6 +76,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
@@ -142,6 +143,9 @@ fun chipFaceTag(reason: ChatReason, surface: ChipSurface) = "${chipTag(reason, s
 
 /** J: the line under a failed message that resends it. */
 const val CHAT_RESEND_TAG = "chat-resend"
+
+/** A system line in the thread (Date 05: an agreed change, an expiry). */
+const val CHAT_SYSTEM_TAG = "chat-system"
 
 // ── small shared pieces ──────────────────────────────────────────────────────
 
@@ -367,6 +371,36 @@ private fun Receipt(read: Boolean) {
     ) {
         Icon(BrandIcon.Check, 12.dp, tint = ink, strokeWidth = 3f)
         Text(word, color = ink, fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
+    }
+}
+
+// ── SystemLine ───────────────────────────────────────────────────────────────
+
+private val SystemText = TextStyle(fontFamily = Manrope, fontWeight = FontWeight.SemiBold, fontSize = 11.5.sp, lineHeight = (11.5 * 1.35).sp, textAlign = TextAlign.Center)
+
+/**
+ * `SystemLine` of the Date 02 reference: a centred pill, at most 86 % wide, pad 6 12, gap 6, `icon` 12 / 2.4
+ * and the sentence 11.5 / 600 / 1.35. [success]: green on green at 10 % (an agreed change); otherwise subtle
+ * ink on ink at 5 % (an expiry).
+ */
+@Composable
+internal fun SystemLine(text: String, icon: BrandIcon, success: Boolean) {
+    val ink = if (success) SuccessFg else FgSubtle
+    val fill = if (success) Success.copy(alpha = 0.10f) else Fg.copy(alpha = 0.05f)
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 2.dp), contentAlignment = Alignment.Center) {
+        Row(
+            Modifier
+                .widthIn(max = maxWidth * 0.86f)
+                .testTag(CHAT_SYSTEM_TAG)
+                .background(fill, CircleShape)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, 12.dp, tint = ink, strokeWidth = 2.4f)
+            val line = AnnotatedString(text)
+            Text(line, modifier = Modifier.prettyWrap(line, SystemText, centered = true).cssLineBox(SystemText.lineHeight), style = SystemText.copy(color = ink))
+        }
     }
 }
 
