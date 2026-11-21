@@ -43,12 +43,13 @@ enum class ChangeKind(val wire: String) {
     }
 }
 
-/** §42 `change_entry`: where the picker was opened from. `cancel_sheet` is Date 07's, not built here. */
+/** §42 `change_entry`: where the picker was opened from. `cancel_sheet` is Date 07's guard sheet. */
 enum class ChangeEntry(val wire: String) {
     CoordinateTile("coordinate_tile"),
     ChatChip("chat_chip"),
     CounterCard("counter_card"),
     CounterThread("counter_thread"),
+    CancelSheet("cancel_sheet"),
     ;
 
     companion object {

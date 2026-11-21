@@ -222,6 +222,9 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
 
     /** G and H, after a date ended in the chat: one screen id for both. */
     DateEndedInChat("date_ended_in_chat", "Date - Ended in chat"),
+
+    /** Date 07 H: what the match of a red-link cancel sees (§11 row added 21 Nov 2026, registry 1.4.37). */
+    DatePartnerCancelled("date_partner_cancelled", "Date - Partner cancelled"),
 }
 
 /**

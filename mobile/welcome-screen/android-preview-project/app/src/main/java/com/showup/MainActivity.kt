@@ -91,6 +91,14 @@ import com.showup.date.DateEndStore
 import com.showup.date.EndEntry
 import com.showup.date.EndedOutcome
 import com.showup.date.OutcomeReason
+import com.showup.date.ApiCancelStore
+import com.showup.date.CancelStore
+import com.showup.date.cancel.CancelActions
+import com.showup.date.cancel.CancelDateSheetHost
+import com.showup.date.cancel.CancelViewModel
+import com.showup.date.cancel.cancelLinkShown
+import com.showup.date.cancel.cancelledOnYou
+import com.showup.date.cancel.sentLabel
 import com.showup.date.end.DateEndOver
 import com.showup.date.end.DateEndSheetHost
 import com.showup.date.end.DateEndViewModel
@@ -1006,6 +1014,26 @@ class MainActivity : ComponentActivity() {
                 },
             )
             val endUi by dateEnd.ui.collectAsStateWithLifecycle()
+
+            // ── cancel this date (SHOWUP-198) ────────────────────────────────────
+            //
+            // One model per account beside the end sheets': the guard sheet, the request sent from it and the cancel in
+            // flight. A 409 reads the date again; the pickers open over the sheet and report back through it.
+            val cancelStore: CancelStore = remember(api, dateDemo) { dateDemo ?: ApiCancelStore(api) }
+            val dateCancel: CancelViewModel = viewModel(
+                key = "date-cancel-$account",
+                factory = viewModelFactory {
+                    initializer {
+                        CancelViewModel(
+                            store = cancelStore,
+                            analytics = AppAnalytics,
+                            saved = createSavedStateHandle(),
+                            reread = { date.foreground() },
+                        )
+                    }
+                },
+            )
+            val cancelUi by dateCancel.ui.collectAsStateWithLifecycle()
 
             /** Where G or H was reached from, for its `screen_viewed` referrer. */
             var outcomeFrom by remember { mutableStateOf(ProfileScreen.DateScreen) }
@@ -2653,7 +2681,10 @@ class MainActivity : ComponentActivity() {
                                 // Date 06's three reasons land after the end (R1); the chat's and a cancel keep G and H.
                                 when (ended.reason) {
                                     OutcomeReason.Met, OutcomeReason.PartnerNoShow, OutcomeReason.Uncomfortable -> landAfterEnd(ended)
-                                    OutcomeReason.Chat, OutcomeReason.Cancelled -> showOutcome(ended, ProfileScreen.DateScreen)
+                                    OutcomeReason.Chat -> showOutcome(ended, ProfileScreen.DateScreen)
+                                    // H for the person cancelled on; the canceller's own landing is the same slot as every end (flow 10 is not built).
+                                    OutcomeReason.Cancelled ->
+                                        if (cancelledOnYou(ended)) showOutcome(ended, ProfileScreen.DateScreen) else landAfterEnd(ended)
                                 }
                             }
                         }
@@ -2686,6 +2717,28 @@ class MainActivity : ComponentActivity() {
                             if (endUi.openChat) {
                                 dateEnd.consumeOpenChat()
                                 openChat()
+                            }
+                        }
+                        // THE GUARD SHEET follows the same reads and clock; a check-in closes it.
+                        LaunchedEffect(shown.date, shown.now) { shown.date?.let { dateCancel.bind(it, shown.now) } }
+                        // A tile: Date 05's picker over the sheet, entry `cancel_sheet`. No chip was tapped, so only the picker's own open fires.
+                        LaunchedEffect(cancelUi.openPicker) {
+                            val kind = cancelUi.openPicker ?: return@LaunchedEffect
+                            dateCancel.consumePicker()
+                            navController.navigate(AppRoute.ChangePicker(kind.wire, ChangeEntry.CancelSheet.wire)) { launchSingleTop = true }
+                        }
+                        // Message instead: the flow is closed, nothing is cancelled, the chat opens.
+                        LaunchedEffect(cancelUi.openChat) {
+                            if (cancelUi.openChat) {
+                                dateCancel.consumeOpenChat()
+                                openChat()
+                            }
+                        }
+                        // The server confirmed: the canceller lands where every end lands (flow 10's slot, R1).
+                        LaunchedEffect(cancelUi.landed) {
+                            cancelUi.landed?.let {
+                                dateCancel.consumeLanded()
+                                landAfterEnd(it)
                             }
                         }
                         LaunchedEffect(endUi.landed) {
@@ -2739,8 +2792,19 @@ class MainActivity : ComponentActivity() {
                             ) {
                               val endsOn = shownDate?.endsEnabled == true
                               DateEndOver(
-                                visible = endUi.visible,
+                                visible = endUi.visible || cancelUi.open,
                                 sheets = {
+                                    CancelDateSheetHost(
+                                        ui = cancelUi,
+                                        zone = zone,
+                                        actions = CancelActions(
+                                            onKeep = dateCancel::keep,
+                                            onDismiss = dateCancel::dismiss,
+                                            onMessage = dateCancel::messageInstead,
+                                            onTile = dateCancel::picker,
+                                            onCancel = dateCancel::cancel,
+                                        ),
+                                    )
                                     DateEndSheetHost(
                                         ui = endUi,
                                         name = shownDate?.match?.name.orEmpty(),
@@ -2774,6 +2838,9 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onReport = dateEnd::openReport,
                                     showReport = endsOn,
+                                    // A: this user's own check-in only; the match's does not hide it.
+                                    onCancel = dateCancel::open,
+                                    showCancel = shownDate != null && cancelLinkShown(shownDate),
                                     onOpenChat = ::openChatFromCard,
                                     onAgree = date::agreeRequest,
                                     // Only `change_picker_opened`: no chip was tapped (the ticket's tracking rule).
@@ -3068,6 +3135,8 @@ class MainActivity : ComponentActivity() {
                 // happened): back to where it was opened, with the date read again (the chat reads itself on
                 // return). Nothing was shown as changed before this, and a 409 shows no error.
                 LaunchedEffect(ui.done, ui.stale) {
+                    // D: a request sent from the cancel sheet shows there, and the sheet stays open under the pop.
+                    if (ui.done && from == ChangeEntry.CancelSheet) dateCancel.pickerSent(kind, sentLabel(kind, ui.slot, ui.place?.name, zone))
                     if (ui.done || ui.stale) {
                         date.foreground()
                         navController.popBackStack()
@@ -3095,7 +3164,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(Unit) {
                     if (!reported) {
                         reported = true
-                        chatEvents.outcomeShown(outcomeFrom)
+                        chatEvents.outcomeShown(outcomeFrom, cancelled = route.cancelled)
                         // Seen once it has shown: a crash before this frame shows it again next launch.
                         dateScope.launch { chatStore.markEndSeen(route.dateId) }
                     }
@@ -3103,7 +3172,10 @@ class MainActivity : ComponentActivity() {
                 // The date is over: back leaves for Search, as the CTA does -- there is no date to return to.
                 BackHandler { findNextDate() }
                 DateEndedScreen(
-                    outcome = EndedOutcome(route.dateId, route.name, route.endedByYou),
+                    outcome = EndedOutcome(
+                        route.dateId, route.name, route.endedByYou,
+                        reason = if (route.cancelled) OutcomeReason.Cancelled else OutcomeReason.Chat,
+                    ),
                     photoUrl = route.photoUrl,
                     onFindNext = { findNextDate() },
                 )

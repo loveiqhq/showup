@@ -176,8 +176,11 @@ kt_enum = kt_repo.split("enum class ChangeEntry", 1)[1].split(";", 1)[0] if "enu
 sw_enum = sw_repo.split("enum ChangeEntry", 1)[1].split("\n}", 1)[0] if "enum ChangeEntry" in sw_repo else ""
 kt_entries = set(re.findall(r'\("([a-z_]+)"\)', kt_enum))
 sw_entries = set(re.findall(r'case \w+ = "([a-z_]+)"', sw_enum))
-check("Android: ChangeEntry values (%s) are a subset of section 42's and this ticket's four" % sorted(kt_entries),
-      kt_entries == THIS_TICKET and kt_entries <= registry_entries)
+# Date 07 adds `cancel_sheet` (SHOWUP-198). Android has it; iOS gains it with its own Date 07 port, and this
+# line follows then.
+ANDROID_ENTRIES = THIS_TICKET | {"cancel_sheet"}
+check("Android: ChangeEntry values (%s) are a subset of section 42's: this ticket's four and Date 07's cancel_sheet" % sorted(kt_entries),
+      kt_entries == ANDROID_ENTRIES and kt_entries <= registry_entries)
 check("iOS: ChangeEntry values (%s) are a subset of section 42's and this ticket's four" % sorted(sw_entries),
       sw_entries == THIS_TICKET and sw_entries <= registry_entries)
 

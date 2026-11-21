@@ -13,6 +13,7 @@ import com.showup.AppRoute
 import com.showup.analytics.AnalyticsTracker
 import com.showup.date.ActiveDate
 import com.showup.date.EndedOutcome
+import com.showup.date.OutcomeReason
 import com.showup.profile.ProfileAnalytics
 import com.showup.profile.ProfileScreen
 import com.showup.profile.report
@@ -47,7 +48,7 @@ fun openChatFromArrivalCard(date: ActiveDate, arrivalSeen: () -> Unit, open: (Ap
 fun outcomeRoute(outcome: EndedOutcome, photoUrl: String?): AppRoute.DateEnded =
     // The outcome's own photo first: at the next launch no date is held, and [photoUrl] -- the held
     // date's -- is null, so H drew an initial (the SHOWUP-194 review).
-    AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, outcome.photoUrl ?: photoUrl)
+    AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, outcome.photoUrl ?: photoUrl, cancelled = outcome.reason == OutcomeReason.Cancelled)
 
 /**
  * The events the host reports for the chat's destinations: `screen_viewed` for the tutorial, the chat
@@ -79,8 +80,9 @@ class ChatHostEvents(
         analytics?.report(ProfileAnalytics.screenViewed(ProfileScreen.DateChat, referrer))
     }
 
-    /** G or H is shown, from the chat or the Date screen. */
-    fun outcomeShown(referrer: ProfileScreen) {
-        analytics?.report(ProfileAnalytics.screenViewed(ProfileScreen.DateEndedInChat, referrer))
+    /** G or H is shown, from the chat or the Date screen; [cancelled] is Date 07's H (`date_partner_cancelled`). */
+    fun outcomeShown(referrer: ProfileScreen, cancelled: Boolean = false) {
+        val screen = if (cancelled) ProfileScreen.DatePartnerCancelled else ProfileScreen.DateEndedInChat
+        analytics?.report(ProfileAnalytics.screenViewed(screen, referrer))
     }
 }
