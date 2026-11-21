@@ -11,7 +11,9 @@ package com.showup.designsystem
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +30,8 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.showup.date.pressable
@@ -45,6 +49,8 @@ fun SheetPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     waiting: Boolean = false,
+    /** A mark before the label, 9 from it (Date 06's `Message {name}`: `message-circle` 20 / 2.2). */
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val live = enabled && !waiting
     Box(
@@ -59,23 +65,55 @@ fun SheetPrimaryButton(
             .cssLinearGradient(135f, SunsetStops.map { it.second }, SunsetStops.map { it.first }),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.5.sp)
+        if (leading == null) {
+            Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.5.sp)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), verticalAlignment = Alignment.CenterVertically) {
+                leading()
+                Text(label, color = Color.White, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 16.5.sp)
+            }
+        }
     }
 }
 
-/** The white secondary, h 50 (a minimum, so the largest type grows it), radius 16, the soft border, 14.5 / 700 muted. */
+/**
+ * The white secondary, h 50 (a minimum, so the largest type grows it), radius 16, the soft border, 14.5 / 700 muted.
+ *
+ * Date 06 draws it in four more ways, all defaults here: B and H's `Cancel` (h 52, 15), `Stay for now` in the
+ * ink, and the guide's end button, which [locked] greys (the raised fill, the subtle ink, inert) and may lead
+ * with a mark ([leading], 7 from the label).
+ */
 @Composable
-fun SheetSecondaryButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier, inert: Boolean = false) {
+fun SheetSecondaryButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    inert: Boolean = false,
+    minHeight: Dp = 50.dp,
+    fontSize: TextUnit = 14.5.sp,
+    textColor: Color = Muted,
+    locked: Boolean = false,
+    leading: (@Composable () -> Unit)? = null,
+) {
     val shape = RoundedCornerShape(16.dp)
+    val still = inert || locked
     Box(
         modifier
             .fillMaxWidth()
-            .heightIn(min = 50.dp)
-            .then(if (inert) Modifier.semantics { role = Role.Button; disabled() } else Modifier.pressable(Role.Button, onClick = onClick))
-            .background(Elevated, shape)
+            .heightIn(min = minHeight)
+            .then(if (still) Modifier.semantics { role = Role.Button; disabled() } else Modifier.pressable(Role.Button, onClick = onClick))
+            .background(if (locked) Raised else Elevated, shape)
             .border(1.dp, BorderSoft, shape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, color = Muted, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
+        val ink = if (locked) FgSubtle else textColor
+        if (leading == null) {
+            Text(label, color = ink, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = fontSize)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.CenterVertically) {
+                leading()
+                Text(label, color = ink, fontFamily = Manrope, fontWeight = FontWeight.Bold, fontSize = fontSize)
+            }
+        }
     }
 }
