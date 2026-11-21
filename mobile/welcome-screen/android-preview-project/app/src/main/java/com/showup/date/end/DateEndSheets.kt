@@ -85,6 +85,7 @@ import com.showup.designsystem.SheetErrorBox
 import com.showup.designsystem.SheetPrimaryButton
 import com.showup.designsystem.SheetSecondaryButton
 import com.showup.designsystem.ShowUpEasing
+import com.showup.designsystem.Success
 import com.showup.designsystem.SuccessFg
 import com.showup.designsystem.blurBehindModalShell
 import com.showup.designsystem.cssLineBox
@@ -222,7 +223,7 @@ fun DateWrapSheet(ui: DateEndUi, step: EndStep, name: String, zone: ZoneId, acti
     when (step) {
         EndStep.Menu -> WrapMenu(name, actions)
         EndStep.Met -> WrapConfirm(
-            icon = BrandIcon.Sparkles, iconTint = SuccessFg.copy(alpha = 0.14f), iconColor = SuccessFg,
+            icon = BrandIcon.Sparkles, iconTint = Success.copy(alpha = 0.14f), iconColor = SuccessFg,
             title = DateEndCopy.C_TITLE,
             body = AnnotatedString(DateEndCopy.C_BODY_1.format(name) + "\n" + DateEndCopy.C_BODY_2),
             steps = listOf(BrandIcon.Star to DateEndCopy.C_STEP_1, BrandIcon.Search to DateEndCopy.C_STEP_2),
@@ -275,7 +276,7 @@ private fun WrapMenu(name: String, actions: EndActions) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             MenuRow(
                 tag = END_PICK_MET_TAG, icon = BrandIcon.Sparkles, iconSize = 22.dp, stroke = 2.4f,
-                tile = SuccessFg.copy(alpha = 0.12f), tint = SuccessFg,
+                tile = Success.copy(alpha = 0.12f), tint = SuccessFg,
                 title = DateEndCopy.MET_TITLE, sub = DateEndCopy.MET_SUB,
                 borderColor = Purple, borderWidth = 1.5.dp, onClick = { actions.onPick(EndOption.Met) },
             )
