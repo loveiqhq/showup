@@ -156,7 +156,7 @@ private fun EndText(text: AnnotatedString, style: TextStyle, modifier: Modifier 
 
 /**
  * B to J while the model's sheet is visible, nothing otherwise. The scrim, back and swipe are the step's own
- * back: one step up, and on a menu a close (nothing is stored).
+ * back: one step up, and on a menu or C a close (nothing is stored), as the reference's `onCancel` has it.
  */
 @Composable
 fun DateEndSheetHost(ui: DateEndUi, name: String, zone: ZoneId, actions: EndActions) {
@@ -165,7 +165,7 @@ fun DateEndSheetHost(ui: DateEndUi, name: String, zone: ZoneId, actions: EndActi
     val motion = rememberMotion()
     ModalShell(
         label = sheetLabel(route, ui.step, name),
-        onDismiss = { if (ui.step == EndStep.Menu) actions.onClose() else actions.onBack() },
+        onDismiss = { if (scrimClosesSheet(ui.step)) actions.onClose() else actions.onBack() },
         contentPadding = PaddingValues(0.dp),
     ) {
         AnimatedContent(

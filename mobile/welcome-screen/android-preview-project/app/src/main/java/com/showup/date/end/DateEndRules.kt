@@ -33,6 +33,25 @@ fun endStepAfterGate(option: EndOption): EndStep = when (option) {
 /** `We met` needs no check-in (both confirming in the review counts); the two problem routes do. */
 fun optionNeedsCheckIn(option: EndOption): Boolean = option != EndOption.Met
 
+/**
+ * What the scrim, back and a swipe-down do on [step]. The reference draws C inside `ModalShell onCancel={onClose}`:
+ * a dismiss there CLOSES the sheet, and only C's own `Cancel` button goes back to B. E / F, G and I are
+ * `onCancel={onBack}`: one step up.
+ */
+fun scrimClosesSheet(step: EndStep): Boolean = step == EndStep.Menu || step == EndStep.Met
+
+/** Date 06 lands once per ended date: the host's guard, so a read that sees the end before navigation cannot route twice. */
+class LandedOnce {
+    private var last: String? = null
+
+    /** True the first time [dateId] is seen, false for every later call with it. */
+    fun first(dateId: String): Boolean {
+        if (last == dateId) return false
+        last = dateId
+        return true
+    }
+}
+
 /** The reason the CTA of [step] ends the date with; null where no CTA ends it. */
 fun endReasonFor(step: EndStep): EndReason? = when (step) {
     EndStep.Met -> EndReason.Met

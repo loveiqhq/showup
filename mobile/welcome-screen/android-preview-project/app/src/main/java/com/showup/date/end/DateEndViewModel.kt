@@ -241,7 +241,7 @@ class DateEndViewModel(
         change { it.copy(route = null, step = EndStep.Menu, failed = false, openChat = true) }
     }
 
-    /** `Back`, Cancel on C and G's `Back`, and the scrim on a step: one step up. On a menu it is [close]. */
+    /** `Back`, Cancel on C, G's `Back` and the scrim on G, E / F and I: one step up. On a menu it is [close]. */
     fun back() {
         val u = _ui.value
         if (u.route == null || u.ending) return
@@ -267,7 +267,9 @@ class DateEndViewModel(
         if (!u.visible || u.ending) return
         val reason = endReasonFor(u.step) ?: return
         val entry = if (route == EndRoute.Report) EndEntry.Report else u.entry
-        change { it.copy(ending = true, failed = false) }
+        // `failed` stays set while a retry is in flight: the box above the CTA does not leave and come back, and the
+        // layout does not jump. It goes with the success (the sheet closes) and a second failure keeps it.
+        change { it.copy(ending = true) }
         viewModelScope.launch {
             when (val r = store.end(date.id, reason, entry)) {
                 is EndDateResult.Ended -> {

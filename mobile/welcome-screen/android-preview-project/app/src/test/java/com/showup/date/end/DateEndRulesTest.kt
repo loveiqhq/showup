@@ -67,6 +67,23 @@ class DateEndRulesTest {
     }
 
     @Test
+    fun `the scrim closes the sheet on a menu and on C, and steps back on the guide, G and I`() {
+        assertTrue(scrimClosesSheet(EndStep.Menu))
+        assertTrue(scrimClosesSheet(EndStep.Met))
+        assertFalse(scrimClosesSheet(EndStep.Guide))
+        assertFalse(scrimClosesSheet(EndStep.NoShow))
+        assertFalse(scrimClosesSheet(EndStep.Uncomfortable))
+    }
+
+    @Test
+    fun `landing runs once per ended date`() {
+        val once = LandedOnce()
+        assertTrue(once.first("d1"))
+        assertFalse(once.first("d1"))
+        assertTrue(once.first("d2"))
+    }
+
+    @Test
     fun `Message is offered only while the chat is open`() {
         assertTrue(messageShown(chatOpen = true))
         assertFalse(messageShown(chatOpen = false))

@@ -96,6 +96,7 @@ import com.showup.date.end.DateEndSheetHost
 import com.showup.date.end.DateEndViewModel
 import com.showup.date.end.EndActions
 import com.showup.date.end.EndDateBar
+import com.showup.date.end.LandedOnce
 import com.showup.chat.ApiChatStore
 import com.showup.chat.ChatEntry
 import com.showup.chat.ChatHostEvents
@@ -1406,7 +1407,10 @@ class MainActivity : ComponentActivity() {
              * your date) and DATE 08 (what the match sees) PLUG IN HERE: until they exist, every Date 06 reason
              * lands where a date that went away does (R1).
              */
+            val landedOnce = remember { LandedOnce() }
             fun landAfterEnd(outcome: EndedOutcome) {
+                // Once per ended date: a re-read that sees the end before navigation must not route twice.
+                if (!landedOnce.first(outcome.dateId)) return
                 dateScope.launch { chatStore.markEndSeen(outcome.dateId) }
                 findNextDate()
             }

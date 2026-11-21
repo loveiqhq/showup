@@ -497,6 +497,31 @@ class DateEndViewModelTest {
     }
 
     @Test
+    fun `a retry keeps the error box up until the result, and a second failure keeps it`() = runTest(dispatcher) {
+        store.answers += EndDateResult.Failed(CallFailure.Network)
+        val vm = vm(now = after)
+        vm.toNoShowConfirm()
+        vm.end()
+        runCurrent()
+        assertTrue(vm.ui.value.failed)
+        store.holdMs = 1_000
+        store.answers += EndDateResult.Failed(CallFailure.Server)
+        vm.end()
+        runCurrent()
+        assertTrue(vm.ui.value.ending)
+        assertTrue("the box stays while the retry is in flight", vm.ui.value.failed)
+        advanceTimeBy(1_001)
+        runCurrent()
+        assertTrue("a second failure keeps it", vm.ui.value.failed)
+        assertFalse(vm.ui.value.ending)
+        vm.end()
+        advanceTimeBy(1_001)
+        runCurrent()
+        assertFalse(vm.ui.value.failed)
+        assertEquals(OutcomeReason.PartnerNoShow, vm.ui.value.landed?.reason)
+    }
+
+    @Test
     fun `409 date_not_active closes the sheet and reads the date again`() = runTest(dispatcher) {
         store.answers += EndDateResult.Refused("date_not_active")
         val vm = vm()

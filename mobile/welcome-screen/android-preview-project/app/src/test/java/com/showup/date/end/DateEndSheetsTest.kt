@@ -146,6 +146,24 @@ class DateEndSheetsTest {
         assertEquals(1, backs)
     }
 
+    @Test
+    fun `the scrim on C closes the sheet, on G it goes back, and C's Cancel goes back`() = runComposeUiTest {
+        var closes = 0
+        var backs = 0
+        val shown = androidx.compose.runtime.mutableStateOf(ui(step = EndStep.Met))
+        setContent { DateEndSheetHost(shown.value, "Leonie", berlin, EndActions(onClose = { closes++ }, onBack = { backs++ })) }
+        onNode(androidx.compose.ui.test.hasContentDescription("Dismiss")).performClick()
+        assertEquals(1, closes)
+        assertEquals(0, backs)
+        onNodeWithTag(END_SECONDARY_TAG).performClick()
+        assertEquals(1, backs)
+        shown.value = ui(step = EndStep.NoShow)
+        waitForIdle()
+        onNode(androidx.compose.ui.test.hasContentDescription("Dismiss")).performClick()
+        assertEquals(1, closes)
+        assertEquals(2, backs)
+    }
+
     // ── E and F ──────────────────────────────────────────────────────────────
 
     @Test
