@@ -95,6 +95,11 @@ describe('Date 07 cancel (e2e)', () => {
     )[0].status;
   const clearPair = async () => {
     await db.query(
+      `DELETE FROM date_pair_blocks WHERE user_low = $1 OR user_high = $1`,
+      [id.anna],
+    );
+    await dates.delete({ userAId: id.anna });
+    await db.query(
       `DELETE FROM date_pair_blocks WHERE user_low = ANY($1::uuid[])`,
       [[id.max, id.leonie]],
     );
@@ -473,6 +478,51 @@ describe('Date 07 cancel (e2e)', () => {
     await cancel('max').expect(404);
     expect((await dateRow()).status).toBe(DateStatus.Confirmed);
     expect(await pairBlocks()).toHaveLength(0);
+  });
+
+  describe('the dev helpers', () => {
+    const dev = (who: string, path: string, body: object = {}) =>
+      request(server)
+        .post(`/dev/date${path}`)
+        .set('Authorization', as(who))
+        .send(body)
+        .expect(204);
+    const pairBlocksOf = (who: string) =>
+      db.query(
+        `SELECT 1 FROM date_pair_blocks WHERE user_low = $1 OR user_high = $1`,
+        [id[who]],
+      );
+
+    it('End test date is a quiet end: no penalty, no pair block, no event, no push, no outcome', async () => {
+      await dev('anna', '', { minutesFromNow: 180 });
+      await dev('anna', '/end');
+      const rows = await dates.find({ where: { userAId: id.anna } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        status: DateStatus.Cancelled,
+        cancelledById: id.anna,
+        penaltyPoints: null,
+        hoursNotice: null,
+      });
+      expect(await pairBlocksOf('anna')).toHaveLength(0);
+      expect(named('date_cancelled')).toHaveLength(0);
+      expect(pushes).toHaveLength(0);
+      expect((await me('anna')).body).toEqual({ date: null, ended: null });
+    });
+
+    it("the test match's cancel is the real path, and is found past an older quiet end", async () => {
+      await dev('anna', '', { minutesFromNow: 180 });
+      await dev('anna', '/end');
+      await dev('anna', '', { minutesFromNow: 180 });
+      await dev('anna', '/partner-cancels');
+      expect(await pairBlocksOf('anna')).toHaveLength(1);
+      expect(named('date_cancelled')).toHaveLength(1);
+      expect(pushes).toHaveLength(1);
+      expect((await me('anna')).body.ended).toMatchObject({
+        endedByYou: false,
+        reason: 'cancelled',
+      });
+    });
   });
 
   describe("the pair never appears in each other's search", () => {

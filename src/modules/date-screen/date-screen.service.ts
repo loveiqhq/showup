@@ -158,6 +158,9 @@ export class DateScreenService {
       ],
       order: { endedAt: 'DESC' },
     });
+    // A cancel stores `cancelled_at`, not `ended_at`, so the newest is read from whichever is set.
+    const at = (d: DateEntity) => (d.endedAt ?? d.cancelledAt)?.getTime() ?? 0;
+    rows.sort((x, y) => at(y) - at(x));
     const row = rows.find((d) => endedOutcomeOf(d, viewerId, '') !== null);
     if (!row) return null;
     const partnerId = row.userAId === viewerId ? row.userBId : row.userAId;

@@ -104,7 +104,7 @@ const CATALOG: Record<NotificationType, Record<Locale, Template>> = {
       title: p.name
         ? `${p.name} hat euer Date abgesagt`
         : 'Dein Date wurde abgesagt',
-      body: '�ffne Show Up, um zu sehen, wie es weitergeht.',
+      body: 'Öffne Show Up, um zu sehen, wie es weitergeht.',
     }),
   },
   check_in_expiry: {
