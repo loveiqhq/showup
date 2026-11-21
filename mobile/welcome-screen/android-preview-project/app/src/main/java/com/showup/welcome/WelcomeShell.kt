@@ -761,7 +761,14 @@ enum class BrandIcon { Phone, Apple, Google, Facebook, Calendar, ChevronDown, Ch
     //
     // `walking` is the "When will you arrive?" chip's mark, from `components/shared.jsx` with its
     // circle written as path commands -- see [KitPaths].
-    Walking }
+    Walking,
+
+    // ── added for Date 06 (SHOWUP-197) ──────────────────────────────────────
+    //
+    // `hand` is the "I don't feel comfortable" option's mark, `shield-alert` the We-met note's. From
+    // `components/shared.jsx` as path data, VERBATIM -- see [KitPaths]. The dot is `line 12,15.5 12.01,15.5`
+    // under a round cap, written as the short segment it is.
+    Hand, ShieldAlert }
 
 @Composable
 /**
@@ -1370,6 +1377,8 @@ fun Icon(
                 BrandIcon.Frown -> drawPath(KitPaths.frown, tint, style = stroke)
                 BrandIcon.Coffee -> drawPath(KitPaths.coffee, tint, style = stroke)
                 BrandIcon.Walking -> drawPath(KitPaths.walking, tint, style = stroke)
+                BrandIcon.Hand -> drawPath(KitPaths.hand, tint, style = stroke)
+                BrandIcon.ShieldAlert -> drawPath(KitPaths.shieldAlert, tint, style = stroke)
 
                 BrandIcon.Pencil -> {
                     drawPath(path(listOf(11f to 4f, 4f to 4f, 2f to 6f, 2f to 20f, 4f to 22f, 18f to 22f, 20f to 20f, 20f to 13f)), tint, style = stroke)
@@ -1497,6 +1506,15 @@ private object KitPaths {
         "M21 5A3 3 0 1 1 15 5A3 3 0 1 1 21 5ZM9 12A3 3 0 1 1 3 12A3 3 0 1 1 9 12Z" +
             "M21 19A3 3 0 1 1 15 19A3 3 0 1 1 21 19ZM8.59 13.51L15.42 17.49M15.41 6.51L8.59 10.49",
     )
+
+    /** `hand`: four paths. */
+    val hand = parse(
+        "M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" +
+            "M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15",
+    )
+
+    /** `shield-alert`: the shield, the bar and the dot. */
+    val shieldAlert = parse("M12 2L4 5V11C4 16 7.4 20.5 12 22C16.6 20.5 20 16 20 11V5L12 2ZM12 8L12 12M12 15.5L12.01 15.5")
 
     /** `hourglass`: four paths. */
     val hourglass = parse("M6 3h12M6 21h12M6 3c0 4 4 7 6 9 2-2 6-5 6-9M6 21c0-4 4-7 6-9 2 2 6 5 6 9")
