@@ -166,7 +166,7 @@ struct DateWrapSheet: View {
             WrapMenu(name: name, actions: actions)
         case .met:
             WrapConfirm(
-                icon: .sparkles, iconTint: Color.liqSuccessFg.opacity(0.14), iconColor: .liqSuccessFg,
+                icon: .sparkles, iconTint: Color.liqSuccess.opacity(0.14), iconColor: .liqSuccessFg,
                 title: DateEndCopy.cTitle,
                 bodyText: [(DateEndCopy.cBody1(name) + "\n" + DateEndCopy.cBody2, false)],
                 steps: [(.star, DateEndCopy.cStep1), (.search, DateEndCopy.cStep2)],
@@ -235,7 +235,7 @@ private struct WrapMenu: View {
             Color.clear.frame(height: 18)
             VStack(spacing: 10) {
                 MenuRow(anchor: FitAnchorID.endPickMet, icon: .sparkles, stroke: 2.4,
-                        tile: Color.liqSuccessFg.opacity(0.12), tint: .liqSuccessFg,
+                        tile: Color.liqSuccess.opacity(0.12), tint: .liqSuccessFg,
                         borderColor: .liqPurple, borderWidth: 1.5,
                         title: DateEndCopy.metTitle, sub: DateEndCopy.metSub,
                         onClick: { actions.onPick(.met) })

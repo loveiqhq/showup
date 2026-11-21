@@ -133,13 +133,18 @@ final class DateEndModel {
     }
 
     /// What must outlive the process: the open sheet, its step and the gated step. A closed sheet leaves nothing.
+    /// The draft last written, so an unchanged one is never written again.
+    @ObservationIgnored private var lastPersisted: String?
+
     private func persist() {
-        guard let route = ui.route else {
-            persistDraft("")
-            return
-        }
-        persistDraft(DateEndDraft(route: route, step: ui.step, entry: ui.entry, gated: ui.gated,
-                                  dateId: boundId ?? savedDateId ?? "").encoded)
+        let encoded = ui.route.map {
+            DateEndDraft(route: $0, step: ui.step, entry: ui.entry, gated: ui.gated,
+                         dateId: boundId ?? savedDateId ?? "").encoded
+        } ?? ""
+        // The clock binds every second while a sheet is open; scene storage is written only when the draft changed.
+        guard encoded != lastPersisted else { return }
+        lastPersisted = encoded
+        persistDraft(encoded)
     }
 
     private func change(_ block: (inout DateEndUi) -> Void) {
