@@ -295,7 +295,14 @@ private struct TutorialFlow: View {
     //
     // The Date screen's owner and the match's read-only profile's (Android's DateViewModel and
     // DateProfileViewModel). Replaced by `beginNewAccount` like every account-scoped model.
-    private let dateStore = DateRepository(api: APIAccess.client)
+    private let apiDateStore = DateRepository(api: APIAccess.client)
+    /// The real server's, except while a States frame is open live (`DevDateDemo`, debug only).
+    private var dateStore: any DateStoring {
+        #if DEBUG
+        if let devDate { return devDate }
+        #endif
+        return apiDateStore
+    }
     @State private var dateModel = DateModel(store: DateRepository(api: APIAccess.client), analytics: AppAnalytics.shared,
                                       changes: ChangeRepository(api: APIAccess.client))
     @State private var dateProfileModel = DateProfileModel(store: DateRepository(api: APIAccess.client),
@@ -308,11 +315,23 @@ private struct TutorialFlow: View {
     // One chat model per date, held for the session -- the thread, a typed draft and a selected chip survive
     // leaving the chat and coming back -- and the chat's destinations over the Date screen. Android's
     // ChatViewModel and its three routes.
-    private let chatStore = ChatRepository(api: APIAccess.client)
+    private let apiChatStore = ChatRepository(api: APIAccess.client)
+    private var chatStore: any ChatStoring {
+        #if DEBUG
+        if let devDate { return devDate }
+        #endif
+        return apiChatStore
+    }
     @State private var chatModel: ChatModel?
     // The time or place picker (SHOWUP-196, Date 05), over the Date screen or the chat: one model per showing,
     // made when a chip, a tile or Suggest another opens it. Android's route-scoped `ChangePickerViewModel`.
-    private let changeStore = ChangeRepository(api: APIAccess.client)
+    private let apiChangeStore = ChangeRepository(api: APIAccess.client)
+    private var changeStore: any ChangeStoring {
+        #if DEBUG
+        if let devDate { return devDate }
+        #endif
+        return apiChangeStore
+    }
     @State private var changeModel: ChangePickerModel?
     @State private var chatDateId: String?
     /// The tutorial, the chat or G / H, pushed over the Date screen; empty when none is up.
@@ -749,6 +768,7 @@ private struct TutorialFlow: View {
     private func beginNewAccount() {
         #if DEBUG
         devPreview = false
+        devDate = nil
         #endif
         // THE OLD MODELS LET GO OF SCENE STORAGE FIRST. A read still in flight on one of them ends
         // in a write through its `persist`, which would put the previous account's draft back into
@@ -1898,6 +1918,8 @@ private struct TutorialFlow: View {
     @State private var devPreview = false
     /// The ticket frame open over the app, from the States page.
     @State private var devState: DevState?
+    /// A Date 05 frame opened live: the in-memory date server every date-side model runs on until the next launch.
+    @State private var devDate: DevDateDemo?
 
     /// The States page's frame, full screen over the app, with its own close.
     private var devStateHost: some View {
@@ -1929,6 +1951,52 @@ private struct TutorialFlow: View {
         Task { await jumpFromDevMenu(to: target) }
     }
 
+    /// A Date 05 frame opened live from the States page: every date-side model rebuilt on the in-memory date server
+    /// (`DevDateDemo`), then the frame's own screen. Android opens it as a second Activity over the menu; here the app's
+    /// own Date screen runs on the demo until the next launch, as the Check-In preview does.
+    private func startDevDate(_ frame: String) {
+        let demo = DevDateDemo(frame: frame)
+        devDate = demo
+        devPreview = true
+        // A picker draft kept for a real date would never match the demo's id; a stale one is dropped.
+        changeStored = ""
+        chatModel = nil
+        chatDateId = nil
+        chatPath = []
+        changeModel = nil
+        dateModel = DateModel(store: demo, analytics: AppAnalytics.shared, changes: demo)
+        dateProfileModel = DateProfileModel(store: demo, analytics: AppAnalytics.shared, players: sharedMediaPlayer)
+        arrivalGate = ArrivalGateModel(store: demo, reader: demo, analytics: AppAnalytics.shared)
+        toDate()
+        dateModel.foreground()
+        Task { await landDevDate(frame) }
+    }
+
+    /// Where the frame is drawn, once the demo's date is read: the Date screen, the chat, or a picker over the chat
+    /// (entry `chat_chip`, as the dock's chips open it). Android's landing effect.
+    private func landDevDate(_ frame: String) async {
+        for _ in 0..<50 where dateModel.state.date == nil {
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        guard dateModel.state.date != nil else { return }
+        switch demoLanding(frame) {
+        case .dateScreen: return
+        case .chat: openChat()
+        case .timePicker:
+            openChat()
+            openChangePicker(.changePicker(kind: .time, entry: .chatChip))
+        case .placePicker:
+            openChat()
+            // N opens on its search: the picker restores a draft's query as it does after the process died.
+            if let query = demoQuery(frame) {
+                changeStored = ChangePickerDraft(dateId: DevDateDemo.demoDateId, kind: ChangeKind.place.rawValue, slot: nil,
+                                                 place: nil, query: query, fromSearch: false, attemptValue: nil,
+                                                 attemptId: nil).encoded
+            }
+            openChangePicker(.changePicker(kind: .place, entry: .chatChip))
+        }
+    }
+
     @ViewBuilder private var devOverlay: some View {
         if devMenuOpen {
             DevMenu(
@@ -1945,7 +2013,15 @@ private struct TutorialFlow: View {
                 },
                 // The menu stays open under the cover: closing a frame returns to the States list, so
                 // frame after frame can be looked at without reopening it. Android does the same.
-                onOpenState: { state in devState = state },
+                // Date 05's frames open live instead (`startDevDate`): a picture of a flow reads as a broken app.
+                onOpenState: { state in
+                    if let frame = devLiveFrame(state) {
+                        devMenuOpen = false
+                        startDevDate(frame)
+                    } else {
+                        devState = state
+                    }
+                },
                 onClearEvents: { EventLog.shared.clear() },
                 onHideTab: {
                     devTabHidden = true

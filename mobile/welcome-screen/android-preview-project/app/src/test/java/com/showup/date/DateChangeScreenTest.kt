@@ -8,6 +8,9 @@
  */
 package com.showup.date
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -17,7 +20,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
+import com.showup.arrival.ARRIVAL_BAR_TAG
 import com.showup.change.ChangeKind
+import com.showup.change.ChangeSamples
 import com.showup.change.ChangePlace
 import com.showup.change.ChangeSuggestion
 import com.showup.change.DateChange
@@ -301,5 +306,19 @@ class DateChangeScreenTest {
         setContent { DateScreen(ui(date(request = timeSuggestion(false), arrival = DateArrival(open)), now = open), zone = berlin) }
         onNodeWithText("ARRIVED").assertExists()
         onAllNodesWithText("CHANGE REQUEST").assertCountEquals(0)
+    }
+
+    // ── the States pictures ─────────────────────────────────────────────────────────────────
+
+    /** The spec sheet draws Date 03's Check-in bar in every Date-screen frame (D, E, G, I, J, L), so the pictures do too. */
+    @Test
+    fun `every Date-screen frame carries the Check-in bar, as the sheet draws it`() = runComposeUiTest {
+        var frame by mutableStateOf("D")
+        setContent { ChangeSamples.frame(frame) }
+        for (id in listOf("D", "E", "G", "I", "J", "L")) {
+            frame = id
+            waitForIdle()
+            onNodeWithTag(ARRIVAL_BAR_TAG, useUnmergedTree = true).assertExists("frame $id has no Check-in bar")
+        }
     }
 }

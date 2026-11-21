@@ -209,6 +209,19 @@ import com.showup.dev.DEV_GALLERY_ACTIVITY
 import com.showup.dev.DevCheckInLaunch
 import com.showup.dev.DevState
 import com.showup.dev.DevCheckInStore
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
+import com.showup.dev.DevDateLaunch
+import com.showup.dev.DevDateDemo
+import com.showup.dev.DevDateDemoHolder
+import com.showup.dev.DemoLanding
+import com.showup.dev.demoLanding
+import com.showup.dev.demoQuery
+import com.showup.dev.devLiveFrame
+import com.showup.date.DateStore
+import com.showup.change.ChangeStore
+import com.showup.chat.ChatStore
+import com.showup.arrival.ArrivalStore
 import com.showup.designsystem.Tab
 import com.showup.profile.resumePoint
 import com.showup.profile.ProfileScreen
@@ -528,6 +541,17 @@ class MainActivity : ComponentActivity() {
             // (dev/DevCheckInStore.kt). Never in a release build.
             val devCheckIn = remember(account) {
                 if (BuildConfig.DEBUG && account == 0) DevCheckInLaunch.from(intent) else null
+            }
+            // DEBUG ONLY: a launch with `dev_date_frame` opens one of Date 05's frames live on an in-memory date
+            // server (dev/DevDateDemo.kt), so the States page's 196 rows work with no backend. Held by a view model,
+            // so a rebuild keeps what was suggested and agreed. `BuildConfig.DEBUG` is a constant the compiler folds:
+            // a release build never makes one.
+            val devDate = remember { if (BuildConfig.DEBUG) DevDateLaunch.from(intent) else null }
+            val dateDemo: DevDateDemo? = if (!BuildConfig.DEBUG) null else devDate?.let { launch ->
+                viewModel<DevDateDemoHolder>(
+                    key = "date-demo",
+                    factory = viewModelFactory { initializer { DevDateDemoHolder(DevDateDemo(launch.frame)) } },
+                ).demo
             }
             val checkIn: CheckInViewModel = viewModel(
                 key = "checkin-$account",
@@ -876,9 +900,9 @@ class MainActivity : ComponentActivity() {
             // ── the date (SHOWUP-193) ─────────────────────────────────────────
             //
             // The Date screen's owner and the match's read-only profile's, keyed on the account like
-            // every other. Always the real server: the debug sample walk has no dates.
-            val dateStore = remember(api) { DateRepository(api) }
-            val changeStore = remember(api) { ApiChangeStore(api) }
+            // every other. The real server, except a States frame opened live (the demo above).
+            val dateStore: DateStore = remember(api, dateDemo) { dateDemo ?: DateRepository(api) }
+            val changeStore: ChangeStore = remember(api, dateDemo) { dateDemo ?: ApiChangeStore(api) }
             val date: DateViewModel = viewModel(
                 key = "date-$account",
                 factory = viewModelFactory { initializer { DateViewModel(dateStore, analytics = AppAnalytics, changes = changeStore) } },
@@ -897,7 +921,7 @@ class MainActivity : ComponentActivity() {
             //
             // One chat model per date, held for the session -- the thread, a typed draft and a selected
             // chip survive leaving the chat and coming back -- keyed on the account and the date.
-            val chatStore = remember(api) { ApiChatStore(api) }
+            val chatStore: ChatStore = remember(api, dateDemo) { dateDemo ?: ApiChatStore(api) }
             val chatEvents = remember { ChatHostEvents(analytics = AppAnalytics) }
             // `message_received` once per message across launches: what was reported is kept on the phone.
             val receivedLedger = remember { SharedPrefsReceivedLedger(applicationContext) }
@@ -915,7 +939,7 @@ class MainActivity : ComponentActivity() {
             // One gate model per account and date, beside the chat's, shared by the Date screen and the
             // chat. Commit and undo run on the process-wide scope and the store holds only the
             // application-scoped `api`, so a retry outlives this Activity.
-            val arrivalStore = remember(api) { ApiArrivalStore(api) }
+            val arrivalStore: ArrivalStore = remember(api, dateDemo) { dateDemo ?: ApiArrivalStore(api) }
             val arrivalGate: ArrivalGateViewModel? = dateState.date?.id?.let { id ->
                 viewModel(
                     key = "arrival-$account-$id",
@@ -923,7 +947,7 @@ class MainActivity : ComponentActivity() {
                         initializer {
                             ArrivalGateViewModel(
                                 store = arrivalStore,
-                                reader = AndroidLocationFixReader(applicationContext),
+                                reader = dateDemo ?: AndroidLocationFixReader(applicationContext),
                                 analytics = AppAnalytics,
                                 clock = java.time.Instant::now,
                                 newId = { java.util.UUID.randomUUID().toString() },
@@ -1300,6 +1324,27 @@ class MainActivity : ComponentActivity() {
                 val d = dateState.date ?: return
                 openChatFromArrivalCard(d, arrivalSeen = date::arrivalSeen) { route ->
                     navController.navigate(route) { launchSingleTop = true }
+                }
+            }
+
+            // DEBUG ONLY: a Date 05 frame opened live lands, once its date is read, where its picture is drawn: the
+            // Date screen, the chat, or a picker over the chat (entry `chat_chip`, as the dock's chips open it).
+            LaunchedEffect(devDate) {
+                if (!BuildConfig.DEBUG) return@LaunchedEffect
+                val frame = devDate?.frame ?: return@LaunchedEffect
+                if (savedInstanceState != null) return@LaunchedEffect
+                screen = FlowScreen.Date
+                date.foreground()
+                snapshotFlow { dateState.date }.first { it != null }
+                val kind = when (demoLanding(frame)) {
+                    DemoLanding.DateScreen -> return@LaunchedEffect
+                    DemoLanding.Chat -> null
+                    DemoLanding.TimePicker -> ChangeKind.Time
+                    DemoLanding.PlacePicker -> ChangeKind.Place
+                }
+                openChat()
+                if (kind != null) {
+                    navController.navigate(AppRoute.ChangePicker(kind.wire, ChangeEntry.ChatChip.wire, demoQuery(frame))) { launchSingleTop = true }
                 }
             }
 
@@ -3179,7 +3224,8 @@ class MainActivity : ComponentActivity() {
                         },
                         // The menu stays open behind the frame: back returns to the States list, so
                         // frame after frame can be looked at without reopening it.
-                        onOpenState = { state -> openDevState(state) },
+                        // Date 05's frames open live instead, over the menu, so back returns here just the same.
+                        onOpenState = { state -> devLiveFrame(state)?.let(::openDevDate) ?: openDevState(state) },
                         onPremium = search::setPremium,
                         onDateAction = { action ->
                             devMenuOpen = false
@@ -3241,6 +3287,17 @@ class MainActivity : ComponentActivity() {
         if (!BuildConfig.DEBUG) return
         val open = Intent().setClassName(packageName, DEV_GALLERY_ACTIVITY).putExtra("state", state.id)
         runCatching { startActivity(open) }
+    }
+
+    /**
+     * DEBUG ONLY: one of Date 05's frames, live on the in-memory date server, as a second copy of this Activity
+     * over the first -- back finishes it and the States list is under it, as it is under a picture.
+     */
+    private fun openDevDate(frame: String) {
+        if (!BuildConfig.DEBUG) return
+        startActivity(Intent(this, MainActivity::class.java).putExtra(DevDateLaunch.EXTRA_FRAME, frame))
+        // A frame opened from inside another frame replaces it: one demo over the app, never a pile of them.
+        if (DevDateLaunch.from(intent) != null) finish()
     }
 
     private fun restartSignedOut() {
