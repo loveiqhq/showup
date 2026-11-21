@@ -150,6 +150,8 @@ fun DateScreen(
     zone: ZoneId = ZoneId.systemDefault(),
     onOpenChat: () -> Unit = {},
     onReport: () -> Unit = {},
+    /** The Report card shows only while the end routes are on (R1, epic rule 8: hidden until real). */
+    showReport: Boolean = true,
     onDirections: () -> Unit = {},
     onShare: () -> Unit = {},
     onCalendar: () -> Unit = {},
@@ -212,7 +214,7 @@ fun DateScreen(
                 val holes = remember { WashHoles() }
                 Box(Modifier.onPlaced { holes.origin = it }) {
                     CompositionLocalProvider(LocalWashHoles provides holes) {
-                        DateContent(date, state, ui, zone, onOpenChat, onReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles ?: changeTilesFor(date.change, ui.now), onChangeTile, onAgree, onSuggestAnother)
+                        DateContent(date, state, ui, zone, onOpenChat, onReport, showReport, onDirections, onShare, onCalendar, onCopy, onSeeProfile, onCancel, matchMate, changeTiles ?: changeTilesFor(date.change, ui.now), onChangeTile, onAgree, onSuggestAnother)
                     }
                     // ① The sunset wash: top 0, h 320, opacity .18, blur 40 -- scrolling with the content,
                     // drawn after it (see the header).
@@ -279,6 +281,7 @@ private fun DateContent(
     zone: ZoneId,
     onOpenChat: () -> Unit,
     onReport: () -> Unit,
+    showReport: Boolean,
     onDirections: () -> Unit,
     onShare: () -> Unit,
     onCalendar: () -> Unit,
@@ -318,7 +321,7 @@ private fun DateContent(
         if (hoist) coordinate()
         TimePlaceCard(date, zone, ui.copied, onCopy, Modifier.testTag(DATE_TIME_CARD_TAG), ui.now)
         if (!hoist) coordinate()
-        ReportRow(onReport, Modifier.testTag(DATE_REPORT_TAG))
+        if (showReport) ReportRow(onReport, Modifier.testTag(DATE_REPORT_TAG))
         IntentCard(date, Modifier.testTag(DATE_INTENT_TAG))
         QuickActions(date.place != null, onDirections, onShare, onCalendar, Modifier.testTag(DATE_ACTIONS_TAG))
         Spacer(Modifier.height(2.dp))

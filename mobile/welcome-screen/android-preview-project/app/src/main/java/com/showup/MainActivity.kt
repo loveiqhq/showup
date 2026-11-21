@@ -86,7 +86,16 @@ import com.showup.dev.DevDateAction
 import com.showup.date.DateCopy
 import com.showup.date.DateProfileViewModel
 import com.showup.date.DateRepository
+import com.showup.date.ApiDateEndStore
+import com.showup.date.DateEndStore
+import com.showup.date.EndEntry
 import com.showup.date.EndedOutcome
+import com.showup.date.OutcomeReason
+import com.showup.date.end.DateEndOver
+import com.showup.date.end.DateEndSheetHost
+import com.showup.date.end.DateEndViewModel
+import com.showup.date.end.EndActions
+import com.showup.date.end.EndDateBar
 import com.showup.chat.ApiChatStore
 import com.showup.chat.ChatEntry
 import com.showup.chat.ChatHostEvents
@@ -96,7 +105,9 @@ import com.showup.chat.ChatTutorialScreen
 import com.showup.arrival.AndroidLocationFixReader
 import com.showup.arrival.ApiArrivalStore
 import com.showup.arrival.ArrivalEntry
+import com.showup.arrival.ArrivalCopy
 import com.showup.arrival.ArrivalGateViewModel
+import com.showup.arrival.GatePhase
 import com.showup.arrival.ArrivalOver
 import com.showup.arrival.CheckInBar
 import com.showup.arrival.GateUi
@@ -972,6 +983,29 @@ class MainActivity : ComponentActivity() {
                 arrivalLifecycle.lifecycle.addObserver(observer)
                 onDispose { arrivalLifecycle.lifecycle.removeObserver(observer) }
             }
+
+            // ── end the date and report a problem (SHOWUP-197) ───────────────────
+            //
+            // One model per account, beside the gate's: it owns the open sheet, its step, the step a gated route is
+            // heading for, and the end in flight. A 409 reads the date again; Stay for now's flag runs on the
+            // process-wide scope so it outlives this Activity.
+            val endStore: DateEndStore = remember(api, dateDemo) { dateDemo ?: ApiDateEndStore(api) }
+            val dateEnd: DateEndViewModel = viewModel(
+                key = "date-end-$account",
+                factory = viewModelFactory {
+                    initializer {
+                        DateEndViewModel(
+                            store = endStore,
+                            analytics = AppAnalytics,
+                            saved = createSavedStateHandle(),
+                            reread = { date.foreground() },
+                            work = (application as ShowUpApplication).appScope,
+                        )
+                    }
+                },
+            )
+            val endUi by dateEnd.ui.collectAsStateWithLifecycle()
+
             /** Where G or H was reached from, for its `screen_viewed` referrer. */
             var outcomeFrom by remember { mutableStateOf(ProfileScreen.DateScreen) }
 
@@ -1364,6 +1398,17 @@ class MainActivity : ComponentActivity() {
                 checkIn.refresh()
                 navController.popBackStack(AppRoute.Flow, inclusive = false)
                 goTo(searchTab())
+            }
+
+            /**
+             * An end the server confirmed, or one found on a read (the match's, or this phone's after a restart): the
+             * date is over for this person, so it is marked seen and the normal Search resume runs. FLOW 10 (Review
+             * your date) and DATE 08 (what the match sees) PLUG IN HERE: until they exist, every Date 06 reason
+             * lands where a date that went away does (R1).
+             */
+            fun landAfterEnd(outcome: EndedOutcome) {
+                dateScope.launch { chatStore.markEndSeen(outcome.dateId) }
+                findNextDate()
             }
 
             // THE SYSTEM PICKER. No permission is requested and none is declared: it runs out of
@@ -2600,7 +2645,13 @@ class MainActivity : ComponentActivity() {
                         // A DATE ENDED IN THE CHAT AND NOT YET SEEN: G or H before anything else.
                         LaunchedEffect(onTop, dateState.ended) {
                             val ended = dateState.ended
-                            if (onTop && ended != null) showOutcome(ended, ProfileScreen.DateScreen)
+                            if (onTop && ended != null) {
+                                // Date 06's three reasons land after the end (R1); the chat's and a cancel keep G and H.
+                                when (ended.reason) {
+                                    OutcomeReason.Met, OutcomeReason.PartnerNoShow, OutcomeReason.Uncomfortable -> landAfterEnd(ended)
+                                    OutcomeReason.Chat, OutcomeReason.Cancelled -> showOutcome(ended, ProfileScreen.DateScreen)
+                                }
+                            }
                         }
                         val heldDate = heldWhileLeaving(dateState, onTop)
                         // Checked in is the server's word or this session's commit: the footer swaps the
@@ -2612,6 +2663,32 @@ class MainActivity : ComponentActivity() {
                             val chatUp = navController.currentBackStackEntry?.destination?.hasRoute<AppRoute.Chat>() == true
                             // With the chat up, the chat's own effect leaves and consumes.
                             if (onTop && !chatUp) arrivalGate?.let { routeUndo(arrivalUi.undone, chatOnTop = false, leaveChat = {}, consume = it::consumeUndone) }
+                        }
+                        // THE END SHEETS follow every read and the 1 s tick: pastMeet and the chat's lock are re-evaluated there.
+                        LaunchedEffect(shown.date, shown.now) { shown.date?.let { dateEnd.bind(it, shown.now) } }
+                        // A gated route asks for Date 03's gate with the note. Already checked in by the gate's word: continue.
+                        LaunchedEffect(endUi.openGate) {
+                            val entry = endUi.openGate ?: return@LaunchedEffect
+                            dateEnd.consumeGate()
+                            when (arrivalGate?.open(entry, ArrivalCopy.REPORT_NOTE)) {
+                                true -> Unit
+                                false -> dateEnd.gateCommitted()
+                                null -> dateEnd.gateNotYet()
+                            }
+                        }
+                        // Close on the done sheet, its scrim, or the app leaving it: the commit reopens the sheet at its step.
+                        LaunchedEffect(arrivalUi.committed) { if (arrivalUi.committed) dateEnd.gateCommitted() }
+                        LaunchedEffect(endUi.openChat) {
+                            if (endUi.openChat) {
+                                dateEnd.consumeOpenChat()
+                                openChat()
+                            }
+                        }
+                        LaunchedEffect(endUi.landed) {
+                            endUi.landed?.let {
+                                dateEnd.consumeLanded()
+                                landAfterEnd(it)
+                            }
                         }
                         val dateBlocked = gateState.blocked
                         val shownDate = shown.date
@@ -2644,10 +2721,38 @@ class MainActivity : ComponentActivity() {
                                 ui = arrivalUi,
                                 name = shownDate?.match?.name.orEmpty(),
                                 onYes = { arrivalGate?.yes() },
-                                onNotYet = { arrivalGate?.notYet() },
+                                onNotYet = {
+                                    // Not yet is inert while the location is read; the end model hears it only when it took effect.
+                                    val busy = (arrivalUi.phase as? GatePhase.Confirm)?.busy == true
+                                    arrivalGate?.notYet()
+                                    if (!busy) dateEnd.gateNotYet()
+                                },
                                 onClose = { arrivalGate?.close() },
-                                onUndo = { arrivalGate?.undo() },
+                                onUndo = {
+                                    arrivalGate?.undo()
+                                    dateEnd.gateUndone()
+                                },
                             ) {
+                              val endsOn = shownDate?.endsEnabled == true
+                              DateEndOver(
+                                visible = endUi.visible,
+                                sheets = {
+                                    DateEndSheetHost(
+                                        ui = endUi,
+                                        name = shownDate?.match?.name.orEmpty(),
+                                        zone = zone,
+                                        actions = EndActions(
+                                            onPick = dateEnd::pick,
+                                            onBack = dateEnd::back,
+                                            onClose = dateEnd::close,
+                                            onConfirmWait = dateEnd::confirmWait,
+                                            onMessage = dateEnd::message,
+                                            onEnd = dateEnd::end,
+                                            onStay = dateEnd::stay,
+                                        ),
+                                    )
+                                },
+                              ) {
                                 DateScreen(
                                     ui = shown,
                                     zone = zone,
@@ -2655,10 +2760,16 @@ class MainActivity : ComponentActivity() {
                                         CheckInBar(
                                             name = shownDate?.match?.name.orEmpty(),
                                             onCheckIn = { arrivalGate?.open(ArrivalEntry.DateScreen) },
-                                            // R15: the End date link waits for Date 06.
-                                            onEnd = null,
+                                            // The link shows only while the end routes are on (R1).
+                                            onEnd = if (endsOn) ({ dateEnd.openWrap(EndEntry.CheckinBarLink) }) else null,
                                         )
                                     },
+                                    // The whole bar, button and all, waits for the switch.
+                                    endDateBar = {
+                                        if (endsOn) EndDateBar(shownDate?.match?.name.orEmpty(), onEnd = { dateEnd.openWrap(EndEntry.EndDateBar) })
+                                    },
+                                    onReport = dateEnd::openReport,
+                                    showReport = endsOn,
                                     onOpenChat = ::openChatFromCard,
                                     onAgree = date::agreeRequest,
                                     // Only `change_picker_opened`: no chip was tapped (the ticket's tracking rule).
@@ -2703,6 +2814,7 @@ class MainActivity : ComponentActivity() {
                                     onTab = { tab -> if (tab == Tab.Settings) goTo(FlowScreen.CheckInSettings) },
                                     onRetry = date::retry,
                                 )
+                              }
                             }
                         }
                     }

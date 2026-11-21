@@ -324,4 +324,22 @@ class DateEndSheetsTest {
         show(DateEndUi(route = EndRoute.Wrap, gated = EndStep.Guide, date = date()))
         onAllNodesWithTag(END_SHEET_TAG).assertCountEquals(0)
     }
+
+    // ── the switch (R1) ──────────────────────────────────────────────────────
+
+    private fun dateScreen(showReport: Boolean) = androidx.compose.ui.test.runComposeUiTest {
+        setContent {
+            com.showup.date.DateScreen(
+                com.showup.date.DateUi(date(), com.showup.date.DateSamples.A_NOW, loading = false),
+                berlin, showReport = showReport,
+            )
+        }
+        onAllNodesWithTag(com.showup.date.DATE_REPORT_TAG).assertCountEquals(if (showReport) 1 else 0)
+    }
+
+    @Test
+    fun `the Report card shows while the end routes are on and is not rendered when they are off`() {
+        dateScreen(showReport = true)
+        dateScreen(showReport = false)
+    }
 }

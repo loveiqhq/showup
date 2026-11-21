@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -200,7 +201,7 @@ private fun sheetLabel(route: EndRoute, step: EndStep, name: String): String = w
 
 /** The screen behind the sheets, blurred as `ModalShell`'s backdrop does, arriving with the sheet. */
 @Composable
-fun DateEndOver(visible: Boolean, content: @Composable () -> Unit, sheets: @Composable () -> Unit) {
+fun DateEndOver(visible: Boolean, sheets: @Composable () -> Unit, content: @Composable () -> Unit) {
     val motion = rememberMotion()
     val blur by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
@@ -563,7 +564,8 @@ fun NoShowGuide(
                         Modifier.size(30.dp).background(Elevated, CircleShape).border(1.dp, BorderSoft, CircleShape),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text("${i + 1}", color = Orange, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        // A numeral in a fixed 30 dp badge keeps its size at every font scale (the fit sweep clipped it at 1.8x).
+                        Text("${i + 1}", color = Orange, fontFamily = Lora, fontWeight = FontWeight.Bold, fontSize = with(LocalDensity.current) { 15.dp.toSp() })
                     }
                     EndText(text, GuideStyle, Modifier.weight(1f))
                 }

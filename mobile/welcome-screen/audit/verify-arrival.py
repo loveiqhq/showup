@@ -187,7 +187,10 @@ check("the gate-copy check reports a run changed in the Swift body (mutation)",
 # ── the rules ───────────────────────────────────────────────────────────────────────────────────
 kt_bar = read(os.path.join(KT, "CheckInBar.kt"))
 sw_bar = read(os.path.join(SW, "CheckInBar.swift"))
-check("Android: END_DATE_LINK_SHOWN = false", re.search(r"const val END_DATE_LINK_SHOWN\s*=\s*false\b", kt_bar) is not None)
+# Date 06 (SHOWUP-197) un-hid the link on Android: the switch constant is gone and the host passes `onEnd` only while
+# the server's `endsEnabled` is on. iOS keeps its flag until its own Date 06 commit.
+check("Android: the End date link has no switch constant and shows when the host passes onEnd",
+      "END_DATE_LINK_SHOWN" not in kt_bar and "onEnd: (() -> Unit)? = null" in kt_bar)
 check("iOS: endDateLinkShown = false", re.search(r"let endDateLinkShown\s*=\s*false\b", sw_bar) is not None)
 
 kt_reasons = read(os.path.join(KT_ROOT, "chat", "ChatReasons.kt"))
@@ -271,15 +274,15 @@ wire = set(re.findall(r'\("([a-z_]+)"\)|\w+\("([a-z_]+)"\)', read(os.path.join(K
 kt_wire = {a or b for a, b in wire}
 check("Android: ArrivalEntry values are section 41's (%s)" % sorted(kt_wire & ENTRY_VALUES), kt_wire >= {"date_screen", "chat_chip"})
 # The upper bound too, as iOS has: `wrapup` is Date 06's (registry 1.4.36) and no entry of this ticket's.
-check("Android: ArrivalEntry sends nothing outside this ticket's three (%s)" % sorted(kt_wire - ENTRY_VALUES), kt_wire <= ENTRY_VALUES)
+check("Android: ArrivalEntry sends nothing outside section 41 (%s)" % sorted(kt_wire - REGISTRY_ENTRY_VALUES), kt_wire <= REGISTRY_ENTRY_VALUES)
 sw_wire = set(re.findall(r'case \w+ = "([a-z_]+)"', read(os.path.join(SW, "ArrivalRules.swift"))))
 check("iOS: ArrivalEntry values include date_screen and chat_chip and nothing outside section 41",
       sw_wire >= {"date_screen", "chat_chip"} and sw_wire <= ENTRY_VALUES)
 
 # ── it can fail: one negative self-test per group ───────────────────────────────────────────────
 # flags: the End date link switched on must stop matching the `= false` pattern.
-check("the flag check fails when END_DATE_LINK_SHOWN is true (mutation)",
-      re.search(r"const val END_DATE_LINK_SHOWN\s*=\s*false\b", kt_bar.replace("END_DATE_LINK_SHOWN = false", "END_DATE_LINK_SHOWN = true")) is None)
+check("the link check fails when the switch constant comes back (mutation)",
+      "END_DATE_LINK_SHOWN" in (kt_bar + "\nconst val END_DATE_LINK_SHOWN = true"))
 check("the flag check fails when endDateLinkShown is true (mutation)",
       re.search(r"let endDateLinkShown\s*=\s*false\b", sw_bar.replace("endDateLinkShown = false", "endDateLinkShown = true")) is None)
 check("the Arrived chip check fails when the chip is hidden (mutation)",
