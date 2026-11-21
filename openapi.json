@@ -307,7 +307,8 @@
         "enum": [
           "date_screen",
           "chat_chip",
-          "report"
+          "report",
+          "wrapup"
         ],
         "type": "string"
       },
