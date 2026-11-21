@@ -3,11 +3,13 @@
 
 import Foundation
 
-/// `enums.json` section 41 `arrival_entry`: where the person tapped. `report` is reserved for Date 06.
+/// `enums.json` section 41 `arrival_entry`: where the person tapped. `report` and `wrapup` are Date 06's: the gate its
+/// problem routes run first.
 enum ArrivalEntry: String, CaseIterable, Sendable {
     case dateScreen = "date_screen"
     case chatChip = "chat_chip"
     case report = "report"
+    case wrapup = "wrapup"
 
     var wire: String { rawValue }
 }
