@@ -11,8 +11,9 @@
  * moved to today: the sheet's clock (17:42, or 15:55 while the chat is locked) is now, so 19:00 is 1h18 away and
  * every rule that counts from the clock -- the unlock, the 30-minute cutoff, the expiry -- runs for real.
  *
- * Reached only through `MainActivity`'s debug launch extra (see [DevDateLaunch]), behind `BuildConfig.DEBUG`, so R8
- * removes it from a release build. The rules are the server's (`change-suggestions.service.ts`), mirrored loosely.
+ * Reached only through `MainActivity`'s debug launch extra (see [DevDateLaunch]); its construction sits behind
+ * `BuildConfig.DEBUG`, a constant the compiler folds, so a release build never makes one. The rules are the server's
+ * (`change-suggestions.service.ts`), mirrored loosely.
  */
 package com.showup.dev
 
@@ -64,6 +65,9 @@ fun demoLanding(frame: String): DemoLanding = when (frame) {
     else -> DemoLanding.DateScreen
 }
 
+/** The search a frame's picker opens on: N is drawn as a search for "sushi" that finds nothing. */
+fun demoQuery(frame: String): String? = if (frame == "N") "sushi" else null
+
 /** The launch extra that opens one of Date 05's frames live: the frame's letter, "A" to "N". */
 data class DevDateLaunch(val frame: String) {
     companion object {
@@ -107,7 +111,8 @@ class DevDateDemo(
     private val suggestions = mutableListOf<ChangeSuggestion>()
     private val clientIds = mutableMapOf<String, String>()
     private val messages = mutableListOf<ChatMessage>()
-    private var readAt: Instant = start
+    /** Read up to two minutes ago: Leonie's earlier message is read, the one E and L show under her request is not. */
+    private var readAt: Instant = start.minusSeconds(120)
     /**
      * The server's `coordinate_unlocked_at`: once the chat has opened it stays open, even when a later time is agreed.
      * Every frame but I and J is drawn with the chat open, so it has opened already (G's at the original 19:00).
@@ -131,6 +136,11 @@ class DevDateDemo(
 
     init {
         if (frame !in setOf("I", "J")) messages += ChangeSamples.SEED.copy(sentAt = kit(ChangeSamples.SEED.sentAt))
+        // E and L draw her running-late message, unread, under the request (ChangeSamples.E_DATE). J's chat is still
+        // locked, so nothing could have been sent yet.
+        if (frame in setOf("E", "L")) {
+            messages += ChatMessage("demo-unread", ChatReason.RunningLate, DateSamples.UNREAD_BODY, fromYou = false, sentAt = start.minusSeconds(60), read = null)
+        }
         when (frame) {
             "C" -> suggestions += ChangeSamples.MINE_TIME.moved()
             "D" -> suggestions += listOf(ChangeSamples.MINE_TIME.moved(), ChangeSamples.MINE_PLACE.moved())
@@ -268,7 +278,10 @@ class DevDateDemo(
             messages.clear()
             myCheckIn = MyCheckIn.None
             partnerArrivedAt = null
+            partnerArrivalSeen = false
+            unlockStamped = false
             ended = null
+            endSeen = false
             gone = false
             true
         },
@@ -286,6 +299,7 @@ class DevDateDemo(
     override suspend fun matchEndsInChat(): Result<Boolean> = Result.success(
         locked {
             ended = EndedInChat(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false)
+            endSeen = false
             true
         },
     )
@@ -365,6 +379,7 @@ class DevDateDemo(
         return locked {
             val outcome = EndedInChat(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = true)
             ended = outcome
+            endSeen = false
             EndResult.Ended(outcome)
         }
     }

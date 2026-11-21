@@ -79,6 +79,26 @@ final class DevDateDemoTests: XCTestCase {
         XCTAssertEqual(cards.map(\.status), [.expired])
     }
 
+    func testEAndLShowLeoniesUnreadMessageAndJsLockedChatHasNone() async throws {
+        for f in ["E", "L"] {
+            let unread = try await read(demo(f)).unread
+            XCTAssertEqual(unread?.count, 1, f)
+            XCTAssertEqual(unread?.body, DateSamples.unread.body, f)
+        }
+        let j = try await read(demo("J"))
+        XCTAssertNil(j.unread)
+    }
+
+    func testNOpensOnItsSearchAndATestDateStartsOver() async throws {
+        XCTAssertEqual(demoQuery("N"), "sushi")
+        XCTAssertNil(demoQuery("B"))
+        let demo = demo("E")
+        _ = await demo.createTestDate(minutes: 200)
+        let fresh = try await read(demo)
+        XCTAssertFalse(fresh.coordinateOpen)
+        XCTAssertNil(fresh.changeRequest)
+    }
+
     // ── suggesting and agreeing ─────────────────────────────────────────────────────────────
 
     func testASuggestedSlotWaitsAndASecondReplacesIt() async throws {

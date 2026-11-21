@@ -20,6 +20,7 @@ import com.showup.change.SuggestResult
 import com.showup.chat.ChatReason
 import com.showup.date.ActiveDate
 import com.showup.date.DateRead
+import com.showup.date.DateSamples
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -106,6 +107,45 @@ class DevDateDemoTest {
         val cards = (h.suggestions(read.id) as Outcome.Ok).value
         assertEquals(listOf(ChangeStatus.Expired), cards.map { it.status })
         assertEquals(read.meetAt, cards.single().expiredBindingTime)
+    }
+
+    @Test
+    fun `E and L show Leonie's running-late message unread under her request, J's locked chat has none`() = runTest {
+        for (f in listOf("E", "L")) {
+            val unread = demo(f).read().unread
+            assertEquals(f, 1, unread?.count)
+            assertEquals(f, DateSamples.UNREAD_BODY, unread?.body)
+        }
+        assertNull(demo("J").read().unread)
+        assertNull(demo("D").read().unread)
+    }
+
+    @Test
+    fun `N's picker opens on its search for sushi, every other frame's on the nearby list`() {
+        assertEquals("sushi", demoQuery("N"))
+        for (f in ChangeSamples.LETTERS - "N") assertNull(f, demoQuery(f))
+    }
+
+    @Test
+    fun `a test date made from the dev menu starts over, the chat locked again when it is far away`() = runTest {
+        val demo = demo("E")
+        assertTrue(demo.read().coordinateOpen)
+        demo.createTestDate(200)
+        val fresh = demo.read()
+        assertFalse(fresh.coordinateOpen)
+        assertNull(fresh.changeRequest)
+        assertNull(fresh.unread)
+    }
+
+    @Test
+    fun `the match ending the date in the chat shows its outcome again after a new test date`() = runTest {
+        val demo = demo("C")
+        demo.matchEndsInChat()
+        assertTrue((demo.active("Europe/Berlin") as Outcome.Ok).value is DateRead.Ended)
+        demo.markEndSeen("x")
+        demo.createTestDate(60)
+        demo.matchEndsInChat()
+        assertTrue((demo.active("Europe/Berlin") as Outcome.Ok).value is DateRead.Ended)
     }
 
     @Test

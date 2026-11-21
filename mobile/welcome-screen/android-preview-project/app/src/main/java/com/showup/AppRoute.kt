@@ -78,8 +78,9 @@ sealed interface AppRoute {
      * screen's locked card, or the chat. [kind] is `time` or `place` and [entry] the §42 `change_entry` wire
      * value; both ride in the route, and the selection, the typed query and the send's id are the model's saved state,
      * so a process death restores the same picker as it was (the host waits for the date to load before it draws,
-     * rather than popping). Back is Cancel.
+     * rather than popping). Back is Cancel. [query] is debug only: the States page's frame N opens on its search (the
+     * model reads it as a restored query); every product entry leaves it null.
      */
     @Serializable
-    data class ChangePicker(val kind: String, val entry: String) : AppRoute
+    data class ChangePicker(val kind: String, val entry: String, val query: String? = null) : AppRoute
 }

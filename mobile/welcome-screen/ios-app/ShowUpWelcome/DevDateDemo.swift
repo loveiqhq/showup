@@ -28,6 +28,9 @@ func demoLanding(_ frame: String) -> DemoLanding {
     }
 }
 
+/// The search a frame's picker opens on: N is drawn as a search for "sushi" that finds nothing. Android's `demoQuery`.
+func demoQuery(_ frame: String) -> String? { frame == "N" ? "sushi" : nil }
+
 /// The frame letter a States row opens LIVE, or nil for a picture. Date 05's frames are a flow, and a still picture of
 /// one reads as a broken app, so they open on `DevDateDemo` with every tap working. The other tickets' frames stay
 /// pictures. Android's `devLiveFrame`.
@@ -101,7 +104,8 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         meetAt = kit(Self.kitMeet)
         place = DateSamples.date.place ?? DatePlace(name: "Cafe Krone", address: nil)
         availableUntil = kit(Self.kitMeet.addingTimeInterval(3 * 3600))
-        readAt = start
+        // Read up to two minutes ago: Leonie's earlier message is read, the one E and L show under her request is not.
+        readAt = start.addingTimeInterval(-2 * Self.minute)
         unlockStamped = !["I", "J"].contains(frame)
         failSuggest = frame == "K"
         failAgree = frame == "L"
@@ -122,6 +126,12 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
             var seed = ChangeSamples.seed
             seed.sentAt = kit(seed.sentAt)
             messages = [seed]
+        }
+        // E and L draw her running-late message, unread, under the request (ChangeSamples' E date). J's chat is still
+        // locked, so nothing could have been sent yet.
+        if ["E", "L"].contains(frame) {
+            messages.append(ChatMessage(id: "demo-unread", reason: .runningLate, body: DateSamples.unread.body ?? "",
+                                        fromYou: false, sentAt: start.addingTimeInterval(-Self.minute), read: nil))
         }
         switch frame {
         case "C": suggestions = [moved(ChangeSamples.mineTime)]
@@ -179,7 +189,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
     }
 
     /// The expiry job: an open suggestion past its deadline expires, with the binding values then.
-    private func now() -> Date {
+    private func tick() -> Date {
         let now = clock()
         suggestions = suggestions.map { $0.status == .pending && now >= $0.deadline ? expired($0, at: $0.deadline) : $0 }
         return now
@@ -247,7 +257,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
 
     func active(zone: String) async -> Result<DateRead, CallFailure> {
         await pause(latencyMs / 3)
-        let now = now()
+        let now = tick()
         if gone { return .success(.none) }
         if let ended { return .success(endSeen ? .none : .ended(ended)) }
         return .success(.active(dateNow(now)))
@@ -259,7 +269,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
     }
 
     func createTestDate(minutes: Int) async -> Bool {
-        let now = now()
+        let now = tick()
         meetAt = now.addingTimeInterval(TimeInterval(minutes) * Self.minute)
         place = DateSamples.date.place ?? place
         timeWas = nil
@@ -268,14 +278,16 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         messages = []
         myCheckIn = .none
         partnerArrivedAt = nil
+        partnerArrivalSeen = false
         unlockStamped = false
         ended = nil
+        endSeen = false
         gone = false
         return true
     }
 
     func messageFromMatch(reason: ChatReason?, body: String) async -> Bool {
-        messages.append(ChatMessage(id: newId("m"), reason: reason, body: body, fromYou: false, sentAt: now(), read: nil))
+        messages.append(ChatMessage(id: newId("m"), reason: reason, body: body, fromYou: false, sentAt: tick(), read: nil))
         return true
     }
 
@@ -286,19 +298,20 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
 
     func matchEndsInChat() async -> Bool {
         ended = EndedInChat(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: false)
+        endSeen = false
         return true
     }
 
     func markArrivalSeen(dateId: String) async { partnerArrivalSeen = true }
 
     func partnerChecksIn() async -> Bool {
-        partnerArrivedAt = now()
+        partnerArrivedAt = tick()
         partnerArrivalSeen = false
         return true
     }
 
     func matchSuggests(kind: ChangeKind) async -> Bool {
-        let now = now()
+        let now = tick()
         guard allowed(now) else { return false }
         switch kind {
         case .time:
@@ -313,14 +326,14 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
     }
 
     func matchAgrees() async -> Bool {
-        let now = now()
+        let now = tick()
         guard let mine = pending().filter(\.byYou).min(by: { $0.deadline < $1.deadline }) else { return false }
         agreed(mine, now)
         return true
     }
 
     func expireSuggestions() async -> Bool {
-        let now = now()
+        let now = tick()
         suggestions = suggestions.map { $0.status == .pending ? expired($0, at: now) : $0 }
         return true
     }
@@ -336,12 +349,12 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         await pause(latencyMs)
         if let sent = messages.first(where: { $0.clientId == clientId }) { return .success(sent) }
         let m = ChatMessage(id: newId("m"), reason: reason, body: body.trimmingCharacters(in: .whitespacesAndNewlines),
-                            fromYou: true, sentAt: now(), read: false, clientId: clientId)
+                            fromYou: true, sentAt: tick(), read: false, clientId: clientId)
         messages.append(m)
         return .success(m)
     }
 
-    func markRead(dateId: String) async { readAt = now() }
+    func markRead(dateId: String) async { readAt = tick() }
 
     func markTutorialSeen(dateId: String) async { tutorialSeen = true }
 
@@ -349,6 +362,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         await pause(latencyMs)
         let outcome = EndedInChat(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: true)
         ended = outcome
+        endSeen = false
         return .ended(outcome)
     }
 
@@ -372,7 +386,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
 
     func suggest(dateId: String, request: SuggestRequest) async -> SuggestResult {
         await pause(latencyMs)
-        let now = now()
+        let now = tick()
         if let sentId = clientIds[request.clientId], let sent = suggestions.first(where: { $0.id == sentId }) {
             return .sent(sent)
         }
@@ -398,7 +412,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
 
     func agree(dateId: String, suggestionId: String, surface: AgreeSurface) async -> AgreeResult {
         await pause(latencyMs)
-        let now = now()
+        let now = tick()
         let s = suggestions.first { $0.id == suggestionId }
         if let s, s.status == .agreed, !s.byYou { return .agreed(s) }
         guard let s, s.status == .pending, !s.byYou, !committed, partnerArrivedAt == nil else { return .stale }
@@ -411,7 +425,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
 
     func suggestions(dateId: String) async -> Result<[ChangeSuggestion], CallFailure> {
         await pause(latencyMs / 3)
-        _ = now()
+        _ = tick()
         return .success(suggestions.sorted { $0.createdAt < $1.createdAt })
     }
 

@@ -1987,6 +1987,12 @@ private struct TutorialFlow: View {
             openChangePicker(.changePicker(kind: .time, entry: .chatChip))
         case .placePicker:
             openChat()
+            // N opens on its search: the picker restores a draft's query as it does after the process died.
+            if let query = demoQuery(frame) {
+                changeStored = ChangePickerDraft(dateId: DevDateDemo.demoDateId, kind: ChangeKind.place.rawValue, slot: nil,
+                                                 place: nil, query: query, fromSearch: false, attemptValue: nil,
+                                                 attemptId: nil).encoded
+            }
             openChangePicker(.changePicker(kind: .place, entry: .chatChip))
         }
     }

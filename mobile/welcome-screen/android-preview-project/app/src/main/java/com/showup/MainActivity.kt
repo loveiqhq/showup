@@ -216,6 +216,7 @@ import com.showup.dev.DevDateDemo
 import com.showup.dev.DevDateDemoHolder
 import com.showup.dev.DemoLanding
 import com.showup.dev.demoLanding
+import com.showup.dev.demoQuery
 import com.showup.dev.devLiveFrame
 import com.showup.date.DateStore
 import com.showup.change.ChangeStore
@@ -543,9 +544,10 @@ class MainActivity : ComponentActivity() {
             }
             // DEBUG ONLY: a launch with `dev_date_frame` opens one of Date 05's frames live on an in-memory date
             // server (dev/DevDateDemo.kt), so the States page's 196 rows work with no backend. Held by a view model,
-            // so a rebuild keeps what was suggested and agreed. Never in a release build.
+            // so a rebuild keeps what was suggested and agreed. `BuildConfig.DEBUG` is a constant the compiler folds:
+            // a release build never makes one.
             val devDate = remember { if (BuildConfig.DEBUG) DevDateLaunch.from(intent) else null }
-            val dateDemo: DevDateDemo? = devDate?.let { launch ->
+            val dateDemo: DevDateDemo? = if (!BuildConfig.DEBUG) null else devDate?.let { launch ->
                 viewModel<DevDateDemoHolder>(
                     key = "date-demo",
                     factory = viewModelFactory { initializer { DevDateDemoHolder(DevDateDemo(launch.frame)) } },
@@ -1328,6 +1330,7 @@ class MainActivity : ComponentActivity() {
             // DEBUG ONLY: a Date 05 frame opened live lands, once its date is read, where its picture is drawn: the
             // Date screen, the chat, or a picker over the chat (entry `chat_chip`, as the dock's chips open it).
             LaunchedEffect(devDate) {
+                if (!BuildConfig.DEBUG) return@LaunchedEffect
                 val frame = devDate?.frame ?: return@LaunchedEffect
                 if (savedInstanceState != null) return@LaunchedEffect
                 screen = FlowScreen.Date
@@ -1341,7 +1344,7 @@ class MainActivity : ComponentActivity() {
                 }
                 openChat()
                 if (kind != null) {
-                    navController.navigate(AppRoute.ChangePicker(kind.wire, ChangeEntry.ChatChip.wire)) { launchSingleTop = true }
+                    navController.navigate(AppRoute.ChangePicker(kind.wire, ChangeEntry.ChatChip.wire, demoQuery(frame))) { launchSingleTop = true }
                 }
             }
 
