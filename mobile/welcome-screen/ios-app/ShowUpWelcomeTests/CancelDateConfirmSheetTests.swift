@@ -291,7 +291,11 @@ final class CancelDateConfirmSheetTests: XCTestCase {
     // MARK: the host
 
     func testNothingDrawsWhileTheSheetIsClosed() {
-        layoutHost(CancelDateSheetHost(ui: CancelUi(), zone: berlin))
         XCTAssertFalse(CancelUi().open)
+        // Not `layoutHost`, which asserts a height: a closed sheet must take none.
+        let host = UIHostingController(rootView: CancelDateSheetHost(ui: CancelUi(), zone: berlin))
+        host.view.frame = CGRect(x: 0, y: 0, width: 375, height: 667)
+        host.view.layoutIfNeeded()
+        XCTAssertEqual(host.sizeThatFits(in: CGSize(width: 375, height: 667)).height, 0)
     }
 }

@@ -139,8 +139,9 @@ private struct CancelPortrait: View {
             .overlay { ramp }
             .overlay(alignment: .bottomLeading) { caption }
             .clipShape(RoundedRectangle(cornerRadius: 24))
-            .padding(EdgeInsets(top: 6, leading: 20, bottom: 0, trailing: 20))
+            // The anchor is the portrait itself, inside its 6 / 20 margin.
             .fitAnchor(FitAnchorID.cancelPortrait)
+            .padding(EdgeInsets(top: 6, leading: 20, bottom: 0, trailing: 20))
     }
 
     private var caption: some View {

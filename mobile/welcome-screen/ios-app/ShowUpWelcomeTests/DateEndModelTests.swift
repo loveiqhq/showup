@@ -612,6 +612,9 @@ final class DateEndModelTests: XCTestCase {
         first.openReport()
         first.pick(.uncomfortable)
         XCTAssertEqual(first.ui.gated, .uncomfortable)
+        // What the process left behind, before either restore re-validates it and saves the result.
+        let snapshot = Draft()
+        snapshot.value = draft.value
 
         let restored = fresh(draft)
         restored.bind(date(checkedIn: false), now: before)
@@ -620,7 +623,7 @@ final class DateEndModelTests: XCTestCase {
         XCTAssertNil(restored.ui.gated)
         XCTAssertTrue(restored.ui.visible)
 
-        let checked = fresh(draft)
+        let checked = fresh(snapshot)
         checked.bind(date(checkedIn: true), now: before)
         XCTAssertEqual(checked.ui.step, .uncomfortable)
     }
