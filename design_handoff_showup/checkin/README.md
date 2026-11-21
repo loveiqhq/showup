@@ -20,6 +20,8 @@ checkin/
   screen-checkin-filters-reference.jsx ← screen 05: FiltersStep, CHECKIN_GENDERS, checkinGenderDefault, RangeSlider
   tickets/05-filters.md               ← scope, copy strings, AC, tracking
   spec-sheets/05-filters.png          ← keyed ①–⑭, 3 frames (A–C), violet sexuality removed + gender mandatory, red failure state
+  tickets/05b-filters-v2.md           ← CHANGE ticket against the built 05: gender checkboxes + dealbreaker switches (26 Oct 2026)
+  spec-sheets/05b-filters-v2.png      ← keyed ①–⑦, 3 frames (A–C), the delta only; the reference file above is revised in place
   screen-checkin-uplift-reference.jsx ← screen 06: UpliftStep, upliftContact, CheckInFooter loading + error; the commit
   tickets/06-uplift.md                ← scope, copy strings, AC, tracking
   spec-sheets/06-uplift.png           ← keyed ①–⑮, 5 frames (A–E), violet 13 Oct decisions, OS-owned keyboard, red failure + commit states
@@ -67,7 +69,8 @@ Family **H** in `tracking/events.json` is **`check_in_*`** since taxonomy 1.4.10
 | 02 | Availability — Today + Tomorrow (one story) | A Today picked · B Today empty + confirm · C Tomorrow empty + toast · D Tomorrow picked | ticketed — not built |
 | 03 | Motivation | A first Check-In, empty · B empty + toast · C picked | ticketed — not built |
 | 04 | Vibe | A first Check-In, empty · B empty + toast · C picked · D five picked, sixth tapped (scrolled) | ticketed — not built |
-| 05 | Filters | A first Check-In, pre-filled · B no gender + toast · C narrowed | ticketed — not built |
+| 05 | Filters | A first Check-In, pre-filled · B no gender + toast · C narrowed | built |
+| 05b | Filters v2 — change to the built 05 | A both switches off · B two genders, age a dealbreaker · C both on | ticketed — not built |
 | 06 | Uplift + commit (carries `Find my date`) | A on entry · B typing, keyboard open · C contact info blocked · D saving · E save failed | ticketed — not built |
 
 Stories renumbered 13 Oct 2026 when Today and Tomorrow merged into 02 (were 02–07).

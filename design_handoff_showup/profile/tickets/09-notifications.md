@@ -19,7 +19,7 @@ The notification permission ask. It sits after media (08) and before Stay reacha
 
 Entered from media (08) on Continue or Skip. **One exit:**
 
-- **CTA "Enable notifications"** → ~~the OS sheet →~~ **Stay reachable (10)** — ⚠ superseded 25 Sep 2026: no sheet here any more; the ask is on 10
+- **CTA "Continue"** (⚠ was "Enable notifications" until 25 Sep 2026) → ~~the OS sheet →~~ **Stay reachable (10)** — ⚠ superseded 25 Sep 2026: no sheet here any more; the ask is on 10
 
 **There is no "Not now", no skip and no close, and that is deliberate** — the OS sheet's own "Don't allow" is the decline, and the flow advances either way. See *Open* for the one thing worth measuring before that is made permanent.
 
@@ -96,7 +96,7 @@ The five rows, in this order:
 | 4 | `clock` | `Date reminder` | — | `A heads-up an hour out — never arrive late.` |
 | 5 | `x` | `Date cancelled` | — | `Never waste time waiting — get notified, look for someone else instead.` |
 
-CTA: `Enable notifications`
+CTA: `Continue` — ⚠ superseded 25 Sep 2026 from `Enable notifications`
 
 **Five rows, not six.** An earlier draft had a sixth; it was cut. Do not re-add one, and do not re-order — row 1 is the reason the user is in the flow at all and row 5 is the one that protects their time.
 
@@ -153,7 +153,7 @@ A path whose item is not done ships **hidden**, not disabled.
 - [ ] Row title is Lora **700** / 16 / 1.2 / −0.005em in `--liq-fg`; row line is Manrope 500 / **13.5** / 1.4 in `--liq-neutral-200`, `margin-top: 3`, `text-wrap: pretty`
 - [ ] The `Premium` tag is a sunset-gradient pill — `padding: 3px 10px`, radius 9999, `--su-grad-sunset`, white Manrope **800** / 10, uppercase, letter-spacing 0.06, nudged `translateY(-1px)` — on row 2 only, **not tappable**
 - [ ] The ambient backdrop is three decorative `pointer-events: none` layers at `zIndex 0` with the exact gradients, sizes and offsets in the reference file, running **full-bleed behind the status bar and home indicator**
-- [ ] CTA is a **full-width sunset** `Button` (`variant="sunset" size="lg" fullWidth`): h56, radius 9999, `--su-grad-sunset`, `--liq-shadow-violet`, label `Enable notifications` in Manrope 700 / 16 white, **with no trailing icon and no `→` character**
+- [ ] CTA is a **full-width sunset** `Button` (`variant="sunset" size="lg" fullWidth`): h56, radius 9999, `--su-grad-sunset`, `--liq-shadow-violet`, label `Continue` (superseded 25 Sep 2026 from `Enable notifications`) in Manrope 700 / 16 white, **with no trailing icon and no `→` character**
 - [ ] The CTA wrapper's `margin-bottom` is `18`, and **a single `flex: 1` spacer** (`min-height: 12`) is the only flexible element on the screen
 - [ ] No absolute Y positioning anywhere in the content column
 - [ ] **The status is read before the screen is pushed, not after it mounts** — on Android ≤ 12, and on the guard case of an already-determined status, the screen is skipped **silently**: no flash, no toast, straight to Stay reachable

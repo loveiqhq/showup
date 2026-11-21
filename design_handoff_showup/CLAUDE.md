@@ -39,6 +39,14 @@ Profile creation step 3 (date of birth) carries a **`Don't display on my profile
 
 The **age itself is locked** after that step (self-declared 18+, re-derived server-side on submit); the **visibility choice is not** — it stays changeable in profile settings. Copy on the screen is final: do not reword it, and do not add the band to any other "The basics" screen.
 
+## Skip for now — binding, decided 5 Oct 2026
+
+**Every screen that shows `Skip for now` can be skipped by the user.** Skip advances the flow, saves nothing for that step, and does not delete a value saved earlier. A screen without the SkipLink is mandatory. No confirmation, no disabled Skip. Tracking: `profile_step_skipped` (+ `detail_skipped` on attribute steps).
+
+## Check-In gates date search — binding, decided 12 Oct 2026
+
+**Finishing profile creation does not make a user ready to date; a completed 48hrs Check-In does.** Every Check-In screen carries a close ✕. Closing lands on the Search tab in its *date search not available* state (`checkin_search_unavailable`): Settings works, and **Search, Instant and that screen's CTA all reopen the Check-In** — at the intro until the user has passed it once, at Today after that. **Nothing is kept as a draft** (13 Oct 2026, superseding 12 Oct): availability and the Uplift text start empty on every entry; Motivation, Vibe and Filters pre-select the last answer given. Never disable the Search or Instant tab for this — they open the Check-In. Detail: `checkin/README.md`, ticket `checkin/tickets/01-intro.md`.
+
 ## Tokens
 
 `design_handoff_showup/tokens/colors_and_type.css` is authoritative. Key values:
@@ -81,6 +89,7 @@ Every screen carries the ambient wash — orange glow top-right, violet bottom-l
 - **Illustrations are the flexible element.** When content does not fit, the artwork shrinks — never the type, never the action row's safe-area margin, and never into a scroll.
 - **Every screen is checked at 375 × 667, 390 × 844 and 430 × 932.** All content visible, nothing clipped, no scroll, primary action always reachable. 375 × 667 is where screens fail.
 - **Progress bars and top chrome anchor to `env(safe-area-inset-top)`,** never to a fixed status-bar height.
+- **One headline size per screen group — binding, decided 5 Oct 2026.** Screens that do the same job share one headline size, line height and tracking: the bridges (05, 13) are one group; the screens where the user enters information are one group. Different groups may differ on purpose; screens inside a group never do. The size belongs to the group's shared shell, not to a per-screen prop. A new screen joins an existing group and takes its size; a size outside the group's needs a written decision first. **Known drift, not yet fixed:** headline sizes vary across profile creation today (34 / 32 / 31 / 30) — a unification ticket will set one size per group. Until it lands, do not copy a size from a neighbouring screen; take it from that screen's own ticket.
 - **Shared chrome is built once as a shell with variants.** A second copy of a progress bar or nav row is a bug, not a screen.
 - **Failure states reserve their space and preserve their input.** Every input screen carries a status region under the field with a fixed `min-height` sized to its tallest card, `aria-live="polite"`, empty in the calm state. It is reserved, not conditional — that is what stops the action row moving when validation fails. Never clear what the user typed.
 - **No CTA on a free-text input screen is ever disabled.** Pressing it while empty or invalid produces the inline error plus a one-shot `su-shake` 480ms; a dead button cannot explain itself, and it means the specific error strings are never seen for an empty field. Recovery is the same everywhere: the error clears when the value becomes valid — not on blur, not on re-submit — and does not re-fire until the CTA is pressed again. Whitespace-only counts as empty. Settled on the date-of-birth screen and binding across the profile flow. The one exception is a **fixed-length code entry**, where the CTA waits for a complete code because a partial one has nothing to validate.
@@ -99,7 +108,7 @@ Photos min 4 / max 6 · verification states `none · pending · verified · reje
 
 Full detail and ownership in the handoff README. Short form:
 
-1. **Six of nine profile steps have no column** (height, gender, orientation, habits, interests max 10, prompts, living situation, age, per-field visibility). Interests and prompts are multi-row and capped — they want tables.
+1. **Six of nine profile steps have no column** (height, gender, orientation, How I live (6 fields), interests max 10, prompts, living situation, age, per-field visibility). Interests and prompts are multi-row and capped — they want tables.
 2. **"Don't display on my profile" has no persisted state.** Completion-time state must be authoritative over the event stream.
 3. **Discovery has no filters**, and `lookingFor` is search state sitting on the profile — it belongs in a discovery-preferences table over the same enums.
 4. **The 10-minute grace rule does not exist** in the date lifecycle. It needs new states, not a field.
@@ -111,3 +120,8 @@ Full detail and ownership in the handoff README. Short form:
 **Decide 1, 2 and 3 as one piece of work.** They are the same decision seen three times: where profile attributes and search preferences live, over which vocabulary. Together they are one migration. Separately they are three, and the third contradicts the first.
 
 **Re-run the design-vs-backend diff at every commit that touches the profile, date or match entities.** Shape decisions are cheap before the migration and expensive after.
+
+
+## Likes tab — always in the bar (decided 20 Oct 2026, Search 03 · revised 21 Oct 2026)
+
+The TabBar is **Search · Likes · Instant · Settings** for **every** user, Freemium included. The Likes badge counts **open** received likes only and shows for Freemium too — it is the Premium upsell. Tap: **Premium → Likes received** (Search 03); **Freemium → the likes upsell screen** (its own story, not built yet). The **likes chip** stays in the Search top bar for **every** user, same count, same destination (Premium → Likes tab, Freemium → upsell); it shows on the **Search and Instant tabs only** — never on the Likes tab (or a profile opened from it). ⚠ *Superseded 21 Oct 2026: was "Premium has no likes chip".* One `TabBar` with `likes`, never a second bar. ⚠ *Superseded 21 Oct 2026: was "Premium only; Freemium gets three tabs until the upsell ships".* Tracking: `tab_switched` · `tab` (enums §37).

@@ -196,4 +196,4 @@ Interests and the later steps. Also: party names, a political-engagement or "how
 - **At 375 × 667 only 3 of 8 rows are fully visible.** Accepted by decision (rows are never shortened). The scroll-indicator flash is the only hint. Same open point as Profile 19.
 - **A saved answer cannot be removed in onboarding.** Clearing on a resume and pressing Continue is a Skip, and rule 0 keeps the earlier value. Default: keep it for the MVP; removing belongs to profile editing. Same open point as Profiles 17–19.
 - **The deficits are measured from the kit**, not a device. The scroll handles any value; the evidence screenshots show the real ones.
-- **The progress-bar count** (10 segments against 9 §2 indices) is still open from Profile 14. It belongs to the group shell; this screen is `current={7}` either way.
+- **The progress-bar count** is resolved: **10 segments** — the habits screen was cut and Life and Future each got their own segment (Interests 8 · Life 9 · Future 10, decided 8 Oct 2026 with Profile 21). It belongs to the group shell; this screen is `current={7}` either way.

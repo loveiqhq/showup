@@ -163,7 +163,7 @@ The system's most important component. A donut around a numeric percentage, band
 The "don't display this on my profile" control that appears on **all nine** profile-creation steps, unticked by default. Semantics were settled in taxonomy conflict 07c: **display is suppressed, matching is unaffected.** The copy lives in the component so screens stop inventing wording — keep it centralised. ⚠️ No backend state exists for it — build item 02.
 
 ### Chrome
-Status bar 54px · sticky tab bar ~64px, `rgba(255,251,247,0.92)` + `backdrop-filter: blur(20px)` · home indicator 28px. Bottom-nav destinations: **Meet · Instant · Score · Profile**. Glass surface for floating sheets: `rgba(255,255,255,0.72)` + `blur(12px)`.
+Status bar 54px · sticky tab bar ~64px, `rgba(255,251,247,0.92)` + `backdrop-filter: blur(20px)` · home indicator 28px. Bottom-nav destinations: **Search · Likes · Instant · Settings** (all users; Freemium Likes tap → upsell). Glass surface for floating sheets: `rgba(255,255,255,0.72)` + `blur(12px)`.
 
 ### Icons
 All inline SVG, **stroke-only, currentColor**, Lucide geometry, 24×24 viewBox, `stroke-width: 1.7`, round caps and joins. ~45 in the set (`ICONS` map in `shared.jsx`). No icon font, no PNG set, no unicode glyphs as icons. Apple and Google brand marks are the only filled exceptions. **No emoji anywhere.**
@@ -182,9 +182,8 @@ All eleven are in `designs/`. Open them in a browser — they are self-contained
 
 **Profile creation — nine steps**, each with `StepProgress`, a `ProfileVisibility` checkbox, `SkipLink` where optional, and `NextButton`:
 5. **Share some details** (7 sub-steps: name, DOB, gender, orientation, height, …)
-6. **Your lifestyle and habits**
-7. **Living status**
-8. **Interests** — multi-select chips, **cap 10**
+6. **Living status**
+7. **Interests** — multi-select chips, **cap 10**
 9. **Profile prompts** — prompt-plus-answer pairs
 10. **Embrace details** — the completion / summary step
 
