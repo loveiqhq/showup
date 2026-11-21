@@ -15,6 +15,8 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.showup.date.ActiveDate
@@ -152,16 +154,23 @@ class DateEndSheetsTest {
         var backs = 0
         val shown = androidx.compose.runtime.mutableStateOf(ui(step = EndStep.Met))
         setContent { DateEndSheetHost(shown.value, "Leonie", berlin, EndActions(onClose = { closes++ }, onBack = { backs++ })) }
-        onNode(androidx.compose.ui.test.hasContentDescription("Dismiss")).performClick()
+        // The scrim's top edge: C and G are tall sheets, so the scrim's centre is under the sheet itself.
+        tapScrimTop()
         assertEquals(1, closes)
         assertEquals(0, backs)
         onNodeWithTag(END_SECONDARY_TAG).performClick()
         assertEquals(1, backs)
         shown.value = ui(step = EndStep.NoShow)
         waitForIdle()
-        onNode(androidx.compose.ui.test.hasContentDescription("Dismiss")).performClick()
+        tapScrimTop()
         assertEquals(1, closes)
         assertEquals(2, backs)
+    }
+
+    private fun androidx.compose.ui.test.ComposeUiTest.tapScrimTop() {
+        onNode(androidx.compose.ui.test.hasContentDescription("Dismiss"))
+            .performTouchInput { click(androidx.compose.ui.geometry.Offset(width / 2f, 4f)) }
+        waitForIdle()
     }
 
     // ── E and F ──────────────────────────────────────────────────────────────
