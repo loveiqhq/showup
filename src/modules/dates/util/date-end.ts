@@ -21,7 +21,11 @@ export type PartnerScreen =
   | 'date_ended_discomfort';
 
 /** Why an end is refused; each is answered as a 409 with this body `code`. */
-export type RefusalCode = 'date_not_active' | 'before_meet' | 'not_checked_in';
+export type RefusalCode =
+  | 'date_not_active'
+  | 'before_meet'
+  | 'not_checked_in'
+  | 'checked_in';
 
 /**
  * Whether Date 06's end and discomfort routes are on (R1). `flag` is the `DATE_ENDS_ENABLED`

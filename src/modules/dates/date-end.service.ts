@@ -31,10 +31,11 @@ import {
 } from './util/date-end';
 import { DateStatus } from './util/date-lifecycle';
 
-const REFUSAL_TEXT: Record<RefusalCode, string> = {
+export const REFUSAL_TEXT: Record<RefusalCode, string> = {
   date_not_active: 'This date is no longer active',
   before_meet: 'A no-show can be reported only from the agreed meet time',
   not_checked_in: 'Check in first, so we can confirm you were there',
+  checked_in: 'You have checked in, so this date can no longer be cancelled',
 };
 
 /** A 409 whose body carries the refusal `code` (and `error`, as the repo's other coded errors do). */

@@ -50,6 +50,18 @@ describe('message catalog (EN/DE rendering)', () => {
     });
   });
 
+  it('renders the Date 07 cancel push (temporary copy) with and without a name', () => {
+    expect(renderMessage('date_cancelled', 'en', { name: 'Max' }).title).toBe(
+      'Max cancelled your date',
+    );
+    expect(renderMessage('date_cancelled', 'en', { name: '' }).title).toBe(
+      'Your date was cancelled',
+    );
+    expect(
+      renderMessage('date_cancelled', 'de', { name: 'Max' }).title,
+    ).toContain('Max');
+  });
+
   it('renders the Date 05 change pushes in English and German (interim copy)', () => {
     expect(
       renderMessage('date_change_suggested', 'en', {

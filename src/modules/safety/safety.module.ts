@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { DatePairBlock } from '../dates/entities/date-pair-block.entity';
 import { Profile } from '../profiles/entities/profile.entity';
 import { ProfilePhoto } from '../profiles/entities/profile-photo.entity';
 import { User } from '../users/entities/user.entity';
@@ -28,6 +29,7 @@ import {
   imports: [
     TypeOrmModule.forFeature([
       Block,
+      DatePairBlock,
       ModerationStatusChange,
       Report,
       VerificationAttempt,

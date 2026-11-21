@@ -363,7 +363,8 @@
       "CancelDateDto": {
         "properties": {
           "reason": {
-            "description": "Optional reason for cancelling (max 500 characters)",
+            "deprecated": true,
+            "description": "Ignored. No reason is asked for a cancel (Date 07).",
             "type": "string"
           }
         },
@@ -5603,14 +5604,14 @@
               }
             }
           },
-          "required": true
+          "required": false
         },
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DateDto"
+                  "$ref": "#/components/schemas/EndedOutcomeDto"
                 }
               }
             },
@@ -6971,6 +6972,46 @@
               }
             },
             "description": "Request validation failed."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Missing, malformed or expired bearer token."
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            },
+            "description": "Unexpected server error."
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "",
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/dev/date/partner-cancels": {
+      "post": {
+        "operationId": "cancelDevDateAsPartner",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
           },
           "401": {
             "content": {

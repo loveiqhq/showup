@@ -12,6 +12,7 @@ import {
 import { EndedOutcomeDto } from '../date-screen/dto/active-date.dto';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -38,6 +39,7 @@ import {
   DateDto,
   SendChatMessageDto,
 } from './dto/date.dto';
+import { DateCancelService } from './date-cancel.service';
 import { DateEndService } from './date-end.service';
 import { EndDateDto } from './dto/end-date.dto';
 import { DatesService } from './dates.service';
@@ -52,6 +54,7 @@ export class DatesController {
     private readonly places: PlacesService,
     private readonly changes: ChangeSuggestionsService,
     private readonly ends: DateEndService,
+    private readonly cancels: DateCancelService,
   ) {}
 
   /** The dates the user is part of. */
@@ -63,18 +66,20 @@ export class DatesController {
     return dates.map((d) => DateDto.from(d, user.id));
   }
 
-  /** Cancel a date (single cancellation type; always counts against the canceller). */
+  /**
+   * Cancel a date from the red link (Date 07): a no-show for the canceller, a permanent pair block,
+   * the match told. Body `{}`; an old `reason` is accepted and ignored.
+   */
   @Post('dates/:id/cancel')
   @ApiOperation({ operationId: 'cancelDate' })
+  @ApiBody({ type: CancelDateDto, required: false })
   @HttpCode(200)
-  @ApiOkResponse({ type: DateDto })
+  @ApiOkResponse({ type: EndedOutcomeDto })
   async cancel(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CancelDateDto,
-  ): Promise<DateDto> {
-    const date = await this.dates.cancel(id, user.id, dto.reason);
-    return DateDto.from(date, user.id);
+  ): Promise<EndedOutcomeDto> {
+    return this.cancels.cancel(id, user.id);
   }
 
   /** Confirm the date happened and rate it. Completes once both people confirm. */

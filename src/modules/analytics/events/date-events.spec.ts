@@ -44,17 +44,28 @@ describe('date analytics events', () => {
     });
   });
 
-  it('date_cancelled flags whether a reason was given (never the reason text)', () => {
-    expect(
-      dateCancelledEvent({ id: 'd4', cancelReason: 'Something came up' }),
-    ).toEqual({
-      eventName: DATE_CANCELLED,
-      properties: { date_id: 'd4', had_reason: true },
+  it('date_cancelled carries exactly date_id, hours_notice, penalty_points, change_requested (Date 07)', () => {
+    const spec = dateCancelledEvent({
+      dateId: 'd4',
+      hoursNotice: 71.5,
+      penaltyPoints: 10,
+      changeRequested: true,
     });
-    expect(dateCancelledEvent({ id: 'd5', cancelReason: null })).toEqual({
+    expect(spec).toEqual({
       eventName: DATE_CANCELLED,
-      properties: { date_id: 'd5', had_reason: false },
+      properties: {
+        date_id: 'd4',
+        hours_notice: 71.5,
+        penalty_points: 10,
+        change_requested: true,
+      },
     });
+    expect(Object.keys(spec.properties).sort()).toEqual([
+      'change_requested',
+      'date_id',
+      'hours_notice',
+      'penalty_points',
+    ]);
   });
 
   it('coordinate_unlocked carries only minutes_before_start and cause (Date 03, registry 1.4.38)', () => {

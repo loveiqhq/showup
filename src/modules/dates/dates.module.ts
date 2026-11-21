@@ -26,6 +26,7 @@ import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
 import { DateDiscomfortFlag } from './entities/date-discomfort-flag.entity';
 import { DateEndService } from './date-end.service';
+import { DateCancelService } from './date-cancel.service';
 import { ChangeExpiryProcessor } from './jobs/change-expiry.processor';
 import { ChangeExpiryScheduler } from './jobs/change-expiry.scheduler';
 import { CoordinateUnlockProcessor } from './jobs/coordinate-unlock.processor';
@@ -62,6 +63,7 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
     DateChangeService,
     ChangeSuggestionsService,
     DateEndService,
+    DateCancelService,
     ChangeExpiryScheduler,
     ChangeExpiryProcessor,
     CoordinateUnlockScheduler,
@@ -75,6 +77,7 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
     DateChangeService,
     ChangeSuggestionsService,
     DateEndService,
+    DateCancelService,
   ],
 })
 export class DatesModule {}

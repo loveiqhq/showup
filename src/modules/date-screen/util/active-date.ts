@@ -64,6 +64,9 @@ export interface EndedRow {
   endedById: string | null;
   /** Date 06: set when `status` is `ended`. */
   endReason?: EndReason | null;
+  /** Date 07: who cancelled, and the points it cost (null on a cancel from before Date 07). */
+  cancelledById?: string | null;
+  penaltyPoints?: number | null;
   aEndSeenAt: Date | null;
   bEndSeenAt: Date | null;
 }
@@ -71,7 +74,8 @@ export interface EndedRow {
 /**
  * The outcome `viewerId` is still to see, or null once they have seen it or when the date did not end
  * (R3). One shape for every reason: `chat` (Date 02: G for the one who ended it, H for the match), and
- * `met` / `partner_no_show` / `uncomfortable` (Date 06). The match of a Date 06 end also gets the Date 08
+ * `met` / `partner_no_show` / `uncomfortable` (Date 06), and `cancelled` (Date 07: the canceller sees
+ * `endedByYou`, the match sees H). The match of a Date 06 end also gets the Date 08
  * screen, from `end_reason` alone. `partnerName` is the other person's first name.
  */
 export function endedOutcomeOf(
@@ -79,6 +83,19 @@ export function endedOutcomeOf(
   viewerId: string,
   partnerName: string,
 ): EndedOutcomeDto | null {
+  if (row.status === DateStatus.Cancelled) {
+    // Only a Date 07 cancel (it stores its penalty) is reported; older cancels were never shown.
+    if (row.penaltyPoints == null || !row.cancelledById) return null;
+    const cancelSeen =
+      row.userAId === viewerId ? row.aEndSeenAt : row.bEndSeenAt;
+    if (cancelSeen) return null;
+    return {
+      dateId: row.id,
+      name: partnerName,
+      endedByYou: row.cancelledById === viewerId,
+      reason: 'cancelled',
+    };
+  }
   if (
     row.status !== DateStatus.EndedInChat &&
     row.status !== DateStatus.Ended

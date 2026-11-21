@@ -16,6 +16,7 @@ import { ArrivalEntry } from '../dates/util/arrival';
 import { ChangeSuggestionsService } from '../dates/change-suggestions.service';
 import { DateChangeService } from '../dates/date-change.service';
 import { DatesService } from '../dates/dates.service';
+import { DateCancelService } from '../dates/date-cancel.service';
 import { DateEndService } from '../dates/date-end.service';
 import { EndEntry, EndReason } from '../dates/util/date-end';
 import {
@@ -74,6 +75,7 @@ export class DateDevService {
     private readonly changes: ChangeSuggestionsService,
     private readonly changeSlots: DateChangeService,
     private readonly ends: DateEndService,
+    private readonly cancels: DateCancelService,
     @Inject(PLACES_PROVIDER) private readonly places: PlacesProvider,
   ) {}
 
@@ -255,24 +257,57 @@ export class DateDevService {
     await this.changes.expireDue(now);
   }
 
-  /** Cancels the caller's confirmed dates with the test match -- the dev escape from the Date screen. */
+  /**
+   * Cancels the caller's confirmed dates with the test match -- the dev escape from the Date screen --
+   * through the real cancel (Date 07: penalty, pair block, event, the match's push). Where the real
+   * path refuses (the caller has checked in, so the red link is gone; or the cancel switch is off) it
+   * falls back to a quiet status update, so the escape always works on a test date. The caller's own
+   * outcome is marked seen, so the escape leaves nothing to land on.
+   */
   async endDate(userId: string): Promise<void> {
     const partnerId = await this.testPartnerId();
     if (!partnerId) return;
-    await this.db
-      .getRepository(DateEntity)
-      .createQueryBuilder()
-      .update()
-      .set({
-        status: DateStatus.Cancelled,
-        cancelledAt: new Date(),
-        cancelledById: userId,
-      })
-      .where(
-        '((user_a_id = :id AND user_b_id = :partner) OR (user_a_id = :partner AND user_b_id = :id)) AND status = :status',
-        { id: userId, partner: partnerId, status: DateStatus.Confirmed },
-      )
-      .execute();
+    const repo = this.db.getRepository(DateEntity);
+    const open = await repo.find({
+      where: [
+        { userAId: userId, userBId: partnerId, status: DateStatus.Confirmed },
+        { userAId: partnerId, userBId: userId, status: DateStatus.Confirmed },
+      ],
+    });
+    for (const date of open) {
+      try {
+        await this.cancels.cancel(date.id, userId);
+        // The escape leaves the caller on a clean screen: their own outcome is marked seen, as the
+        // landing after a real cancel would. The test match's side is left to be read.
+        await repo.update(
+          { id: date.id },
+          date.userAId === userId
+            ? { aEndSeenAt: new Date() }
+            : { bEndSeenAt: new Date() },
+        );
+      } catch (error) {
+        if (
+          !(error instanceof ConflictException) &&
+          !(error instanceof NotFoundException)
+        ) {
+          throw error;
+        }
+        await repo.update(
+          { id: date.id, status: DateStatus.Confirmed },
+          {
+            status: DateStatus.Cancelled,
+            cancelledAt: new Date(),
+            cancelledById: userId,
+          },
+        );
+      }
+    }
+  }
+
+  /** The test match cancels the caller's date from the red link (Date 07), through the real path: the caller sees H. */
+  async partnerCancels(userId: string): Promise<void> {
+    const { date, partnerId } = await this.testDate(userId);
+    await this.cancels.cancel(date.id, partnerId);
   }
 
   /** The caller's active date with the test match; 404 when their active date (if any) is a real one. */

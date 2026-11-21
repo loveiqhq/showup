@@ -16,7 +16,6 @@ export const DATE_ENDED_IN_CHAT = 'date_ended_in_chat';
 export interface DateEventInput {
   id: string;
   venueId?: string | null;
-  cancelReason?: string | null;
 }
 
 export interface AnalyticsEventSpec {
@@ -37,13 +36,24 @@ export function dateCompletedEvent(date: DateEventInput): AnalyticsEventSpec {
   return { eventName: DATE_COMPLETED, properties: { date_id: date.id } };
 }
 
-/** A date was cancelled. The reason text is never sent — only whether one was given. */
-export function dateCancelledEvent(date: DateEventInput): AnalyticsEventSpec {
+/**
+ * A date was cancelled from the red link (Date 07, registry 1.4.37). Server-sent, once, on success only.
+ * No `initiator`, no `reason`: one canceller, no reason asked. `hours_notice` is to the latest agreed
+ * meet time (negative after it).
+ */
+export function dateCancelledEvent(input: {
+  dateId: string;
+  hoursNotice: number;
+  penaltyPoints: number;
+  changeRequested: boolean;
+}): AnalyticsEventSpec {
   return {
     eventName: DATE_CANCELLED,
     properties: {
-      date_id: date.id,
-      had_reason: (date.cancelReason ?? null) != null,
+      date_id: input.dateId,
+      hours_notice: input.hoursNotice,
+      penalty_points: input.penaltyPoints,
+      change_requested: input.changeRequested,
     },
   };
 }

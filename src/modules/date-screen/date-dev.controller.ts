@@ -150,6 +150,16 @@ export class DateDevController {
     await this.dev.endInChat(user.id);
   }
 
+  /** The test match cancels the caller's date from the red link (Date 07), through the real path: the caller lands on H. */
+  @Post('partner-cancels')
+  @HttpCode(204)
+  @ApiOperation({ operationId: 'cancelDevDateAsPartner' })
+  @ApiNoContentResponse()
+  async partnerCancels(@CurrentUser() user: User): Promise<void> {
+    this.refuseInProduction();
+    await this.dev.partnerCancels(user.id);
+  }
+
   /**
    * The test match ends the caller's date from Date 06 (we met, no-show or uncomfortable), through
    * the real path: the caller sees the match's side of it.

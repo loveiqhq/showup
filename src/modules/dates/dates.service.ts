@@ -17,7 +17,6 @@ import { Between, In, IsNull, Not, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
   coordinateUnlockedEvent,
-  dateCancelledEvent,
   dateCompletedEvent,
   dateConfirmedEvent,
   dateEndedInChatEvent,
@@ -177,34 +176,6 @@ export class DatesService {
       }
     }
     return [...locked];
-  }
-
-  /**
-   * SHOWUP-53 — cancel a date. Single cancellation type; it always records the canceller so the
-   * scoring work (Epic 8) can penalise them. Only a participant may cancel, and only from a state
-   * where cancelling is allowed.
-   */
-  async cancel(
-    dateId: string,
-    userId: string,
-    reason?: string,
-  ): Promise<DateEntity> {
-    const date = await this.participantDate(dateId, userId);
-    const error = transitionError(date.status, DateStatus.Cancelled);
-    if (error) throw new BadRequestException(error);
-
-    const from = date.status;
-    date.cancelledById = userId;
-    date.cancelReason = reason ?? null;
-    date.cancelledAt = new Date();
-    date.status = DateStatus.Cancelled;
-    await this.dates.save(date);
-    await this.logChange(date.id, from, DateStatus.Cancelled, userId);
-    void this.analytics.trackServerEvent({
-      userId,
-      ...dateCancelledEvent(date),
-    });
-    return date;
   }
 
   /**

@@ -184,6 +184,53 @@ describe('endedOutcomeOf (Date 06, R3)', () => {
   });
 });
 
+describe('endedOutcomeOf (Date 07, cancelled)', () => {
+  const cancelled = {
+    id: 'date-1',
+    status: DateStatus.Cancelled,
+    userAId: VIEWER,
+    userBId: PARTNER,
+    endedById: null as string | null,
+    cancelledById: VIEWER as string | null,
+    penaltyPoints: 10 as number | null,
+    aEndSeenAt: null,
+    bEndSeenAt: null,
+  };
+
+  it('reports it to both people: endedByYou for the canceller only', () => {
+    expect(endedOutcomeOf(cancelled, VIEWER, 'Leonie')).toEqual({
+      dateId: 'date-1',
+      name: 'Leonie',
+      endedByYou: true,
+      reason: 'cancelled',
+    });
+    expect(endedOutcomeOf(cancelled, PARTNER, 'Max')).toEqual({
+      dateId: 'date-1',
+      name: 'Max',
+      endedByYou: false,
+      reason: 'cancelled',
+    });
+  });
+
+  it('sends no partnerScreen, and is reported until each side has seen it', () => {
+    expect(
+      endedOutcomeOf(cancelled, PARTNER, 'Max')?.partnerScreen,
+    ).toBeUndefined();
+    expect(
+      endedOutcomeOf({ ...cancelled, bEndSeenAt: new Date() }, PARTNER, 'M'),
+    ).toBeNull();
+    expect(
+      endedOutcomeOf({ ...cancelled, bEndSeenAt: new Date() }, VIEWER, 'L'),
+    ).not.toBeNull();
+  });
+
+  it('ignores a cancel from before Date 07 (no penalty stored)', () => {
+    expect(
+      endedOutcomeOf({ ...cancelled, penaltyPoints: null }, PARTNER, 'M'),
+    ).toBeNull();
+  });
+});
+
 describe('toActiveDate', () => {
   const base = {
     dateId: 'date-1',

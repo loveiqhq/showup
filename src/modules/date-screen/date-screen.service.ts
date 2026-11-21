@@ -20,7 +20,11 @@ import { SHOW_UP_RATE } from '../dates/util/show-up-rate.config';
 import { ActiveDateDto, EndedOutcomeDto } from './dto/active-date.dto';
 import { endedOutcomeOf, toActiveDate, unreadOf } from './util/active-date';
 
-const ENDED_STATUSES = [DateStatus.EndedInChat, DateStatus.Ended];
+const ENDED_STATUSES = [
+  DateStatus.EndedInChat,
+  DateStatus.Ended,
+  DateStatus.Cancelled,
+];
 
 /**
  * The Date screen's reads (Date 01, SHOWUP-193).

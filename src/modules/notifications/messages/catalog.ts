@@ -91,6 +91,22 @@ const CATALOG: Record<NotificationType, Record<Locale, Template>> = {
       body: 'Die ursprüngliche Zeit und der Ort bleiben.',
     }),
   },
+  // TEMPORARY placeholder copy (Date 07, ticket Open item 1): all push copy is written at the end of the
+  // project, in one pass. The canceller's first name only; never a reason, a place or a time.
+  date_cancelled: {
+    en: (p) => ({
+      title: p.name
+        ? `${p.name} cancelled your date`
+        : 'Your date was cancelled',
+      body: 'Open Show Up to see what happens next.',
+    }),
+    de: (p) => ({
+      title: p.name
+        ? `${p.name} hat euer Date abgesagt`
+        : 'Dein Date wurde abgesagt',
+      body: '�ffne Show Up, um zu sehen, wie es weitergeht.',
+    }),
+  },
   check_in_expiry: {
     // Deliberately discreet — a check-in is tied to the user's real-world location (privacy/safety).
     en: () => ({
