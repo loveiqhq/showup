@@ -100,6 +100,8 @@ struct PhotoBackdrop: View {
     let index: Int
     /// `object-position: center 24%` (the Date screen's hero, SHOWUP-193) instead of the centre.
     var focusTop24 = false
+    /// `object-position: center 22%` (Date 07's guard portrait, SHOWUP-198). Wins over `focusTop24`.
+    var focusTop22 = false
 
     var body: some View {
         ZStack {
@@ -111,7 +113,8 @@ struct PhotoBackdrop: View {
                     if let image = phase.image { image.resizable().scaledToFill() }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity,
-                       alignment: focusTop24 ? Alignment(horizontal: .center, vertical: .objectPosition24) : .center)
+                       alignment: focusTop22 ? Alignment(horizontal: .center, vertical: .objectPosition22)
+                           : focusTop24 ? Alignment(horizontal: .center, vertical: .objectPosition24) : .center)
                 .clipped()
             }
             PhotoWashes()
@@ -126,6 +129,11 @@ extension VerticalAlignment {
         static func defaultValue(in d: ViewDimensions) -> CGFloat { d.height * 0.24 }
     }
     static let objectPosition24 = VerticalAlignment(ObjectPosition24.self)
+
+    private enum ObjectPosition22: AlignmentID {
+        static func defaultValue(in d: ViewDimensions) -> CGFloat { d.height * 0.22 }
+    }
+    static let objectPosition22 = VerticalAlignment(ObjectPosition22.self)
 }
 
 /// The painterly washes, softened for a loaded photo exactly as the kit softens them.

@@ -136,6 +136,9 @@ struct DateEndOver<Content: View>: View {
     var zone: TimeZone = .current
     let ui: DateEndUi
     let actions: EndActions
+    /// Date 07's guard sheet rides the same blurred backdrop: the host passes `visible` for either sheet.
+    var cancelUi = CancelUi()
+    var cancelActions = CancelActions()
     @ViewBuilder let content: () -> Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -146,6 +149,7 @@ struct DateEndOver<Content: View>: View {
                 .blur(radius: visible ? modalShellBlur : 0)
                 .animation(reduceMotion ? nil : .easeInOut(duration: Motion.sheet), value: visible)
             DateEndSheetHost(ui: ui, name: name, zone: zone, actions: actions)
+            CancelDateSheetHost(ui: cancelUi, zone: zone, actions: cancelActions)
         }
     }
 }

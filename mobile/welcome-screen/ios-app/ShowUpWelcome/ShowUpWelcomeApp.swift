@@ -131,6 +131,7 @@ private struct TutorialFlow: View {
         _searchLikeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("search.like", epoch: epoch))
         _changeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("change.picker", epoch: epoch))
         _dateEndStored = SceneStorage(wrappedValue: "", SceneKey.scoped("date.end", epoch: epoch))
+        _cancelStored = SceneStorage(wrappedValue: "", SceneKey.scoped("date.cancel", epoch: epoch))
     }
 
     // SceneStorage, not State: a process death mid-tutorial should not silently drop the user back
@@ -293,6 +294,8 @@ private struct TutorialFlow: View {
     @SceneStorage private var changeStored: String
     /// The open Date 06 sheet, its step and the gated step (`DateEndDraft`), epoch-scoped like every key here.
     @SceneStorage private var dateEndStored: String
+    /// The open Date 07 guard sheet and the request sent from it (`CancelDraft`), epoch-scoped like every key here.
+    @SceneStorage private var cancelStored: String
 
     // ── the date (SHOWUP-193) ─────────────────────────────────────────────────
     //
@@ -360,6 +363,19 @@ private struct TutorialFlow: View {
     }
     @State private var dateEnd = DateEndModel(store: DateEndRepository(api: APIAccess.client),
                                               analytics: AppAnalytics.shared)
+    // ── cancel this date (SHOWUP-198) ─────────────────────────────────────────
+    //
+    // One model per account beside the end sheets': the guard sheet, the request sent from it and the cancel in flight.
+    // A 409 reads the date again; the pickers open over the sheet and report back through it.
+    private let apiCancelStore = CancelRepository(api: APIAccess.client)
+    private var cancelStore: any CancelStoring {
+        #if DEBUG
+        if let devDate { return devDate }
+        #endif
+        return apiCancelStore
+    }
+    @State private var dateCancel = CancelModel(store: CancelRepository(api: APIAccess.client),
+                                                analytics: AppAnalytics.shared)
     /// `landAfterEnd` runs once per ended date.
     @State private var landedOnce = LandedOnce()
     /// Where G or H was reached from, for its `screen_viewed` referrer.
@@ -829,6 +845,9 @@ private struct TutorialFlow: View {
         dateEnd.attach(stored: "") { _ in }
         dateEnd = DateEndModel(store: dateEndStore, analytics: AppAnalytics.shared)
         dateEndStored = ""
+        dateCancel.attach(stored: "") { _ in }
+        dateCancel = CancelModel(store: cancelStore, analytics: AppAnalytics.shared)
+        cancelStored = ""
         landedOnce = LandedOnce()
         chatModel = nil
         chatDateId = nil
@@ -1095,6 +1114,29 @@ private struct TutorialFlow: View {
         // THE END SHEETS follow every read and the 1 s tick: pastMeet and the chat's lock are re-evaluated there.
         .onChange(of: shownDate.date, initial: true) { _, _ in bindDateEnd() }
         .onChange(of: shownDate.now) { _, _ in bindDateEnd() }
+        // THE GUARD SHEET follows the same reads and clock; a check-in closes it.
+        .onChange(of: shownDate.date, initial: true) { _, _ in bindDateCancel() }
+        .onChange(of: shownDate.now) { _, _ in bindDateCancel() }
+        // A tile: Date 05's picker over the sheet, entry `cancel_sheet`. No chip was tapped, so only the picker's own open fires.
+        .onChange(of: dateCancel.ui.openPicker) { _, kind in
+            guard let kind else { return }
+            dateCancel.consumePicker()
+            openChangePicker(.changePicker(kind: kind, entry: .cancelSheet))
+        }
+        // Message instead: the flow is closed, nothing is cancelled, the chat opens.
+        .onChange(of: dateCancel.ui.openChat) { _, asked in
+            if asked {
+                dateCancel.consumeOpenChat()
+                openChat()
+            }
+        }
+        // The server confirmed: the canceller lands where every end lands (flow 10's slot, R1).
+        .onChange(of: dateCancel.ui.landed) { _, outcome in
+            if let outcome {
+                dateCancel.consumeLanded()
+                landAfterEnd(outcome)
+            }
+        }
         // A gated route asks for Date 03's gate with the note. Already checked in by the gate's word: continue.
         .onChange(of: dateEnd.ui.openGate) { _, entry in
             guard let entry else { return }
@@ -1193,8 +1235,9 @@ private struct TutorialFlow: View {
                     dateEnd.gateUndone()
                 }
             ) {
-                DateEndOver(visible: dateEnd.ui.visible, name: shown.date?.match.name ?? "", zone: .current,
-                            ui: dateEnd.ui, actions: endActions) { dateScreenContent(shown) }
+                DateEndOver(visible: dateEnd.ui.visible || dateCancel.ui.open, name: shown.date?.match.name ?? "",
+                            zone: .current, ui: dateEnd.ui, actions: endActions,
+                            cancelUi: dateCancel.ui, cancelActions: cancelActions) { dateScreenContent(shown) }
             }
         }
     }
@@ -1231,6 +1274,9 @@ private struct TutorialFlow: View {
                 dateModel.leftFor(.searchProfile)
                 dateProfileModel.open()
             },
+            // A: this user's own check-in only; the match's does not hide it.
+            onCancel: { dateCancel.open() },
+            showCancel: shown.date.map(cancelLinkShown) ?? false,
             // The link shows only while the end routes are on (R1).
             checkInBar: {
                 AnyView(CheckInBar(name: shown.date?.match.name ?? "",
@@ -1257,6 +1303,22 @@ private struct TutorialFlow: View {
             onSuggestAnother: { kind in openChangePicker(counterCardRoute(kind)) })
     }
 
+    /// Every tap the guard sheet can send, bound to the model.
+    private var cancelActions: CancelActions {
+        CancelActions(onKeep: { dateCancel.keep() }, onDismiss: { dateCancel.dismiss() },
+                      onMessage: { dateCancel.messageInstead() }, onTile: { dateCancel.picker($0) },
+                      onCancel: { dateCancel.cancel() })
+    }
+
+    /// Binds the cancel model to scene storage (once) and to the date as read.
+    private func bindDateCancel() {
+        let stored = $cancelStored
+        dateCancel.reread = { dateModel.foreground() }
+        dateCancel.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
+        let shown = shownDate
+        if let date = shown.date { dateCancel.bind(date, now: shown.now) }
+    }
+
     /// Every tap the end sheets can send, bound to the model.
     private var endActions: EndActions {
         EndActions(onPick: { dateEnd.pick($0) }, onBack: { dateEnd.back() }, onClose: { dateEnd.close() },
@@ -1278,7 +1340,9 @@ private struct TutorialFlow: View {
     private func routeEnded(_ ended: EndedOutcome) {
         switch ended.reason {
         case .met, .partnerNoShow, .uncomfortable: landAfterEnd(ended)
-        case .chat, .cancelled: showOutcome(ended, from: .dateScreen)
+        case .chat: showOutcome(ended, from: .dateScreen)
+        // H for the person cancelled on; the canceller's own landing is the same slot as every end (flow 10 is not built).
+        case .cancelled: if cancelledOnYou(ended) { showOutcome(ended, from: .dateScreen) } else { landAfterEnd(ended) }
         }
     }
 
@@ -1379,6 +1443,11 @@ private struct TutorialFlow: View {
                 // itself on its poll). Nothing was shown as changed before this.
                 .onChange(of: model.ui.done) { _, done in
                     if done {
+                        // D: a request sent from the cancel sheet shows there, and the sheet stays open under the pop.
+                        if model.ui.entry == .cancelSheet {
+                            dateCancel.pickerSent(kind: model.ui.kind, label: sentLabel(
+                                kind: model.ui.kind, slot: model.ui.slot, placeName: model.ui.place?.name, zone: .current))
+                        }
                         dateModel.foreground()
                         popChangePicker()
                     }
@@ -1519,7 +1588,7 @@ private struct TutorialFlow: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationBarBackButtonHidden(true)
             .onFirstAppear {
-                chatEvents.outcomeShown(referrer: outcomeFrom)
+                chatEvents.outcomeShown(referrer: outcomeFrom, cancelled: cancelledOnYou(outcome))
                 let store = chatStore
                 let id = outcome.dateId
                 Task { await store.markEndSeen(dateId: id) }
@@ -2078,6 +2147,9 @@ private struct TutorialFlow: View {
         dateEnd.attach(stored: "") { _ in }
         dateEnd = DateEndModel(store: demo, analytics: AppAnalytics.shared)
         dateEndStored = ""
+        dateCancel.attach(stored: "") { _ in }
+        dateCancel = CancelModel(store: demo, analytics: AppAnalytics.shared)
+        cancelStored = ""
         landedOnce = LandedOnce()
         toDate()
         dateModel.foreground()

@@ -157,6 +157,8 @@ enum ProfileScreen: String {
     case dateChat = "date_chat"
     /// G and H, after a date ended in the chat: one screen id for both.
     case dateEndedInChat = "date_ended_in_chat"
+    /// Date 07 H: what the match of a red-link cancel sees (§11 row added 21 Nov 2026, registry 1.4.37).
+    case datePartnerCancelled = "date_partner_cancelled"
 
     var screenId: String { rawValue }
 
@@ -203,6 +205,7 @@ enum ProfileScreen: String {
         case .dateChatTutorial: return "Date - Chat tutorial"
         case .dateChat: return "Date - Coordinate chat"
         case .dateEndedInChat: return "Date - Ended in chat"
+        case .datePartnerCancelled: return "Date - Partner cancelled"
         }
     }
 }

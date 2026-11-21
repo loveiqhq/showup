@@ -59,8 +59,8 @@ final class ChatHostEvents {
         analytics?.report(ProfileAnalytics.screenViewed(.dateChat, referrer: referrer))
     }
 
-    /// G or H is shown, from the chat or the Date screen.
-    func outcomeShown(referrer: ProfileScreen) {
-        analytics?.report(ProfileAnalytics.screenViewed(.dateEndedInChat, referrer: referrer))
+    /// G or H is shown, from the chat or the Date screen; `cancelled` is Date 07's H (`date_partner_cancelled`).
+    func outcomeShown(referrer: ProfileScreen, cancelled: Bool = false) {
+        analytics?.report(ProfileAnalytics.screenViewed(cancelled ? .datePartnerCancelled : .dateEndedInChat, referrer: referrer))
     }
 }

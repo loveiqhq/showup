@@ -248,6 +248,9 @@ struct PrettyText: UIViewRepresentable {
     /// Indexes of emphasised runs drawn bold in the body colour, not `emphasisColor`: the reference's `<b>` beside a
     /// `<strong style="color: ink">` in one paragraph (Date 06's I body).
     var quietEmphasis: Set<Int> = []
+    /// A run's own face and ink, by index, over `emphasisFont`: Date 07's red 800 `no-show` beside a `<strong>` in one
+    /// paragraph, and its `<em>` (the skew of the upright, `TypeMetrics.oblique`) in the paragraph's own ink.
+    var runFaces: [Int: (font: UIFont, color: Color)] = [:]
 
     /// This text clamped to `n` lines.
     func lines(_ n: Int) -> PrettyText {
@@ -309,6 +312,10 @@ struct PrettyText: UIViewRepresentable {
                 .foregroundColor: UIColor(inked ? (emphasisColor ?? color) : color),
                 .paragraphStyle: para,
             ]
+            if let face = runFaces[index] {
+                attributes[.font] = face.font.withSize(face.font.pointSize * typeScale)
+                attributes[.foregroundColor] = UIColor(face.color)
+            }
             if tracking != 0 { attributes[.kern] = tracking * typeScale }
             out.append(NSAttributedString(string: text, attributes: attributes))
         }
