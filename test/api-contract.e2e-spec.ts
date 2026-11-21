@@ -110,6 +110,10 @@ const PROTECTED: Route[] = [
   { method: 'post', path: '/dev/date/change' },
   { method: 'post', path: '/dev/date/change/agree' },
   { method: 'post', path: '/dev/date/change/expire' },
+  // SHOWUP-197 -- Date 06: end the date, Stay for now, and the test match's end.
+  { method: 'post', path: `/dates/${ID}/end` },
+  { method: 'post', path: `/dates/${ID}/discomfort` },
+  { method: 'post', path: '/dev/date/partner-ends' },
   // matching.controller.ts — no HTTP coverage anywhere before this file
   { method: 'get', path: '/discovery' },
   { method: 'post', path: '/likes' },

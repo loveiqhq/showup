@@ -24,6 +24,8 @@ import { DateChangeSuggestion } from './entities/date-change-suggestion.entity';
 import { DateChatMessage } from './entities/date-chat-message.entity';
 import { DateStatusChange } from './entities/date-status-change.entity';
 import { DateEntity } from './entities/date.entity';
+import { DateDiscomfortFlag } from './entities/date-discomfort-flag.entity';
+import { DateEndService } from './date-end.service';
 import { ChangeExpiryProcessor } from './jobs/change-expiry.processor';
 import { ChangeExpiryScheduler } from './jobs/change-expiry.scheduler';
 import { CoordinateUnlockProcessor } from './jobs/coordinate-unlock.processor';
@@ -40,6 +42,7 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
       DateChatMessage,
       DateArrivalCheckIn,
       DateChangeSuggestion,
+      DateDiscomfortFlag,
       Profile,
       Match,
     ]),
@@ -58,6 +61,7 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
     ArrivalCheckInsService,
     DateChangeService,
     ChangeSuggestionsService,
+    DateEndService,
     ChangeExpiryScheduler,
     ChangeExpiryProcessor,
     CoordinateUnlockScheduler,
@@ -70,6 +74,7 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
     ArrivalCheckInsService,
     DateChangeService,
     ChangeSuggestionsService,
+    DateEndService,
   ],
 })
 export class DatesModule {}

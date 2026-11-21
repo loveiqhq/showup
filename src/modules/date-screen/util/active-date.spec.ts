@@ -1,4 +1,5 @@
 import { SearchProfileDto } from '../../search/dto/search.dto';
+import { EndReason } from '../../dates/util/date-end';
 import { DateStatus } from '../../dates/util/date-lifecycle';
 import {
   endedOutcomeOf,
@@ -103,11 +104,13 @@ describe('endedOutcomeOf (Date 02)', () => {
       dateId: 'd1',
       name: 'Leonie',
       endedByYou: true,
+      reason: 'chat',
     });
     expect(endedOutcomeOf(ended, PARTNER, 'Max')).toEqual({
       dateId: 'd1',
       name: 'Max',
       endedByYou: false,
+      reason: 'chat',
     });
   });
 
@@ -124,6 +127,59 @@ describe('endedOutcomeOf (Date 02)', () => {
         VIEWER,
         'Leonie',
       ),
+    ).toBeNull();
+  });
+});
+
+describe('endedOutcomeOf (Date 06, R3)', () => {
+  const ended = {
+    id: 'd1',
+    status: DateStatus.Ended,
+    userAId: VIEWER,
+    userBId: PARTNER,
+    endedById: VIEWER as string | null,
+    endReason: EndReason.Met as EndReason | null,
+    aEndSeenAt: null as Date | null,
+    bEndSeenAt: null as Date | null,
+  };
+
+  it('reports every reason to the ender, with no partner screen', () => {
+    for (const reason of Object.values(EndReason)) {
+      expect(
+        endedOutcomeOf({ ...ended, endReason: reason }, VIEWER, 'Leonie'),
+      ).toEqual({
+        dateId: 'd1',
+        name: 'Leonie',
+        endedByYou: true,
+        reason,
+      });
+    }
+  });
+
+  it('gives the match the Date 08 screen from end_reason alone', () => {
+    const screen = (reason: EndReason) =>
+      endedOutcomeOf({ ...ended, endReason: reason }, PARTNER, 'Max')
+        ?.partnerScreen;
+    expect(screen(EndReason.Met)).toBe('date_closed_positive');
+    expect(screen(EndReason.PartnerNoShow)).toBe('you_no_showed');
+    expect(screen(EndReason.Uncomfortable)).toBe('date_ended_discomfort');
+  });
+
+  it('is reported until that person marks it seen, each side on its own', () => {
+    expect(
+      endedOutcomeOf({ ...ended, aEndSeenAt: new Date() }, VIEWER, 'L'),
+    ).toBeNull();
+    expect(
+      endedOutcomeOf({ ...ended, aEndSeenAt: new Date() }, PARTNER, 'M'),
+    ).not.toBeNull();
+    expect(
+      endedOutcomeOf({ ...ended, bEndSeenAt: new Date() }, PARTNER, 'M'),
+    ).toBeNull();
+  });
+
+  it('is null for a date with no end reason stored', () => {
+    expect(
+      endedOutcomeOf({ ...ended, endReason: null }, VIEWER, 'L'),
     ).toBeNull();
   });
 });
@@ -147,6 +203,8 @@ describe('toActiveDate', () => {
     coordinateUnlockedAt: null as Date | null,
     anyCommittedCheckIn: false,
     meetDay: 'today' as const,
+    endsEnabled: true,
+    cancelPenaltyPoints: 10,
   };
 
   it('locks coordination more than 90 minutes before and unlocks at meet − 1:30', () => {
@@ -169,6 +227,21 @@ describe('toActiveDate', () => {
       toActiveDate({ ...base, now: early, coordinateUnlockedAt: null })
         .coordinateOpen,
     ).toBe(false);
+  });
+
+  it('carries the ends switch and the cancel penalty from its source', () => {
+    const now = at('2026-11-03T15:00:00Z');
+    const on = toActiveDate({ ...base, now });
+    expect(on.endsEnabled).toBe(true);
+    expect(on.cancelPenaltyPoints).toBe(10);
+    const off = toActiveDate({
+      ...base,
+      now,
+      endsEnabled: false,
+      cancelPenaltyPoints: 15,
+    });
+    expect(off.endsEnabled).toBe(false);
+    expect(off.cancelPenaltyPoints).toBe(15);
   });
 
   it('stays open from a committed check-in alone, when its stamp was lost', () => {

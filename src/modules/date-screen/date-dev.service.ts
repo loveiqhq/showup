@@ -16,6 +16,8 @@ import { ArrivalEntry } from '../dates/util/arrival';
 import { ChangeSuggestionsService } from '../dates/change-suggestions.service';
 import { DateChangeService } from '../dates/date-change.service';
 import { DatesService } from '../dates/dates.service';
+import { DateEndService } from '../dates/date-end.service';
+import { EndEntry, EndReason } from '../dates/util/date-end';
 import {
   ChangeEntry,
   ChangeKind,
@@ -71,6 +73,7 @@ export class DateDevService {
     private readonly arrivals: ArrivalCheckInsService,
     private readonly changes: ChangeSuggestionsService,
     private readonly changeSlots: DateChangeService,
+    private readonly ends: DateEndService,
     @Inject(PLACES_PROVIDER) private readonly places: PlacesProvider,
   ) {}
 
@@ -116,6 +119,20 @@ export class DateDevService {
   async endInChat(userId: string): Promise<void> {
     const { date, partnerId } = await this.testDate(userId);
     await this.dates.endInChat(date.id, partnerId);
+  }
+
+  /**
+   * The test match ends the caller's date from Date 06, through the real path, so the caller lands on
+   * the match's side of the outcome. A no-show or an uncomfortable end needs her check-in, so she
+   * arrives first; a no-show is still refused before the agreed time (409 `before_meet`).
+   */
+  async partnerEnds(userId: string, reason: EndReason): Promise<void> {
+    const { date, partnerId } = await this.testDate(userId);
+    if (reason !== EndReason.Met) await this.partnerArrives(userId);
+    await this.ends.end(date.id, partnerId, {
+      reason,
+      entry: EndEntry.EndDateBar,
+    });
   }
 
   /**

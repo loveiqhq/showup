@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { EndedInChatDto } from '../date-screen/dto/active-date.dto';
+import type { EndedOutcomeDto } from '../date-screen/dto/active-date.dto';
 import { cantMakeItFrom } from './util/end-in-chat';
 import { firstName } from '../search/util/search-profile';
 import { Profile } from '../profiles/entities/profile.entity';
@@ -438,7 +438,7 @@ export class DatesService {
     dateId: string,
     userId: string,
     now: Date = new Date(),
-  ): Promise<EndedInChatDto> {
+  ): Promise<EndedOutcomeDto> {
     const date = await this.participantDate(dateId, userId);
     if (date.status !== DateStatus.Confirmed) {
       throw new ConflictException('This date has already ended');
@@ -494,6 +494,7 @@ export class DatesService {
       dateId: date.id,
       name: firstName(profile?.displayName ?? null),
       endedByYou: true,
+      reason: 'chat',
     };
   }
 

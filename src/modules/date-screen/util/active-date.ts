@@ -1,4 +1,5 @@
 import { ChangePendingDto, ChangeStateDto } from '../../dates/dto/change.dto';
+import { EndReason, partnerScreenFor } from '../../dates/util/date-end';
 import { DateStatus } from '../../dates/util/date-lifecycle';
 import { chatOpensAt, ChatReason } from '../../dates/util/pre-date-chat';
 import { SearchProfileDto } from '../../search/dto/search.dto';
@@ -8,7 +9,7 @@ import {
   DateArrivalDto,
   DateMatchDto,
   DateUnreadDto,
-  EndedInChatDto,
+  EndedOutcomeDto,
 } from '../dto/active-date.dto';
 
 /** One chat message, as far as "is it unread" needs it. */
@@ -44,6 +45,10 @@ export interface ActiveDateSource {
    */
   anyCommittedCheckIn: boolean;
   meetDay: 'today' | 'tomorrow';
+  /** Date 06 / 07: the end and cancel routes are on (`DATE_ENDS_ENABLED`). */
+  endsEnabled: boolean;
+  /** Date 07: the points a cancel costs, from the rate config. */
+  cancelPenaltyPoints: number;
   /** Date 05: the change state and the hoisted request, built by `ChangeSuggestionsService`. */
   change?: ChangeStateDto;
   changeRequest?: ChangePendingDto | null;
@@ -57,28 +62,43 @@ export interface EndedRow {
   userAId: string;
   userBId: string;
   endedById: string | null;
+  /** Date 06: set when `status` is `ended`. */
+  endReason?: EndReason | null;
   aEndSeenAt: Date | null;
   bEndSeenAt: Date | null;
 }
 
 /**
- * The outcome `viewerId` is still to see -- G for the one who ended the date in the chat, H for the
- * match -- or null once they have seen it, or when the date did not end in the chat (Date 02).
- * `partnerName` is the other person's first name.
+ * The outcome `viewerId` is still to see, or null once they have seen it or when the date did not end
+ * (R3). One shape for every reason: `chat` (Date 02: G for the one who ended it, H for the match), and
+ * `met` / `partner_no_show` / `uncomfortable` (Date 06). The match of a Date 06 end also gets the Date 08
+ * screen, from `end_reason` alone. `partnerName` is the other person's first name.
  */
 export function endedOutcomeOf(
   row: EndedRow,
   viewerId: string,
   partnerName: string,
-): EndedInChatDto | null {
-  if (row.status !== DateStatus.EndedInChat) return null;
+): EndedOutcomeDto | null {
+  if (
+    row.status !== DateStatus.EndedInChat &&
+    row.status !== DateStatus.Ended
+  ) {
+    return null;
+  }
+  if (row.status === DateStatus.Ended && !row.endReason) return null;
   const seen = row.userAId === viewerId ? row.aEndSeenAt : row.bEndSeenAt;
   if (seen) return null;
-  return {
+  const endedByYou = row.endedById === viewerId;
+  const out: EndedOutcomeDto = {
     dateId: row.id,
     name: partnerName,
-    endedByYou: row.endedById === viewerId,
+    endedByYou,
+    reason: row.status === DateStatus.EndedInChat ? 'chat' : row.endReason!,
   };
+  if (row.status === DateStatus.Ended && !endedByYou) {
+    out.partnerScreen = partnerScreenFor(row.endReason!);
+  }
+  return out;
 }
 
 /**
@@ -152,6 +172,8 @@ export function toActiveDate(src: ActiveDateSource): ActiveDateDto {
     checkedIn: src.checkedIn,
     arrival: src.arrival,
     chatTutorialSeen: src.chatTutorialSeen,
+    endsEnabled: src.endsEnabled,
+    cancelPenaltyPoints: src.cancelPenaltyPoints,
     ...(src.change ? { change: src.change } : {}),
     ...(src.changeRequest !== undefined
       ? { changeRequest: src.changeRequest }

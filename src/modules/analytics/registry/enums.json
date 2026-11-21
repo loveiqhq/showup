@@ -1,7 +1,7 @@
 {
-  "registry_version": "1.4.38",
+  "registry_version": "1.4.39",
   "taxonomy_version": "1.4.31",
-  "source": "Cleaned/codegen-ready copy of the design handoff tracking/enums.json (06 Aug 2026; re-synced to 1.4.18 on 11 Oct 2026 with SHOWUP-174/175/176: How I live fields, the §3 tag_ids, the §4 life questions, habits retired; re-synced to 1.4.25 on 13 Oct 2026 with the 48hrs Check-In, SHOWUP-178 to 183: meet_orientation retired, the §30 motivation and §31 vibe sets; re-stamped 1.4.29 on 21 Oct 2026 with the Date search epic, SHOWUP-184 to 186, whose new sets e33 to e37 and changed e11/e23 are none of the ones carried here). re-stamped 1.4.31 on 30 Oct 2026 with the Search location gate and Check-In 05b, SHOWUP-188 and 189, whose changes (e11 search_location_gate, e10 age_dealbreaker / distance_dealbreaker) are none of the ones carried here. re-stamped 1.4.38 on 16 November 2026 with Date 03, SHOWUP-195, whose changes (e11 date_location_gate and date_partner_cancelled, e41 wrapup, the new sets e42 to e46) are none of the ones carried here. sensitivity.spec.ts fails if field_id or step_id drift from the handoff file.",
+  "source": "Cleaned/codegen-ready copy of the design handoff tracking/enums.json (06 Aug 2026; re-synced to 1.4.18 on 11 Oct 2026 with SHOWUP-174/175/176: How I live fields, the §3 tag_ids, the §4 life questions, habits retired; re-synced to 1.4.25 on 13 Oct 2026 with the 48hrs Check-In, SHOWUP-178 to 183: meet_orientation retired, the §30 motivation and §31 vibe sets; re-stamped 1.4.29 on 21 Oct 2026 with the Date search epic, SHOWUP-184 to 186, whose new sets e33 to e37 and changed e11/e23 are none of the ones carried here). re-stamped 1.4.31 on 30 Oct 2026 with the Search location gate and Check-In 05b, SHOWUP-188 and 189, whose changes (e11 search_location_gate, e10 age_dealbreaker / distance_dealbreaker) are none of the ones carried here. re-stamped 1.4.38 on 16 November 2026 with Date 03, SHOWUP-195, whose changes (e11 date_location_gate and date_partner_cancelled, e41 wrapup, the new sets e42 to e46) are none of the ones carried here. sensitivity.spec.ts fails if field_id or step_id drift from the handoff file. re-stamped 1.4.39 on 21 November 2026 with Date 06 and Date 07, SHOWUP-197 and 198: carries the new sets arrival_entry (e41, wrapup), change_entry (e42, cancel_sheet), date_end_reason (e43), problem_category (e44), end_entry (e45) and cancel_guard_exit (e46), and the e11 screen rows date_partner_cancelled and date_partner_ended_*. The Date 08 screen follows end_reason alone (17 Nov), so the e43 note about partner_checked_in is a leftover and is not carried.",
   "_liq_revisions": {
     "format": "Every value set is a proper array of strings (the shipped file had several run-together, un-parseable lists). Values verified against the design component files where those exist.",
     "life_questions": "life_now and life_ahead are the handoff §4 rows, verbatim since registry 1.4.17/1.4.18 (the design and the registry agree now; the 06 Aug divergence is gone)."
@@ -468,5 +468,45 @@
     "no_rush",
     "early_night",
     "meet_now"
+  ],
+  "arrival_entry": [
+    "date_screen",
+    "chat_chip",
+    "report",
+    "wrapup"
+  ],
+  "change_entry": [
+    "coordinate_tile",
+    "chat_chip",
+    "counter_card",
+    "counter_thread",
+    "cancel_sheet"
+  ],
+  "date_end_reason": [
+    "met",
+    "partner_no_show",
+    "uncomfortable"
+  ],
+  "problem_category": [
+    "partner_no_show",
+    "uncomfortable",
+    "unsafe",
+    "something_else"
+  ],
+  "end_entry": [
+    "end_date_bar",
+    "checkin_bar_link",
+    "report"
+  ],
+  "cancel_guard_exit": [
+    "keep",
+    "dismissed",
+    "message"
+  ],
+  "screen_id_date": [
+    "date_partner_cancelled",
+    "date_partner_ended_no_show",
+    "date_partner_ended_uncomfortable",
+    "date_partner_ended_met"
   ]
 }

@@ -14,8 +14,13 @@ import { SearchProfileDto } from '../search/dto/search.dto';
 import { firstName } from '../search/util/search-profile';
 import { SearchService } from '../search/search.service';
 import { isTimeZone, meetDay } from '../search/util/search';
-import { ActiveDateDto, EndedInChatDto } from './dto/active-date.dto';
+import { ConfigService } from '@nestjs/config';
+import { dateEndsEnabled } from '../dates/util/date-end';
+import { SHOW_UP_RATE } from '../dates/util/show-up-rate.config';
+import { ActiveDateDto, EndedOutcomeDto } from './dto/active-date.dto';
 import { endedOutcomeOf, toActiveDate, unreadOf } from './util/active-date';
+
+const ENDED_STATUSES = [DateStatus.EndedInChat, DateStatus.Ended];
 
 /**
  * The Date screen's reads (Date 01, SHOWUP-193).
@@ -31,7 +36,16 @@ export class DateScreenService {
     private readonly search: SearchService,
     private readonly arrivals: ArrivalCheckInsService,
     private readonly changes: ChangeSuggestionsService,
+    private readonly config: ConfigService,
   ) {}
+
+  /** The `DATE_ENDS_ENABLED` switch (R1), read per request so a changed variable needs no rebuild. */
+  endsEnabled(): boolean {
+    return dateEndsEnabled({
+      flag: this.config.get<string>('DATE_ENDS_ENABLED'),
+      nodeEnv: this.config.get<string>('app.env'),
+    });
+  }
 
   /** The viewer's active date, newest first if (against the rules) there were two. */
   async activeDateRow(viewerId: string): Promise<DateEntity | null> {
@@ -122,19 +136,21 @@ export class DateScreenService {
       change,
       changeRequest,
       meetDay: meetDay(date.scheduledAt, now, tz),
+      endsEnabled: this.endsEnabled(),
+      cancelPenaltyPoints: SHOW_UP_RATE.noShowPenalty,
       now,
     });
   }
 
   /**
-   * With no active date: the newest date that ended in the chat whose outcome the viewer has still to
-   * see (Date 02) -- how the match lands on H, and how the ender still sees G after a crash.
+   * With no active date: the newest ended date (in the chat, or from Date 06) whose outcome the viewer
+   * has still to see -- how the match lands on H or Date 08, and how the ender still sees G after a crash.
    */
-  async endedOutcome(viewerId: string): Promise<EndedInChatDto | null> {
+  async endedOutcome(viewerId: string): Promise<EndedOutcomeDto | null> {
     const rows = await this.db.getRepository(DateEntity).find({
       where: [
-        { userAId: viewerId, status: DateStatus.EndedInChat },
-        { userBId: viewerId, status: DateStatus.EndedInChat },
+        { userAId: viewerId, status: In(ENDED_STATUSES) },
+        { userBId: viewerId, status: In(ENDED_STATUSES) },
       ],
       order: { endedAt: 'DESC' },
     });

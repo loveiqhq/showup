@@ -27,6 +27,7 @@ import {
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ChangeKind } from '../dates/entities/date-change-suggestion.entity';
+import { EndReason } from '../dates/util/date-end';
 import {
   CHAT_MESSAGE_MAX_LENGTH,
   ChatReason,
@@ -81,6 +82,13 @@ export class DevDateChangeDto {
   @Min(1)
   @Max(720)
   minutesLater?: number;
+}
+
+/** How the test match ends the caller's date (Date 06). */
+export class DevDatePartnerEndsDto {
+  @ApiProperty({ enum: EndReason, enumName: 'DateEndReason' })
+  @IsEnum(EndReason)
+  reason: EndReason;
 }
 
 /**
@@ -140,6 +148,22 @@ export class DateDevController {
   async endInChat(@CurrentUser() user: User): Promise<void> {
     this.refuseInProduction();
     await this.dev.endInChat(user.id);
+  }
+
+  /**
+   * The test match ends the caller's date from Date 06 (we met, no-show or uncomfortable), through
+   * the real path: the caller sees the match's side of it.
+   */
+  @Post('partner-ends')
+  @HttpCode(204)
+  @ApiOperation({ operationId: 'endDevDateAsPartner' })
+  @ApiNoContentResponse()
+  async partnerEnds(
+    @CurrentUser() user: User,
+    @Body() dto: DevDatePartnerEndsDto,
+  ): Promise<void> {
+    this.refuseInProduction();
+    await this.dev.partnerEnds(user.id, dto.reason);
   }
 
   /**
