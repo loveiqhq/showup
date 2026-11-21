@@ -1336,4 +1336,62 @@ class EvidenceScreenshots {
         assertEquals("A to N at the three frames", 42, images.size)
         images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
     }
+
+    /**
+     * SHOWUP-197's evidence: A, B, C and E to J at the three frames the acceptance criteria name -- 27 images, named
+     * `<letter>-<name>` (the iOS twin writes the same names). D is Date 03's gate with the note, which that ticket's
+     * evidence holds. The frames are [com.showup.date.end.DateEndSamples], the ticket's kit props. E, F and I are
+     * taller than the 375 x 667 frame: the sheet scrolls inside its shell and its buttons are reachable by that scroll
+     * (asserted in DateEndFitTest), so the picture shows the top of the sheet.
+     */
+    @Test
+    fun `SHOWUP-197 end the date and report a problem, A B C and E to J`() {
+        val names = listOf(
+            "A" to "end-date-bar", "B" to "how-did-it-go", "C" to "we-met", "E" to "not-here-before-meet",
+            "F" to "not-here-after-meet", "G" to "thanks-for-waiting", "H" to "report-a-problem",
+            "I" to "not-comfortable", "J" to "end-failed",
+        )
+        val before = written.size
+        // E, F and I are told apart by what sits below a short phone's fold (the end button's state, Head out now and
+        // Stay for now), so those three are photographed with the sheet scrolled to its end.
+        for ((letter, name) in names) {
+            if (letter in setOf("E", "F", "I")) {
+                val end = androidx.compose.foundation.ScrollState(0)
+                shoot("SHOWUP-197", "$letter-$name", scrolled = end) { com.showup.date.end.DateEndSamples.frame(letter, scroll = end) }
+            } else {
+                shoot("SHOWUP-197", "$letter-$name") { com.showup.date.end.DateEndSamples.frame(letter) }
+            }
+        }
+        val images = written.drop(before)
+        assertEquals("nine frames at the three sizes", 27, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+    }
+
+    /**
+     * SHOWUP-198's evidence: A to F, H and I at the three frames -- 24 images (G is flow 10's). A is driven to the end
+     * of the Date screen's scroll, where the red link sits. The guard sheet is taller than the 375 x 667 frame: it
+     * scrolls inside its shell, and `Don't cancel my date` and `Cancel anyway` are reachable by that scroll (asserted
+     * in CancelFitTest).
+     */
+    @Test
+    fun `SHOWUP-198 cancel this date, A to F, H and I`() {
+        val names = listOf(
+            "A" to "red-link", "B" to "guard-chat-locked", "C" to "guard-chat-open", "D" to "after-change-request",
+            "E" to "cancel-failed", "F" to "after-check-in", "H" to "match-cancelled", "I" to "guard-from-meet-minus-30",
+        )
+        val before = written.size
+        for ((letter, name) in names) {
+            // A and F end on the Date screen's scroll; B to E and I on the sheet's, whose solution box, cost box, choices
+            // and error sit below a short phone's fold.
+            if (letter != "H") {
+                val end = androidx.compose.foundation.ScrollState(0)
+                shoot("SHOWUP-198", "$letter-$name", scrolled = end) { com.showup.date.cancel.CancelSamples.frame(letter, scroll = end) }
+            } else {
+                shoot("SHOWUP-198", "$letter-$name") { com.showup.date.cancel.CancelSamples.frame(letter) }
+            }
+        }
+        val images = written.drop(before)
+        assertEquals("eight frames at the three sizes", 24, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+    }
 }

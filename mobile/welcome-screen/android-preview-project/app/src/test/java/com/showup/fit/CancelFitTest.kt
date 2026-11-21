@@ -27,6 +27,7 @@ import com.showup.date.DateMatch
 import com.showup.date.DatePlace
 import com.showup.date.EndedOutcome
 import com.showup.date.OutcomeReason
+import com.showup.date.cancel.CANCEL_CONFIRM_TAG
 import com.showup.date.cancel.CANCEL_COST_TAG
 import com.showup.date.cancel.CANCEL_KEEP_TAG
 import com.showup.date.cancel.CANCEL_MESSAGE_TAG
@@ -164,6 +165,24 @@ class CancelFitTest {
     @Config(sdk = [30, 31, 32, 33, 35])
     fun `the Date 07 frames are clean on every Android from 11 to 15`() {
         report(sweep(sheetFrames + { partnerCancelled() }, listOf(1f, 2f)), "cancel-fit-sdk.txt")
+    }
+
+    /**
+     * "The choices are reachable by scrolling" (the ticket, for the tall guard sheet at 375 x 667): `Don't cancel my
+     * date` and `Cancel anyway` (and, in I, the one `Message` button) must come inside the frame once scrolled to --
+     * driven with `performScrollTo`, not read off the layout. At the largest type as well.
+     */
+    @Test
+    fun `the guard sheet's choices are reachable by scrolling at 375 x 667`() {
+        val found = mutableListOf<String>()
+        for (make in sheetFrames + longRequests) {
+            val frame = make()
+            val tags = if (frame.label.startsWith("I")) listOf(CANCEL_MESSAGE_TAG, CANCEL_KEEP_TAG) else listOf(CANCEL_KEEP_TAG, CANCEL_CONFIRM_TAG)
+            for (scale in listOf(1f, 2f)) {
+                found += unreachableByScroll(375, 667, scale, tags, frame.content).map { "${frame.label}: $it" }
+            }
+        }
+        assertTrue("Date 07 choices out of reach (${found.size}):\n" + found.joinToString("\n") { "  $it" }, found.isEmpty())
     }
 
     private companion object {

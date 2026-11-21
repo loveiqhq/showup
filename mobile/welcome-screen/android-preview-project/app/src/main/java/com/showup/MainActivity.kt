@@ -235,7 +235,9 @@ import com.showup.dev.DevDateLaunch
 import com.showup.dev.DevDateDemo
 import com.showup.dev.DevDateDemoHolder
 import com.showup.dev.DemoLanding
+import com.showup.dev.DemoStep
 import com.showup.dev.demoLanding
+import com.showup.dev.demoSteps
 import com.showup.dev.demoQuery
 import com.showup.dev.devLiveFrame
 import com.showup.date.DateStore
@@ -1399,6 +1401,27 @@ class MainActivity : ComponentActivity() {
                 screen = FlowScreen.Date
                 date.foreground()
                 snapshotFlow { dateState.date }.first { it != null }
+                // SHOWUP-197 and 198: the sheet the frame draws, opened by the calls its own taps make. Each model
+                // is bound to the date by the host's own effect, so wait for that first.
+                val steps = demoSteps(frame)
+                if (steps.isNotEmpty()) {
+                    dateEnd.ui.first { it.date != null }
+                    dateCancel.ui.first { it.date != null }
+                    for (step in steps) when (step) {
+                        DemoStep.OpenWrap -> dateEnd.openWrap(EndEntry.EndDateBar)
+                        DemoStep.OpenReport -> dateEnd.openReport()
+                        DemoStep.PickMet -> dateEnd.pick(com.showup.date.end.EndOption.Met)
+                        DemoStep.PickNoShow -> dateEnd.pick(com.showup.date.end.EndOption.NoShow)
+                        DemoStep.PickUncomfortable -> dateEnd.pick(com.showup.date.end.EndOption.Uncomfortable)
+                        DemoStep.ConfirmWait -> dateEnd.confirmWait()
+                        DemoStep.OpenCancel -> dateCancel.open()
+                        DemoStep.CancelSent -> {
+                            // The request the demo server holds for D, sent from the sheet: its time is the line's value.
+                            val sent = dateState.date?.change?.pending?.firstOrNull { it.byYou && it.kind == ChangeKind.Time }
+                            dateCancel.pickerSent(ChangeKind.Time, com.showup.date.cancel.sentLabel(ChangeKind.Time, sent?.time, null, ZoneId.systemDefault()))
+                        }
+                    }
+                }
                 val kind = when (demoLanding(frame)) {
                     DemoLanding.DateScreen -> return@LaunchedEffect
                     DemoLanding.Chat -> null
@@ -3428,6 +3451,8 @@ class MainActivity : ComponentActivity() {
                                     DevDateAction.MatchSuggestsPlace -> dateStore.matchSuggests(com.showup.change.ChangeKind.Place)
                                     DevDateAction.MatchAgrees -> dateStore.matchAgrees()
                                     DevDateAction.ExpireSuggestions -> dateStore.expireSuggestions()
+                                    DevDateAction.PartnerCancels -> dateStore.partnerCancels()
+                                    is DevDateAction.PartnerEnds -> dateStore.partnerEnds(action.reason)
                                     DevDateAction.End -> dateStore.endTestDate()
                                 }
                                 // The Date screen's own read shows the result: a new date or message

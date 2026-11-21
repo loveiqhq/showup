@@ -169,6 +169,24 @@ class DateEndFitTest {
         report(sweep(menuFrames + guideFrames + failedFrames, listOf(1f, 2f)), "end-fit-sdk.txt")
     }
 
+    /**
+     * "The CTAs and choices are reachable by scrolling" (the ticket, for E, F and I at 375 x 667): the sheet scrolls
+     * inside its shell where it is taller than the phone, so each frame's last control must come inside the frame
+     * once scrolled to -- driven with `performScrollTo`, not read off the layout. At the largest type as well.
+     */
+    @Test
+    fun `every sheet's CTA is reachable by scrolling at 375 x 667`() {
+        val found = mutableListOf<String>()
+        val frames = menuFrames.drop(1) + guideFrames + failedFrames
+        for (make in frames) {
+            val frame = make()
+            for (scale in listOf(1f, 2f)) {
+                found += unreachableByScroll(375, 667, scale, listOfNotNull(frame.tag), frame.content).map { "${frame.label}: $it" }
+            }
+        }
+        assertTrue("Date 06 controls out of reach (${found.size}):\n" + found.joinToString("\n") { "  $it" }, found.isEmpty())
+    }
+
     private companion object {
         const val TAP_DP = 44f
         const val SLACK = 0.75f

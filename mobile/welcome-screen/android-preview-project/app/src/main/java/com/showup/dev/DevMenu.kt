@@ -236,6 +236,10 @@ private fun ScreensPage(
                 DevTextButton("Leonie suggests another place (SHOWUP-196 E / J)") { onDateAction(DevDateAction.MatchSuggestsPlace) }
                 DevTextButton("Leonie agrees to my suggestion (SHOWUP-196 G)") { onDateAction(DevDateAction.MatchAgrees) }
                 DevTextButton("Expire suggestions now (SHOWUP-196 H)") { onDateAction(DevDateAction.ExpireSuggestions) }
+                DevTextButton("Leonie cancels this date (SHOWUP-198 H)") { onDateAction(DevDateAction.PartnerCancels) }
+                DevTextButton("Leonie ends the date: We met (SHOWUP-197, Date 08 slot)") { onDateAction(DevDateAction.PartnerEnds(com.showup.date.EndReason.Met)) }
+                DevTextButton("Leonie ends the date: didn't show (SHOWUP-197, Date 08 slot)") { onDateAction(DevDateAction.PartnerEnds(com.showup.date.EndReason.PartnerNoShow)) }
+                DevTextButton("Leonie ends the date: uncomfortable (SHOWUP-197, Date 08 slot)") { onDateAction(DevDateAction.PartnerEnds(com.showup.date.EndReason.Uncomfortable)) }
                 DevTextButton("End test date") { onDateAction(DevDateAction.End) }
             }
         }
