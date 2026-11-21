@@ -13,6 +13,7 @@ package com.showup.change
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.showup.arrival.ArrivalSamples
 import com.showup.chat.ChatMessage
 import com.showup.chat.ChatReason
 import com.showup.chat.ChatSamples
@@ -132,8 +133,9 @@ object ChangeSamples {
     @Composable
     private fun chat(ui: ChatUi) = ChatScreen(ui, ZONE, {}, { _, _ -> }, {}, {}, {}, {}, {}, {}, {})
 
+    /** The Date screen with Date 03's Check-in bar in its footer, as every Date-screen frame of the sheet draws it. */
     @Composable
-    private fun date(ui: DateUi) = DateScreen(ui, ZONE)
+    private fun date(ui: DateUi) = DateScreen(ui, ZONE, checkInBar = ArrivalSamples.bar)
 
     /** Frame [id] ("A" to "N", and "L-thread"), drawn as the ticket's kit props draw it. */
     @Composable
