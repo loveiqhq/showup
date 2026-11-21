@@ -110,6 +110,21 @@ func dateBarInFlow(bar: CGFloat, tab: CGFloat, frame: CGFloat) -> Bool {
     frame > 0 && bar + tab > frame * footerMaxShare
 }
 
+/// The id at the very end of the Date screen's scroll, for `dateScrollsToEnd`.
+private let dateScrollEnd = "date.scroll.end"
+
+private struct DateScrollsToEndKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// EVIDENCE ONLY, false in the app (see `DateScreen.scrollsToEnd`). Android's sample frames scroll the screen.
+    var dateScrollsToEnd: Bool {
+        get { self[DateScrollsToEndKey.self] }
+        set { self[DateScrollsToEndKey.self] = newValue }
+    }
+}
+
 private extension View {
     func measuredHeight(_ id: String) -> some View {
         background(GeometryReader { g in Color.clear.preference(key: DateHeightsKey.self, value: [id: g.size.height]) })
@@ -153,6 +168,8 @@ struct DateScreen: View {
 
     /// Measured, local and disposable: what the footer rule needs.
     @State private var heights: [String: CGFloat] = [:]
+    /// EVIDENCE ONLY, false in the app: the scroll comes to rest at its end, where the red link sits (Date 07's A and F).
+    @Environment(\.dateScrollsToEnd) private var scrollsToEnd
 
 
     var body: some View {
@@ -167,6 +184,7 @@ struct DateScreen: View {
         ZStack(alignment: .bottom) {
             // Names and districts breakable after their hyphens, as Android's (the 4 Nov 2026 audit).
             if let date = ui.date.map(withBreakableNames), let state = ui.state {
+                ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 0) {
                         content(date, state)
@@ -175,12 +193,16 @@ struct DateScreen: View {
                                 DateWash(holes: holes)
                             }
                         if barInFlow { barView(date) }
-                        Color.clear.frame(height: tab + (barInFlow ? 0 : bar))
+                        Color.clear.frame(height: tab + (barInFlow ? 0 : bar)).id(dateScrollEnd)
                     }
                     // The whole scroll, reserve included: where its end comes to rest (DateFitTests).
                     .fitAnchor("date:content")
                 }
                 .fitAnchor("date:screen")
+                // Follows the measured footer: its reserve lengthens the scroll after the first layout.
+                .onAppear { if scrollsToEnd { proxy.scrollTo(dateScrollEnd, anchor: .bottom) } }
+                .onChange(of: heights) { _, _ in if scrollsToEnd { proxy.scrollTo(dateScrollEnd, anchor: .bottom) } }
+                }
                 VStack(spacing: 0) {
                     if !barInFlow { barView(date) }
                     tabBar

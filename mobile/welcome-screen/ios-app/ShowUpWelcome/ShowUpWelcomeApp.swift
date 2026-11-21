@@ -2163,6 +2163,30 @@ private struct TutorialFlow: View {
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
         guard dateModel.state.date != nil else { return }
+        // SHOWUP-197 and 198: the sheet the frame draws, opened by the calls its own taps make. Each model is bound to
+        // the date by the host's own effect, so wait for that first.
+        let steps = demoSteps(frame)
+        if !steps.isEmpty {
+            for _ in 0..<50 where dateEnd.ui.date == nil || dateCancel.ui.date == nil {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            for step in steps {
+                switch step {
+                case .openWrap: dateEnd.openWrap(.endDateBar)
+                case .openReport: dateEnd.openReport()
+                case .pickMet: dateEnd.pick(.met)
+                case .pickNoShow: dateEnd.pick(.noShow)
+                case .pickUncomfortable: dateEnd.pick(.uncomfortable)
+                case .confirmWait: dateEnd.confirmWait()
+                case .openCancel: dateCancel.open()
+                case .cancelSent:
+                    // The request the demo server holds for D, sent from the sheet: its time is the line's value.
+                    let sent = dateModel.state.date?.change?.pending.first { $0.byYou && $0.kind == .time }
+                    dateCancel.pickerSent(kind: .time, label: sentLabel(kind: .time, slot: sent?.time, placeName: nil,
+                                                                        zone: .current))
+                }
+            }
+        }
         switch demoLanding(frame) {
         case .dateScreen: return
         case .chat: openChat()
@@ -2228,6 +2252,10 @@ private struct TutorialFlow: View {
                         case .matchSuggestsPlace: _ = await store.matchSuggests(kind: .place)
                         case .matchAgrees: _ = await store.matchAgrees()
                         case .expireSuggestions: _ = await store.expireSuggestions()
+                        case .partnerCancels: _ = await store.partnerCancels()
+                        case .partnerEndsMet: _ = await store.partnerEnds(reason: .met)
+                        case .partnerEndsNoShow: _ = await store.partnerEnds(reason: .partnerNoShow)
+                        case .partnerEndsUncomfortable: _ = await store.partnerEnds(reason: .uncomfortable)
                         case .end: _ = await store.endTestDate()
                         }
                         // The Date screen's own read shows the result: a new date or message lands in place,

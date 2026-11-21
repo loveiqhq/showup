@@ -28,16 +28,45 @@ func demoLanding(_ frame: String) -> DemoLanding {
     }
 }
 
+/// What the host does after landing so a SHOWUP-197 or 198 frame shows its sheet at its step. Each is one call on the
+/// real models (`DateEndModel`, `CancelModel`), the call the same tap makes: no second code path. Android's `DemoStep`.
+enum DemoStep: Equatable, Sendable {
+    case openWrap, openReport, pickMet, pickNoShow, pickUncomfortable, confirmWait, openCancel, cancelSent
+}
+
+/// The steps a frame performs, in order, once its date is read; empty for a frame that is the Date screen itself.
+func demoSteps(_ frame: String) -> [DemoStep] {
+    switch frame {
+    case "197B": return [.openWrap]
+    case "197C": return [.openWrap, .pickMet]
+    // D is the gate (not checked in), E and F the guide (before and after the meet time): the same pick, a different date.
+    case "197D", "197E", "197F": return [.openWrap, .pickNoShow]
+    case "197G", "197J": return [.openWrap, .pickNoShow, .confirmWait]
+    case "197H": return [.openReport]
+    case "197I": return [.openReport, .pickUncomfortable]
+    case "198B", "198C", "198E", "198I": return [.openCancel]
+    case "198D": return [.openCancel, .cancelSent]
+    default: return []
+    }
+}
+
+/// Every frame id a launch can carry: Date 05's letters, and the two tickets' prefixed ids. Android's `DEV_LIVE_FRAMES`.
+let devLiveFrames: Set<String> =
+    Set(ChangeSamples.letters + DateEndSamples.letters.map { "197" + $0 } + CancelSamples.letters.map { "198" + $0 })
+
 /// The search a frame's picker opens on: N is drawn as a search for "sushi" that finds nothing. Android's `demoQuery`.
 func demoQuery(_ frame: String) -> String? { frame == "N" ? "sushi" : nil }
 
-/// The frame letter a States row opens LIVE, or nil for a picture. Date 05's frames are a flow, and a still picture of
-/// one reads as a broken app, so they open on `DevDateDemo` with every tap working. The other tickets' frames stay
-/// pictures. Android's `devLiveFrame`.
+/// The frame id a States row opens LIVE, or nil for a picture. Date 05's, 06's and 07's frames are a flow, and a still
+/// picture of one reads as a broken app, so they open on `DevDateDemo` with every tap working. The other tickets' frames
+/// stay pictures. 196's frames are named by their letter alone; 197's and 198's keep the ticket number, which says which
+/// is which. Android's `devLiveFrame`.
 func devLiveFrame(_ state: DevState) -> String? {
-    guard state.id.hasPrefix("196") else { return nil }
     let letter = String(state.id.dropFirst(3))
-    return ChangeSamples.letters.contains(letter) ? letter : nil
+    if state.id.hasPrefix("196") { return ChangeSamples.letters.contains(letter) ? letter : nil }
+    if state.id.hasPrefix("197") { return DateEndSamples.letters.contains(letter) ? state.id : nil }
+    if state.id.hasPrefix("198") { return CancelSamples.letters.contains(letter) ? state.id : nil }
+    return nil
 }
 
 actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, LocationFixReading, DateEndStoring, CancelStoring {
@@ -73,6 +102,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
     /// Every frame but I and J is drawn with the chat open, so it has opened already (G's at the original 19:00).
     private var unlockStamped: Bool
     private var tutorialSeen = true
+    /// Date 06's frames except D (the gate) and Date 07's F are drawn after this person has checked in.
     private var myCheckIn = MyCheckIn.none
     private var partnerArrivedAt: Date?
     private var partnerArrivalSeen = false
@@ -86,6 +116,9 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
     private var failSuggest: Bool
     private var failAgree: Bool
     private var failPlaces: Bool
+    /// J's end and E's cancel fail once, so the retry is walked too.
+    private var failEnd: Bool
+    private var failCancel: Bool
 
     private enum MyCheckIn { case none, stored, committed }
 
@@ -95,13 +128,18 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         self.latencyMs = latencyMs
         let start = clock()
         self.start = start
-        // The sheet's clock for this frame: 15:55 while the chat is locked (I, J), past the 18:30 deadline in H.
+        // The sheet's clock for this frame: 15:55 while the chat is locked (I, J, 198B), past the 18:30 deadline in H.
         let kitNow: Date
         switch frame {
-        case "I", "J": kitNow = DateSamples.aNow
+        case "I", "J", "198B": kitNow = DateSamples.aNow
         case "H": kitNow = Self.kitMeet.addingTimeInterval(-29 * Self.minute)
+        // Ten minutes past the meet time: F, G and J need the end button open. 198I is 25 minutes before it, past the cutoff.
+        case "197F", "197G", "197J": kitNow = Self.kitMeet.addingTimeInterval(10 * Self.minute)
+        case "198I": kitNow = Self.kitMeet.addingTimeInterval(-25 * Self.minute)
         default: kitNow = DateSamples.bNow
         }
+        // The frames drawn with the chat still locked (nothing unlocked it yet, nothing could have been sent).
+        let chatLocked = ["I", "J", "198B"].contains(frame)
         let shift = start.timeIntervalSince(kitNow)
         self.shift = shift
         func kit(_ t: Date) -> Date { t.addingTimeInterval(shift) }
@@ -110,10 +148,18 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         availableUntil = kit(Self.kitMeet.addingTimeInterval(3 * 3600))
         // Read up to two minutes ago: Leonie's earlier message is read, the one E and L show under her request is not.
         readAt = start.addingTimeInterval(-2 * Self.minute)
-        unlockStamped = !["I", "J"].contains(frame)
+        unlockStamped = !chatLocked
         failSuggest = frame == "K"
         failAgree = frame == "L"
         failPlaces = frame == "M"
+        failEnd = frame == "197J"
+        failCancel = frame == "198E"
+        if (frame.hasPrefix("197") && frame != "197D") || frame == "198F" { myCheckIn = .committed }
+        // 198H: the match cancelled on this person, so the first read is the outcome.
+        if frame == "198H" {
+            ended = EndedOutcome(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: false,
+                                 reason: .cancelled)
+        }
 
         func moved(_ s: ChangeSuggestion) -> ChangeSuggestion {
             var m = s
@@ -126,7 +172,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
             m.expiredBindingTime = s.expiredBindingTime.map(kit)
             return m
         }
-        if !["I", "J"].contains(frame) {
+        if !chatLocked {
             var seed = ChangeSamples.seed
             seed.sentAt = kit(seed.sentAt)
             messages = [seed]
@@ -149,6 +195,8 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
             timeWas = meetAt
             meetAt = kit(ChangeSamples.slots[1])
         case "H": suggestions = [moved(ChangeSamples.expiredTime)]
+        // The request D's line reports, sent from the sheet: it is open on the server as well.
+        case "198D": suggestions = [moved(ChangeSamples.mineTime)]
         default: break
         }
     }
@@ -309,6 +357,30 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         return true
     }
 
+    func partnerCancels() async -> Bool {
+        if over { return false }
+        ended = EndedOutcome(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: false,
+                             reason: .cancelled)
+        endSeen = false
+        return true
+    }
+
+    func partnerEnds(reason: EndReason) async -> Bool {
+        if over { return false }
+        let now = tick()
+        // The server has her check in first for the two problem reasons, so her arrival card stands behind it.
+        if reason != .met { partnerArrivedAt = partnerArrivedAt ?? now }
+        let outcome: OutcomeReason
+        switch reason {
+        case .met: outcome = .met
+        case .partnerNoShow: outcome = .partnerNoShow
+        case .uncomfortable: outcome = .uncomfortable
+        }
+        ended = EndedOutcome(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: false, reason: outcome)
+        endSeen = false
+        return true
+    }
+
     func markArrivalSeen(dateId: String) async { partnerArrivalSeen = true }
 
     func partnerChecksIn() async -> Bool {
@@ -392,6 +464,10 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         await pause(latencyMs)
         let now = tick()
         if over { return .refused(code: "date_not_active") }
+        if failEnd {
+            failEnd = false
+            return .failed(.network)
+        }
         if reason == .partnerNoShow, now < meetAt { return .refused(code: "before_meet") }
         if reason != .met, !committed { return .refused(code: "not_checked_in") }
         switch reason {
@@ -410,6 +486,10 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         await pause(latencyMs)
         _ = tick()
         if over { return .refused(code: "date_not_active") }
+        if failCancel {
+            failCancel = false
+            return .failed(.network)
+        }
         if committed { return .refused(code: "checked_in") }
         return .cancelled(finish(.cancelled))
     }
