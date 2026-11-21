@@ -26,4 +26,4 @@ fun launchTarget(date: Outcome<DateRead>, checkInActive: Boolean?): FlowScreen =
 fun Outcome<DateRead>.activeDate(): ActiveDate? = ((this as? Outcome.Ok)?.value as? DateRead.Active)?.date
 
 /** The ended-in-chat outcome this read found and the viewer has not seen, or null. */
-fun Outcome<DateRead>.endedOutcome(): EndedInChat? = ((this as? Outcome.Ok)?.value as? DateRead.Ended)?.outcome
+fun Outcome<DateRead>.endedOutcome(): EndedOutcome? = ((this as? Outcome.Ok)?.value as? DateRead.Ended)?.outcome

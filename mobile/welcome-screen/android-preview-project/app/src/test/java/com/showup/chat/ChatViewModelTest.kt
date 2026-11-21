@@ -16,7 +16,7 @@ import com.showup.date.ActiveDate
 import com.showup.date.DateMatch
 import com.showup.date.DatePlace
 import com.showup.date.DateRead
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import com.showup.date.FakeDateStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
@@ -402,11 +402,11 @@ class ChatViewModelTest {
         val vm = opened()
         vm.pick(ChatReason.RunningLate, ChipSurface.Dock)
         store.sendFails = CallFailure.Server
-        dates.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        dates.read = Outcome.Ok(DateRead.Ended(EndedOutcome("d1", "Leonie", endedByYou = false)))
         vm.send()
         runCurrent()
         assertTrue(vm.ui.value.messages.none { it.failed })
-        assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), vm.ui.value.outcome)
+        assertEquals(EndedOutcome("d1", "Leonie", endedByYou = false), vm.ui.value.outcome)
         stop(vm)
     }
 
@@ -486,7 +486,7 @@ class ChatViewModelTest {
     @Test
     fun `End date ends it - the sheet opens with cant_make_it_from, and the ender gets their outcome`() = chatTest {
         store.thread = Outcome.Ok(listOf(mine("m1", ChatReason.CantMakeIt)))
-        store.end = EndResult.Ended(EndedInChat("d1", "Leonie", endedByYou = true))
+        store.end = EndResult.Ended(EndedOutcome("d1", "Leonie", endedByYou = true))
         val vm = opened()
         vm.openEndSheet()
         assertTrue(vm.ui.value.endSheet)
@@ -499,7 +499,7 @@ class ChatViewModelTest {
         vm.openEndSheet()
         vm.endDate()
         runCurrent()
-        assertEquals(EndedInChat("d1", "Leonie", endedByYou = true), vm.ui.value.outcome)
+        assertEquals(EndedOutcome("d1", "Leonie", endedByYou = true), vm.ui.value.outcome)
         assertFalse(vm.ui.value.endSheet)
         stop(vm)
     }
@@ -520,9 +520,9 @@ class ChatViewModelTest {
         val vm = opened()
         vm.pick(ChatReason.OnMyWay, ChipSurface.Dock)
         vm.openEndSheet()
-        dates.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        dates.read = Outcome.Ok(DateRead.Ended(EndedOutcome("d1", "Leonie", endedByYou = false)))
         advanceTimeBy(5_001)
-        assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), vm.ui.value.outcome)
+        assertEquals(EndedOutcome("d1", "Leonie", endedByYou = false), vm.ui.value.outcome)
         assertFalse(vm.ui.value.endSheet)
         assertEquals("", vm.ui.value.draft)
         assertNull(vm.ui.value.selected)
@@ -537,10 +537,10 @@ class ChatViewModelTest {
         store.end = EndResult.AlreadyEnded
         val vm = opened()
         vm.openEndSheet()
-        dates.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        dates.read = Outcome.Ok(DateRead.Ended(EndedOutcome("d1", "Leonie", endedByYou = false)))
         vm.endDate()
         runCurrent()
-        assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), vm.ui.value.outcome)
+        assertEquals(EndedOutcome("d1", "Leonie", endedByYou = false), vm.ui.value.outcome)
         assertFalse(vm.ui.value.endSheet)
         stop(vm)
     }
@@ -548,7 +548,7 @@ class ChatViewModelTest {
     @Test
     fun `Keep the date and the scrim do nothing while the end is on its way`() = chatTest {
         store.thread = Outcome.Ok(listOf(theirs("t1", ChatReason.CantMakeIt)))
-        store.end = EndResult.Ended(EndedInChat("d1", "Leonie", endedByYou = true))
+        store.end = EndResult.Ended(EndedOutcome("d1", "Leonie", endedByYou = true))
         val gate = CompletableDeferred<Unit>()
         store.endGate = gate
         val vm = opened()
@@ -560,7 +560,7 @@ class ChatViewModelTest {
         assertTrue("the sheet stays while the end is on its way", vm.ui.value.endSheet)
         gate.complete(Unit)
         runCurrent()
-        assertEquals(EndedInChat("d1", "Leonie", endedByYou = true), vm.ui.value.outcome)
+        assertEquals(EndedOutcome("d1", "Leonie", endedByYou = true), vm.ui.value.outcome)
         stop(vm)
     }
 
@@ -676,7 +676,7 @@ class FakeChatStore : ChatStore {
     /** While set, a send waits on it: the message is on its way. */
     var sendGate: CompletableDeferred<Unit>? = null
     val clientIds = mutableListOf<String>()
-    var end: EndResult = EndResult.Ended(EndedInChat("d1", "Leonie", endedByYou = true))
+    var end: EndResult = EndResult.Ended(EndedOutcome("d1", "Leonie", endedByYou = true))
     val calls = mutableListOf<String>()
     val sent = mutableListOf<Pair<ChatReason?, String>>()
     private var next = 0

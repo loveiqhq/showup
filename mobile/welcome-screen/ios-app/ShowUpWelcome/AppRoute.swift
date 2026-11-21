@@ -38,7 +38,7 @@ enum AppRoute: Hashable, Sendable {
     case chat(ChatEntry)
     /// G or H (SHOWUP-194), after a date ended in the chat: the outcome rides in the route, with the
     /// match's photo for the avatar.
-    case dateEnded(EndedInChat, photoURL: URL?)
+    case dateEnded(EndedOutcome, photoURL: URL?)
     /// The time or place picker (SHOWUP-196, Date 05 A, B, K, M, N), pushed over whatever opened it: the Date
     /// screen's locked card, or the chat. `kind` and the §42 `entry` ride in the route; back is Cancel.
     case changePicker(kind: ChangeKind, entry: ChangeEntry)

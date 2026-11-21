@@ -92,10 +92,10 @@ enum ChatSamples {
     }()
 
     /// G: you ended it.
-    static let g = EndedInChat(dateId: date.id, name: date.match.name, endedByYou: true)
+    static let g = EndedOutcome(dateId: date.id, name: date.match.name, endedByYou: true)
 
     /// H: the match ended it.
-    static let h = EndedInChat(dateId: date.id, name: date.match.name, endedByYou: false)
+    static let h = EndedOutcome(dateId: date.id, name: date.match.name, endedByYou: false)
 
     /// What the developer menu's "Leonie can't make it" sends, with the cancel chip.
     static let matchCantMakeIt = "So sorry, something came up at work and I can't make it today. Could we do Saturday instead?"

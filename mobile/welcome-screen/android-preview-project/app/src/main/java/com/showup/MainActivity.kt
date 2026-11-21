@@ -86,7 +86,7 @@ import com.showup.dev.DevDateAction
 import com.showup.date.DateCopy
 import com.showup.date.DateProfileViewModel
 import com.showup.date.DateRepository
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import com.showup.chat.ApiChatStore
 import com.showup.chat.ChatEntry
 import com.showup.chat.ChatHostEvents
@@ -1349,7 +1349,7 @@ class MainActivity : ComponentActivity() {
             }
 
             /** G or H over whatever is up, with only the flow under it: back from it never reopens the chat. */
-            fun showOutcome(outcome: EndedInChat, from: ProfileScreen) {
+            fun showOutcome(outcome: EndedOutcome, from: ProfileScreen) {
                 outcomeFrom = from
                 navController.navigate(outcomeRoute(outcome, dateState.date?.match?.photoUrl)) {
                     popUpTo(AppRoute.Flow) { inclusive = false }
@@ -2987,7 +2987,7 @@ class MainActivity : ComponentActivity() {
                 // The date is over: back leaves for Search, as the CTA does -- there is no date to return to.
                 BackHandler { findNextDate() }
                 DateEndedScreen(
-                    outcome = EndedInChat(route.dateId, route.name, route.endedByYou),
+                    outcome = EndedOutcome(route.dateId, route.name, route.endedByYou),
                     photoUrl = route.photoUrl,
                     onFindNext = { findNextDate() },
                 )

@@ -1209,7 +1209,7 @@ private struct TutorialFlow: View {
     }
 
     /// G or H over whatever is up: back from it never reopens the chat.
-    private func showOutcome(_ outcome: EndedInChat, from: ProfileScreen) {
+    private func showOutcome(_ outcome: EndedOutcome, from: ProfileScreen) {
         outcomeFrom = from
         chatPath = [outcomeRoute(outcome, photoURL: dateModel.state.date?.match.photoUrl)]
     }
@@ -1406,7 +1406,7 @@ private struct TutorialFlow: View {
     }
 
     /// G or H. Seen once it has shown: a crash before this frame shows it again next launch.
-    private func dateEndedView(_ outcome: EndedInChat, photoURL: URL?) -> some View {
+    private func dateEndedView(_ outcome: EndedOutcome, photoURL: URL?) -> some View {
         DateEndedScreen(outcome: outcome, photoURL: photoURL, onFindNext: { findNextDate() })
             .toolbar(.hidden, for: .navigationBar)
             .navigationBarBackButtonHidden(true)

@@ -43,7 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import com.showup.date.IconTile
 import com.showup.date.MatchPhoto
 import com.showup.designsystem.BorderSoft
@@ -78,7 +78,7 @@ private val RowText = TextStyle(fontFamily = Manrope, fontSize = 13.sp, lineHeig
  * The flexible space, then `Find your next date` with `search` 18 / 2.4. It scrolls only when it must.
  */
 @Composable
-fun DateEndedScreen(outcome: EndedInChat, photoUrl: String?, onFindNext: () -> Unit) {
+fun DateEndedScreen(outcome: EndedOutcome, photoUrl: String?, onFindNext: () -> Unit) {
     val g = outcome.endedByYou
     val name = outcome.name
     Box(Modifier.fillMaxSize().background(Cream)) {

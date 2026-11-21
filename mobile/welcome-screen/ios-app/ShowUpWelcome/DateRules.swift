@@ -151,7 +151,7 @@ func activeDate(_ read: Result<DateRead, CallFailure>) -> ActiveDate? {
 }
 
 /// The ended-in-chat outcome this read found and the viewer has not seen, or nil.
-func endedOutcome(_ read: Result<DateRead, CallFailure>) -> EndedInChat? {
+func endedOutcome(_ read: Result<DateRead, CallFailure>) -> EndedOutcome? {
     if case .success(.ended(let outcome)) = read { return outcome }
     return nil
 }

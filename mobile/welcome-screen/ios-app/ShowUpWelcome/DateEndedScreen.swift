@@ -13,7 +13,7 @@ import SwiftUI
 /// soft border, radius 14, pad 13, the shield tile 34 / 11 in green, the line 13 / 1.42. The flexible space,
 /// then `Find your next date` with `search` 18 / 2.4. It scrolls only when it must.
 struct DateEndedScreen: View {
-    let outcome: EndedInChat
+    let outcome: EndedOutcome
     var photoURL: URL?
     var onFindNext: () -> Void = {}
 

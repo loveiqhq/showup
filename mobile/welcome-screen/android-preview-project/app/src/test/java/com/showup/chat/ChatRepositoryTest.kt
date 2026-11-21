@@ -11,7 +11,7 @@ import com.showup.api.CallFailure
 import com.showup.api.InMemoryTokenStore
 import com.showup.api.Outcome
 import com.showup.api.ShowUpApi
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -105,8 +105,8 @@ class ChatRepositoryTest {
 
     @Test
     fun `End date reads the outcome, a 409 is AlreadyEnded and anything else a failure`() = runTest {
-        json("""{"dateId":"d1","name":"Leonie","endedByYou":true}""")
-        assertEquals(EndResult.Ended(EndedInChat("d1", "Leonie", endedByYou = true)), store.endInChat("d1"))
+        json("""{"dateId":"d1","name":"Leonie","endedByYou":true,"reason":"chat"}""")
+        assertEquals(EndResult.Ended(EndedOutcome("d1", "Leonie", endedByYou = true)), store.endInChat("d1"))
         assertEquals("/dates/d1/end-in-chat", server.takeRequest().path)
         json("""{"statusCode":409,"message":"This date has already ended"}""", 409)
         assertEquals(EndResult.AlreadyEnded, store.endInChat("d1"))

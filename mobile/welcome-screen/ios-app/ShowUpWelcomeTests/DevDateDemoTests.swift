@@ -169,5 +169,89 @@ final class DevDateDemoTests: XCTestCase {
         XCTAssertTrue(state.coordinateOpen)
         XCTAssertEqual(state.change?.allowed, false)
     }
+
+    // ── end and cancel (Date 06, 07): the server's refusals, then the outcome the next read reports ──
+
+    private func checkedIn(_ demo: DevDateDemo) async {
+        guard let fix = await demo.fix() else { return XCTFail("no fix") }
+        _ = await demo.checkIn(dateId: "x", fix: fix, entry: .dateScreen, clientId: "k1")
+        _ = await demo.commit(dateId: "x")
+    }
+
+    func testAnActiveDateReadsWithTheEndsSwitchOnAndThePenalty() async throws {
+        let date = try await read(demo("B"))
+        XCTAssertTrue(date.endsEnabled)
+        XCTAssertGreaterThan(date.cancelPenaltyPoints, 0)
+    }
+
+    func testAnEndIsRefusedBeforeTheMeetTimeAndWithoutACommittedCheckIn() async {
+        let demo = demo("B")
+        let early = await demo.end(dateId: "x", reason: .partnerNoShow, entry: .endDateBar)
+        XCTAssertEqual(early, .refused(code: "before_meet"))
+        let unchecked = await demo.end(dateId: "x", reason: .uncomfortable, entry: .report)
+        XCTAssertEqual(unchecked, .refused(code: "not_checked_in"))
+    }
+
+    func testMetNeedsNoCheckInAndTheNextReadReportsTheOutcomeUntilItIsSeen() async {
+        let demo = demo("B")
+        let result = await demo.end(dateId: "x", reason: .met, entry: .endDateBar)
+        guard case .ended(let outcome) = result else { return XCTFail("expected an end") }
+        XCTAssertEqual(outcome.reason, .met)
+        guard case .success(.ended(let read)) = await demo.active(zone: "UTC") else { return XCTFail("expected ended") }
+        XCTAssertEqual(read.reason, .met)
+        let again = await demo.end(dateId: "x", reason: .met, entry: .endDateBar)
+        XCTAssertEqual(again, .refused(code: "date_not_active"))
+        await demo.markEndSeen(dateId: "x")
+        guard case .success(.none) = await demo.active(zone: "UTC") else { return XCTFail("expected none") }
+    }
+
+    func testUncomfortableAndANoShowEndOnceCheckedInANoShowOnlyFromTheMeetTime() async {
+        let demo = demo("B")
+        _ = await demo.createTestDate(minutes: 0)
+        await checkedIn(demo)
+        let noShow = await demo.end(dateId: "x", reason: .partnerNoShow, entry: .checkinBarLink)
+        guard case .ended(let ended) = noShow else { return XCTFail("expected an end") }
+        XCTAssertEqual(ended.reason, .partnerNoShow)
+
+        let other = self.demo("B")
+        await checkedIn(other)
+        let early = await other.end(dateId: "x", reason: .partnerNoShow, entry: .checkinBarLink)
+        XCTAssertEqual(early, .refused(code: "before_meet"))
+        let uncomfortable = await other.end(dateId: "x", reason: .uncomfortable, entry: .report)
+        guard case .ended(let outcome) = uncomfortable else { return XCTFail("expected an end") }
+        XCTAssertEqual(outcome.reason, .uncomfortable)
+    }
+
+    func testStayForNowSucceedsAndLeavesTheDateActive() async throws {
+        let demo = demo("B")
+        let landed = await demo.flagDiscomfort(dateId: "x")
+        XCTAssertTrue(landed)
+        _ = try await read(demo)
+    }
+
+    func testACancelEndsTheDateAsCancelledAndIsRefusedOnceCheckedInOrOnceOver() async {
+        let demo = demo("B")
+        let result = await demo.cancel(dateId: "x")
+        guard case .cancelled(let outcome) = result else { return XCTFail("expected a cancel") }
+        XCTAssertEqual(outcome.reason, .cancelled)
+        let again = await demo.cancel(dateId: "x")
+        XCTAssertEqual(again, .refused(code: "date_not_active"))
+        guard case .success(.ended(let read)) = await demo.active(zone: "UTC") else { return XCTFail("expected ended") }
+        XCTAssertEqual(read.reason, .cancelled)
+
+        let checked = self.demo("B")
+        await checkedIn(checked)
+        let refused = await checked.cancel(dateId: "x")
+        XCTAssertEqual(refused, .refused(code: "checked_in"))
+    }
+
+    func testTheDevMenusEndTheDateMakesAnyLaterEndOrCancelDateNotActive() async {
+        let demo = demo("B")
+        _ = await demo.endTestDate()
+        let end = await demo.end(dateId: "x", reason: .met, entry: .endDateBar)
+        XCTAssertEqual(end, .refused(code: "date_not_active"))
+        let cancel = await demo.cancel(dateId: "x")
+        XCTAssertEqual(cancel, .refused(code: "date_not_active"))
+    }
 }
 #endif

@@ -36,7 +36,7 @@ final class DateRepositoryTests: XCTestCase {
     "photoUrl":"/uploads/leonie.jpg","attendedCount":4},"motivations":{"you":"long_term","them":"long_term"},\
     "sharedVibes":["coffee_chat","playful"],"sharedInterests":["reading"],\
     "unread":{"count":2,"reason":"running_late","body":"Ten minutes late!","sentAt":"2026-11-03T17:10:00Z"},\
-    "checkedIn":false,"arrival":{"checkedInAt":"2026-11-03T17:50:00Z"},"chatTutorialSeen":true},"ended":null}
+    "checkedIn":false,"arrival":{"checkedInAt":"2026-11-03T17:50:00Z"},"chatTutorialSeen":true,"endsEnabled":false,"cancelPenaltyPoints":10},"ended":null}
     """
 
     func testADateMapsFieldForField() async {
@@ -87,14 +87,14 @@ final class DateRepositoryTests: XCTestCase {
     }
 
     func testADateEndedInTheChatAndNotYetSeenIsEndedWithTheOtherPersonsFirstName() async {
-        let body = #"{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false}}"#
+        let body = #"{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"reason":"chat"}}"#
         let read = await repo(status: 200, body: body).active(zone: "Europe/Berlin")
         guard case .success(.ended(let outcome)) = read else { return XCTFail("expected an ended outcome, got \(read)") }
-        XCTAssertEqual(outcome, EndedInChat(dateId: "d9", name: "Leonie", endedByYou: false))
+        XCTAssertEqual(outcome, EndedOutcome(dateId: "d9", name: "Leonie", endedByYou: false))
     }
 
     func testAnEndedOutcomeBringsTheMatchsPhotoAsALoadableURLForHAtTheNextLaunch() async {
-        let body = #"{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"photoUrl":"/uploads/p9.jpg"}}"#
+        let body = #"{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"reason":"chat","photoUrl":"/uploads/p9.jpg"}}"#
         guard case .success(.ended(let outcome)) = await repo(status: 200, body: body).active(zone: "Europe/Berlin") else {
             return XCTFail("expected an ended outcome")
         }
