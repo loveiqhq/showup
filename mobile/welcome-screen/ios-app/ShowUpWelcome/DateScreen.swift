@@ -123,6 +123,8 @@ struct DateScreen: View {
     var zone: TimeZone = .current
     var onOpenChat: () -> Void = {}
     var onReport: () -> Void = {}
+    /// The Report card shows only while the end routes are on (Date 06, R1: hidden until real).
+    var showReport = true
     var onDirections: () -> Void = {}
     var onShare: () -> Void = {}
     var onCalendar: () -> Void = {}
@@ -235,7 +237,7 @@ struct DateScreen: View {
             if hoist { coordinate(date, state) }
             TimePlaceCard(date: date, zone: zone, copied: ui.copied, onCopy: onCopy, now: ui.now).fitAnchor("date:time-card")
             if !hoist { coordinate(date, state) }
-            ReportRow(onReport: onReport).fitAnchor("date:report")
+            if showReport { ReportRow(onReport: onReport).fitAnchor("date:report") }
             IntentCard(date: date).fitAnchor("date:intent")
             QuickActions(hasPlace: date.place != nil, onDirections: onDirections, onShare: onShare, onCalendar: onCalendar)
                 .fitAnchor("date:actions")

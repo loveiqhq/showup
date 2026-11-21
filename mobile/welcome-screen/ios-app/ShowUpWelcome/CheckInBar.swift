@@ -14,17 +14,14 @@
 import SwiftUI
 import UIKit
 
-/// R15: the `End date` link is built and switched off. It opens Date 06's wrap-up sheet, which does not exist yet;
-/// the host passes `onEnd` only when this is on and that sheet ships.
-let endDateLinkShown = false
-
 /// `0 -6px 24px rgba(29,17,41,.22)`, cast up.
 private let barLift = [ShadowLayer(color: Color.liqFg.opacity(0.22), y: -6, blur: 24)]
 
 /// Padding 16 16 10, column gap 6. The row is centred, gap 14: the pin tile 46 (radius 14, white 12%, `map-pin` 22 /
 /// 2.2), the text (Lora 700 18 / 1.15 over Manrope 12.5 / 1.4, 3 below, pretty) and `Check-in` (h 46, pad 0 20, pill,
 /// sunset, Manrope 800 15, nowrap, `--liq-shadow-cta`). Under it the `End date` link when `onEnd` is given: centred,
-/// pad 8 12, Manrope 600 13 `#E8DCF5`, answering at 44.
+/// pad 8 12, Manrope 600 13 `#E8DCF5`, answering at 44. The host gives `onEnd` only while the server's `endsEnabled`
+/// is on (Date 06, R1): there is no switch constant here.
 struct CheckInBar: View {
     let name: String
     let onCheckIn: () -> Void
