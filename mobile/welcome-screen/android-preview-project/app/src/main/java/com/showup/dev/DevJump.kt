@@ -1,5 +1,6 @@
 package com.showup.dev
 
+import com.showup.change.ChangeSamples
 import com.showup.profile.LocationArrival
 import com.showup.welcome.FlowScreen
 
@@ -319,3 +320,11 @@ sealed interface DevDateAction {
 
 /** The gallery activity, named by string: it exists in debug builds only, so main code cannot import it. */
 const val DEV_GALLERY_ACTIVITY = "com.showup.dev.CheckInGalleryActivity"
+
+/**
+ * The frame letter a States row opens LIVE, or null for a picture. Date 05's frames are a flow -- pick, suggest,
+ * agree, check in -- and a still picture of one reads as a broken app, so they open on the in-memory date server
+ * ([DevDateDemo]) with every tap working. The other tickets' frames stay pictures in the gallery.
+ */
+fun devLiveFrame(state: DevState): String? =
+    state.id.takeIf { it.startsWith("196") }?.removePrefix("196")?.takeIf { it in ChangeSamples.LETTERS }

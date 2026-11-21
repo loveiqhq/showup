@@ -185,8 +185,10 @@ enum ChangeSamples {
         ChatScreen(ui: ui, zone: zone)
     }
 
+    /// The Date screen with Date 03's Check-in bar in its footer, as every Date-screen frame of the sheet draws it.
     private static func dateScreen(_ ui: DateUi) -> some View {
-        DateScreen(ui: ui, zone: zone)
+        DateScreen(ui: ui, zone: zone,
+                   checkInBar: { AnyView(CheckInBar(name: DateSamples.date.match.name, onCheckIn: {})) })
     }
 
     /// The ticket's frame letters, in order.
