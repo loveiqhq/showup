@@ -19,6 +19,7 @@ One Search tab, two surfaces chosen by plan, plus one Likes tab.
 | 01 | Freemium profile + Like | Freemium | One profile at a time: `Like` · `Not now` · `Not interested`. The next profile slides in after each |
 | 02 | Premium grid | Premium | A two-column grid. A card tap opens the 01 profile; every action there returns to the grid with the card marked |
 | 03 | Likes tab — likes received | Premium (Freemium → upsell) | The people who already liked them. `Confirm date` opens the profile; the confirm is made there |
+| 04 | Location gate | Everyone | Shown instead of Search when location is unavailable; one button turns it on. Also raised by `Confirm date` from Likes |
 
 Entry: a committed Check-In (Check-In 06) unlocks Search. Exit: a won confirm hands over to 07a.
 
@@ -31,6 +32,7 @@ Each story is one screen with all its states, a spec sheet and a reference file.
 | 01 | Freemium profile + Like | 6 — A at rest · B Be sure · C optional message · D minimum content · E full scroll · F actions coach (every visit until Don't show again) | ticketed — not built |
 | 02 | Premium grid | 7 — A at rest · B marked · C card or heart → profile · D Like on the profile → Be sure · E liked-you → Confirm date · F refused → closed in place · G liked-you declined → Undo | ticketed — not built |
 | 03 | Likes tab — likes received | 7 — A list · B Confirm date → profile · C Be sure · D Undo toast · E refused → Too late · F Out of time · G empty | ticketed — not built |
+| 04 | Location gate | 4 — A never granted · B off for Show Up · C off on the phone · D from Likes, Confirm date | ticketed — not built |
 
 **Not ticketed yet, inside this epic:** the server queue (composition and order) · the no-results screen (`search-empty`, *widen filters* in one tap). **Outside it, own stories:** the likes upsell · the `Like received` push · the Show-up confirmation mechanic (Arrive → QR scan).
 
@@ -51,6 +53,7 @@ A second copy of any of these is a bug.
 - **`LikesUndoToast` + `LIKES_UNDO_MS` (6000)** — built by 02, reused by 03
 - **The Likes tab** — a prop on the one shared `TabBar`. Built by 03; every screen with a TabBar passes it
 - **`likesOrder` · `likesOpenCount`** — built by 03; the badge and the chip read the same count
+- **The location gate** — Profile 12's `ScreenProfileLocation` with `context="app"` (04). Profile 12 is built; extended, never forked
 - **Consumed, not built here:** `CHECKIN_MOTIVATIONS` (Check-In 03), `CHECKIN_VIBE_LABEL` (Check-In 04), `LIFESTYLE_GROUPS` (Profile 21), the Filters screen (Check-In 05), `PremiumTag`
 
 **Server, built once:** the search profile payload (01, reused per grid card and likes card) · the like endpoint with **withdrawal of the user's other open likes on a match** (01) · the pass endpoint (01) · **serialised confirms, first to arrive wins** (02) · overlap expiry → `no_overlap` (03) · the open-likes badge count (03) · `plan_tier` on the session (02).
@@ -88,7 +91,7 @@ A second copy of any of these is a bug.
 
 ## Tracking
 
-Family **I — Search & Liking** in `design_handoff_showup/tracking/events.json`, plus `screen_viewed` (family A). Registry **1.4.29** / taxonomy **1.4.20**. Screens §11: `search_profile` (01), `search_grid` (02), `likes_received` (03). Value sets: §33 like-abandon `stage` · §34 `search_pass_type` · §35 `like_surface` · §36 `like_close_reason` · §37 `nav_tab`.
+Family **I — Search & Liking** in `design_handoff_showup/tracking/events.json`, plus `screen_viewed` (family A). Registry **1.4.29** / taxonomy **1.4.20** (Search 01's filter tracking: taxonomy **1.4.24**, 27 Oct 2026). Screens §11: `search_profile` (01), `search_grid` (02), `likes_received` (03). Value sets: §33 like-abandon `stage` · §34 `search_pass_type` · §35 `like_surface` · §36 `like_close_reason` · §37 `nav_tab`.
 
 - `like_sent` · `match_created` · `like_withdrawn` — server; `like_withdrawn` carries `reason` (§36), one per closed like
 - `pass_sent` — every `Not now` / `Not interested`, with `surface`; a decline from the Likes tab is `pass_sent` · `not_interested`, sent when the Undo window ends. **There is no separate decline event**
@@ -128,7 +131,8 @@ The likes upsell and buying Premium. The `Like received` push. The Show-up confi
 
 - **Check-In expiry while browsing.** The 48-hour window ends with the user on a profile or the grid: what do they see, and what happens to their open likes?
 - **The queue ticket** (composition and order) is not written. 01 reads from its endpoint.
-- **The no-results screen** (`search-empty`) has no ticket. It is drawn in the kit.
+- **The no-results screen** (`search-empty`) has no ticket. It is drawn in the kit. Until it ships, Search 01 uses its copy with `Widen my search` opening Filters (27 Oct 2026).
+- **Post-date rating** (kit `ScreenRating`) is the source of charms and has no ticket. Charms stay hidden until it ships (27 Oct 2026).
 - **`Show-up Rate` in Be sure row 5** — keep the term over a count, or reword once the confirmation mechanic is designed? (Search 01)
 - **The percentage `ShowUpPill`** is still used by the date screens and Instant. Each moves to `ShowUpCount` in its own story.
 - ~~**Lockout during an active date**~~ — settled 20 Oct 2026: 07a blocks Search and Instant in the nav bar.

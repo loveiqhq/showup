@@ -8,7 +8,7 @@ import com.showup.AppRoute
 import com.showup.analytics.RecordingAnalytics
 import com.showup.date.DateArrival
 import com.showup.date.DateUnread
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import com.showup.profile.ProfileScreen
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -62,15 +62,15 @@ class ChatRoutingTest {
     fun `an outcome routes to the outcome screen with everything it draws`() {
         assertEquals(
             AppRoute.DateEnded("d1", "Leonie", endedByYou = false, photoUrl = "https://x/p.jpg"),
-            outcomeRoute(EndedInChat("d1", "Leonie", endedByYou = false), "https://x/p.jpg"),
+            outcomeRoute(EndedOutcome("d1", "Leonie", endedByYou = false), "https://x/p.jpg"),
         )
     }
 
     @Test
     fun `the outcome's own photo wins, and the held date's stands in when it has none`() {
         val held = "https://x/held.jpg"
-        assertEquals("https://x/own.jpg", outcomeRoute(EndedInChat("d1", "Leonie", false, photoUrl = "https://x/own.jpg"), held).photoUrl)
-        assertEquals(held, outcomeRoute(EndedInChat("d1", "Leonie", false), held).photoUrl)
+        assertEquals("https://x/own.jpg", outcomeRoute(EndedOutcome("d1", "Leonie", false, photoUrl = "https://x/own.jpg"), held).photoUrl)
+        assertEquals(held, outcomeRoute(EndedOutcome("d1", "Leonie", false), held).photoUrl)
     }
 
     @Test

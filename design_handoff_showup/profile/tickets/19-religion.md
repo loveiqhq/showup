@@ -189,8 +189,8 @@ Politics and the later steps. Also: denominations or sub-groups (e.g. within Chr
 
 - **GDPR Art. 9 explicit consent for religion data — owned by legal.** Religion is special-category data. Whether the sign-up terms cover processing it, or the screen needs its own consent line, is not decided here. If a consent line is needed, it is a kit change first, then a re-exported sheet, then an update to this ticket — and it would push the list further below the fold.
 - **At 375 × 667 only 3 of 9 rows are fully visible.** Accepted by decision (rows are never shortened). The scroll-indicator flash is the only hint. If the evidence screenshots show users would not find the rest, the fallback is a group-level decision, not a per-screen compact row.
-- **Politics still uses `OptionRowCompact` in the kit.** It should follow this decision when it is ticketed, so the two 8+-option screens match. Once it does, `OptionRowCompact` can be deleted.
+- ~~**Politics still uses `OptionRowCompact` in the kit.**~~ ⚠ **Resolved 5 Oct 2026 by Profile 20:** politics now uses the standard `OptionRow`, and `OptionRowCompact` is deleted from the kit.
 - **A saved answer cannot be removed in onboarding.** Clearing on a resume and pressing Continue is a Skip, and rule 0 keeps the earlier value. Default: keep it for the MVP; removing belongs to profile editing. Same open point as Profiles 17 and 18.
 - **The option set is fixed and Western-weighted** (three Christian denominations listed separately). Kept as decided for the MVP; a market-specific set is a later decision.
 - **The deficits are measured from the kit**, not a device. The scroll handles any value; the evidence screenshots show the real ones.
-- **The progress-bar count** (10 segments against 9 §2 indices) is still open from Profile 14. It belongs to the group shell; this screen is `current={6}` either way.
+- **The progress-bar count** is resolved: **10 segments** — the habits screen was cut and Life and Future each got their own segment (Interests 8 · Life 9 · Future 10, decided 8 Oct 2026 with Profile 21). It belongs to the group shell; this screen is `current={6}` either way.

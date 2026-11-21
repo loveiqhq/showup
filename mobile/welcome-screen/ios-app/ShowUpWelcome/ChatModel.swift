@@ -50,7 +50,7 @@ struct ChatUi: Equatable, Sendable {
     /// Why the last End date did not land; the sheet stays open.
     var endFailed: CallFailure?
     /// The date ended in the chat: G when `endedByYou`, H otherwise. The host shows it.
-    var outcome: EndedInChat?
+    var outcome: EndedOutcome?
     /// The date is gone some other way: the host goes back to the Date screen.
     var left = false
     /// Date 05: every suggestion of the date, oldest first, from the last read of GET suggestions. Never messages:
@@ -446,7 +446,7 @@ final class ChatModel {
         return ui.outcome == nil && !ui.left
     }
 
-    private func ended(_ outcome: EndedInChat) {
+    private func ended(_ outcome: EndedOutcome) {
         poll?.cancel()
         poll = nil
         ui.outcome = outcome

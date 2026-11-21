@@ -14,6 +14,7 @@ export type NotificationType =
   | 'date_change_suggested'
   | 'date_change_agreed'
   | 'date_change_expired'
+  | 'date_cancelled'
   | 'check_in_expiry'
   | 'new_match'
   | 'email_verification'
@@ -43,6 +44,7 @@ const CATEGORY_BY_TYPE: Record<NotificationType, NotificationCategory> = {
   date_change_suggested: 'engagement',
   date_change_agreed: 'engagement',
   date_change_expired: 'engagement',
+  date_cancelled: 'engagement',
   check_in_expiry: 'engagement',
   new_match: 'engagement',
   email_verification: 'essential',

@@ -12,7 +12,7 @@ package com.showup.chat
 import com.showup.AppRoute
 import com.showup.analytics.AnalyticsTracker
 import com.showup.date.ActiveDate
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import com.showup.profile.ProfileAnalytics
 import com.showup.profile.ProfileScreen
 import com.showup.profile.report
@@ -44,7 +44,7 @@ fun openChatFromArrivalCard(date: ActiveDate, arrivalSeen: () -> Unit, open: (Ap
 }
 
 /** G or H, with everything they draw. */
-fun outcomeRoute(outcome: EndedInChat, photoUrl: String?): AppRoute.DateEnded =
+fun outcomeRoute(outcome: EndedOutcome, photoUrl: String?): AppRoute.DateEnded =
     // The outcome's own photo first: at the next launch no date is held, and [photoUrl] -- the held
     // date's -- is null, so H drew an initial (the SHOWUP-194 review).
     AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, outcome.photoUrl ?: photoUrl)

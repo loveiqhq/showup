@@ -19,6 +19,11 @@ import com.showup.change.SuggestRequest
 import com.showup.change.SuggestResult
 import com.showup.chat.ChatReason
 import com.showup.date.ActiveDate
+import com.showup.date.CancelResult
+import com.showup.date.EndDateResult
+import com.showup.date.EndEntry
+import com.showup.date.EndReason
+import com.showup.date.OutcomeReason
 import com.showup.date.DateRead
 import com.showup.date.DateSamples
 import kotlinx.coroutines.test.runTest
@@ -304,5 +309,84 @@ class DevDateDemoTest {
         val request = demo.read().changeRequest!!
         assertEquals(ChangeKind.Place, request.kind)
         assertEquals("Bar Lenz", request.place!!.name)
+    }
+
+    // -- end and cancel (Date 06, 07): the server's refusals, then the outcome the next read reports --
+
+    private suspend fun DevDateDemo.commitCheckIn() {
+        checkIn("x", fix(), ArrivalEntry.DateScreen, "k1")
+        commit("x")
+    }
+
+    @Test
+    fun `an active date reads with the ends switch on and the stand-in servers penalty`() = runTest {
+        val date = demo("B").read()
+        assertTrue(date.endsEnabled)
+        assertTrue(date.cancelPenaltyPoints > 0)
+    }
+
+    @Test
+    fun `an end is refused before the meet time and without a committed check-in`() = runTest {
+        val demo = demo("B")
+        assertEquals(EndDateResult.Refused("before_meet"), demo.end("x", EndReason.PartnerNoShow, EndEntry.EndDateBar))
+        assertEquals(EndDateResult.Refused("not_checked_in"), demo.end("x", EndReason.Uncomfortable, EndEntry.Report))
+        assertTrue(demo.read().endsEnabled)
+    }
+
+    @Test
+    fun `met needs no check-in, and the next read reports the outcome until it is seen`() = runTest {
+        val demo = demo("B")
+        val result = demo.end("x", EndReason.Met, EndEntry.EndDateBar) as EndDateResult.Ended
+        assertEquals(OutcomeReason.Met, result.outcome.reason)
+        val read = (demo.active("UTC") as Outcome.Ok).value as DateRead.Ended
+        assertEquals(OutcomeReason.Met, read.outcome.reason)
+        assertEquals(EndDateResult.Refused("date_not_active"), demo.end("x", EndReason.Met, EndEntry.EndDateBar))
+        demo.markEndSeen("x")
+        assertEquals(DateRead.None, (demo.active("UTC") as Outcome.Ok).value)
+    }
+
+    @Test
+    fun `uncomfortable and a no-show end once checked in, a no-show only from the meet time`() = runTest {
+        val demo = demo("B")
+        demo.commitCheckIn()
+        val meetAt = demo.read().meetAt
+        assertEquals(EndDateResult.Refused("before_meet"), demo.end("x", EndReason.PartnerNoShow, EndEntry.CheckinBarLink))
+        now = meetAt
+        val ended = demo.end("x", EndReason.PartnerNoShow, EndEntry.CheckinBarLink) as EndDateResult.Ended
+        assertEquals(OutcomeReason.PartnerNoShow, ended.outcome.reason)
+
+        val other = demo("B")
+        other.commitCheckIn()
+        val uncomfortable = other.end("x", EndReason.Uncomfortable, EndEntry.Report) as EndDateResult.Ended
+        assertEquals(OutcomeReason.Uncomfortable, uncomfortable.outcome.reason)
+    }
+
+    @Test
+    fun `Stay for now succeeds and leaves the date active`() = runTest {
+        val demo = demo("B")
+        assertTrue(demo.flagDiscomfort("x").getOrThrow())
+        assertNotNull(demo.read())
+    }
+
+    @Test
+    fun `a cancel ends the date as cancelled, and is refused once checked in or once over`() = runTest {
+        val demo = demo("B")
+        val cancelled = demo.cancel("x") as CancelResult.Cancelled
+        assertEquals(OutcomeReason.Cancelled, cancelled.outcome.reason)
+        assertEquals(CancelResult.Refused("date_not_active"), demo.cancel("x"))
+        val read = (demo.active("UTC") as Outcome.Ok).value as DateRead.Ended
+        assertEquals(OutcomeReason.Cancelled, read.outcome.reason)
+
+        val checked = demo("B")
+        checked.commitCheckIn()
+        assertEquals(CancelResult.Refused("checked_in"), checked.cancel("x"))
+    }
+
+    @Test
+    fun `the dev menus End the date makes any later end or cancel date_not_active`() = runTest {
+        val demo = demo("B")
+        demo.endTestDate()
+        assertEquals(EndDateResult.Refused("date_not_active"), demo.end("x", EndReason.Met, EndEntry.EndDateBar))
+        assertEquals(CancelResult.Refused("date_not_active"), demo.cancel("x"))
     }
 }

@@ -45,9 +45,7 @@ struct DateRepository: DateStoring {
                 let dto = try ok.body.json
                 if let date = dto.date?.value1 { return .success(.active(ActiveDate(date, api: api))) }
                 if let ended = dto.ended?.value1 {
-                    return .success(.ended(EndedInChat(dateId: ended.dateId, name: ended.name,
-                                                       endedByYou: ended.endedByYou,
-                                                       photoUrl: ended.photoUrl.flatMap { api.absoluteURL($0) })))
+                    return .success(.ended(EndedOutcome(ended, api: api)))
                 }
                 return .success(.none)
             }
@@ -162,6 +160,8 @@ extension ActiveDate {
             chatTutorialSeen: dto.chatTutorialSeen,
             arrival: dto.arrival.map { DateArrival(checkedInAt: $0.value1.checkedInAt) },
             change: dto.change.map { DateChange($0.value1) },
-            changeRequest: dto.changeRequest.flatMap { ChangeSuggestion($0.value1) })
+            changeRequest: dto.changeRequest.flatMap { ChangeSuggestion($0.value1) },
+            endsEnabled: dto.endsEnabled,
+            cancelPenaltyPoints: dto.cancelPenaltyPoints)
     }
 }

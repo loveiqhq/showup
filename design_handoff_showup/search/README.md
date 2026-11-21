@@ -37,7 +37,7 @@ Artboards: `search-v2-1up` · `search-v2-coach` (actions coach, every visit unti
 - **The gate is Profile 12's screen in a second context** (`ScreenProfileLocation context="app"`, wrapper `ScreenLocationGate`). One radar, one privacy note, one status reader. Profile 12 is built and unchanged.
 - **Three states = §26:** A never granted (`Allow location access` → OS dialog) · B off for Show Up · C off on the phone (both `Open Settings`).
 - **No platform copy on the gate**; the button routes per platform. iOS C can only open our app page — accepted.
-- **Order:** active date never reaches Search · no Check-In → Check-In 01 wins · then the gate. The 24h lockout is undecided and not in the order.
+- **Order:** active date never reaches Search · no Check-In → Check-In 01 wins · then the gate. The 24h lockout is not in MVP (decided 4 Nov 2026) — a no-show only lowers the public Show-up Rate.
 - **No filter button.** TabBar live: Likes and Settings reachable.
 - **Likes without location:** browsing works; `Confirm date` pushes the gate over the profile (D). After granting, the user taps `Confirm date` again.
 - **No Not now, no retry link** — foreground re-read lifts the gate.

@@ -22,7 +22,7 @@ func chatEntryFor(_ date: ActiveDate) -> ChatEntry {
 
 /// G or H, with everything they draw. The outcome's own photo first: at the next launch no date is held, and
 /// `photoURL` -- the held date's -- is nil, so H drew an initial (the SHOWUP-194 review).
-func outcomeRoute(_ outcome: EndedInChat, photoURL: URL?) -> AppRoute {
+func outcomeRoute(_ outcome: EndedOutcome, photoURL: URL?) -> AppRoute {
     .dateEnded(outcome, photoURL: outcome.photoUrl ?? photoURL)
 }
 

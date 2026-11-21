@@ -40,8 +40,11 @@ func devLiveFrame(_ state: DevState) -> String? {
     return ChangeSamples.letters.contains(letter) ? letter : nil
 }
 
-actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, LocationFixReading {
+actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, LocationFixReading, DateEndStoring, CancelStoring {
     static let demoDateId = "demo-date"
+
+    /// What this stand-in server says a cancel costs; the apps only ever show the number a server sends.
+    private static let demoCancelPenalty = 10
 
     let frame: String
     private let clock: @Sendable () -> Date
@@ -73,9 +76,10 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
     private var myCheckIn = MyCheckIn.none
     private var partnerArrivedAt: Date?
     private var partnerArrivalSeen = false
-    private var ended: EndedInChat?
+    private var ended: EndedOutcome?
     private var endSeen = false
     private var gone = false
+    private var discomfortFlagged = false
     private var nextId = 0
 
     // The failure frames fail once, so the retry is walked too.
@@ -211,6 +215,8 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         d.unread = theirs.last.map { DateUnread(count: theirs.count, reason: $0.reason, body: $0.body, sentAt: $0.sentAt) }
         d.checkedIn = committed
         d.chatTutorialSeen = tutorialSeen
+        d.endsEnabled = true
+        d.cancelPenaltyPoints = Self.demoCancelPenalty
         d.arrival = partnerArrivalSeen ? nil : partnerArrivedAt.map { DateArrival(checkedInAt: $0) }
         d.change = DateChange(cutoffAt: cutoff, allowed: allowed(now), slots: slots(), timeWas: timeWas,
                               placeWas: placeWas, pending: open)
@@ -283,6 +289,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         ended = nil
         endSeen = false
         gone = false
+        discomfortFlagged = false
         return true
     }
 
@@ -297,7 +304,7 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
     }
 
     func matchEndsInChat() async -> Bool {
-        ended = EndedInChat(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: false)
+        ended = EndedOutcome(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: false)
         endSeen = false
         return true
     }
@@ -360,13 +367,52 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
 
     func endInChat(dateId: String) async -> EndResult {
         await pause(latencyMs)
-        let outcome = EndedInChat(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: true)
+        let outcome = EndedOutcome(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: true)
         ended = outcome
         endSeen = false
         return .ended(outcome)
     }
 
     func markEndSeen(dateId: String) async { endSeen = true }
+
+    // ── DateEndStoring and CancelStoring: the server's refusals, then the outcome the next read reports ──
+
+    /// The date is over for both, by `reason`; the next `active` read says how, until it is seen.
+    private func finish(_ reason: OutcomeReason) -> EndedOutcome {
+        let outcome = EndedOutcome(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: true,
+                                   reason: reason)
+        ended = outcome
+        endSeen = false
+        return outcome
+    }
+
+    private var over: Bool { gone || ended != nil }
+
+    func end(dateId: String, reason: EndReason, entry: EndEntry) async -> EndDateResult {
+        await pause(latencyMs)
+        let now = tick()
+        if over { return .refused(code: "date_not_active") }
+        if reason == .partnerNoShow, now < meetAt { return .refused(code: "before_meet") }
+        if reason != .met, !committed { return .refused(code: "not_checked_in") }
+        switch reason {
+        case .met: return .ended(finish(.met))
+        case .partnerNoShow: return .ended(finish(.partnerNoShow))
+        case .uncomfortable: return .ended(finish(.uncomfortable))
+        }
+    }
+
+    func flagDiscomfort(dateId: String) async -> Bool {
+        discomfortFlagged = true
+        return true
+    }
+
+    func cancel(dateId: String) async -> CancelResult {
+        await pause(latencyMs)
+        _ = tick()
+        if over { return .refused(code: "date_not_active") }
+        if committed { return .refused(code: "checked_in") }
+        return .cancelled(finish(.cancelled))
+    }
 
     // ── ChangeStoring ───────────────────────────────────────────────────────────────────────
 

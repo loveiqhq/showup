@@ -158,4 +158,4 @@ Orientation and the later steps (beyond reusing `OptionRow`). Also: a free-text 
 
 - **A mandatory step in an optional-looking group.** Height, step 1, has `Skip for now`. Gender, step 2, is the first step in "Share some details" without one. A user who skipped height may expect to skip here. Watch the gender → orientation edge.
 - **375 × 667 should fit.** There is no keyboard, and by estimate the column needs ≈ 590 of the ≈ 647 below the SE's 20 status bar (no home indicator), so the spacer resolves to ≈ 55. The answer region must not scroll internally.
-- **The progress-bar count** (10 segments against 9 §2 indices) is still open from Profile 14. It belongs to the group shell; this screen is `current={2}` either way.
+- **The progress-bar count** is resolved: **10 segments** — the habits screen was cut and Life and Future each got their own segment (Interests 8 · Life 9 · Future 10, decided 8 Oct 2026 with Profile 21). It belongs to the group shell; this screen is `current={2}` either way.

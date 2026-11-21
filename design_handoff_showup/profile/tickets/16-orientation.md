@@ -163,4 +163,4 @@ Dating language and the later steps. Also: a free-text or extended list behind `
 
 - **Two mandatory special-category questions in a row**, in a group whose first step is skippable. Mandatory, no `Prefer not to say` and shown by default were all chosen deliberately on 5 Oct 2026. If the orientation → dating language edge drops noticeably, revisit them before redesigning anything else.
 - **The 375 × 667 deficit is an estimate** (≈ 45). The scroll handles any value, so nothing depends on it; the evidence screenshot shows the real one.
-- **The progress-bar count** (10 segments against 9 §2 indices) is still open from Profile 14. It belongs to the group shell; this screen is `current={3}` either way.
+- **The progress-bar count** is resolved: **10 segments** — the habits screen was cut and Life and Future each got their own segment (Interests 8 · Life 9 · Future 10, decided 8 Oct 2026 with Profile 21). It belongs to the group shell; this screen is `current={3}` either way.

@@ -11,7 +11,7 @@ package com.showup.chat
 
 import com.showup.api.CallFailure
 import com.showup.date.DateSamples
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import java.time.Instant
 
 object ChatSamples {
@@ -65,7 +65,7 @@ object ChatSamples {
     val K = F.copy(endFailed = CallFailure.Network)
 
     /** G: you ended it. */
-    val G = EndedInChat(DATE.id, DATE.match.name, endedByYou = true)
+    val G = EndedOutcome(DATE.id, DATE.match.name, endedByYou = true)
 
     /** H: the match ended it. */
     val H = G.copy(endedByYou = false)

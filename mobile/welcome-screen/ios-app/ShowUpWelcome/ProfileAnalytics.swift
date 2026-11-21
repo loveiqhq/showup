@@ -372,6 +372,7 @@ enum Stamp {
     /// come from is worse than an unstamped one, because it looks checked.
     ///
     /// 1.4.38 (16 November 2026): §11 `date_location_gate` (Date 03); 1.4.35–1.4.37 add Date 05 / 06 / 07 value sets.
+    /// 1.4.39 (17 November 2026): §11 `date_partner_ended_*` rows (Date 08); the registry these apps ship with Date 06 / 07.
     ///
     /// 1.4.34 (10 November 2026): §41 `arrival_entry` (Date 03).
     ///
@@ -386,7 +387,7 @@ enum Stamp {
     ///
     /// 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186). No value an event
     /// here sends moved between 1.4.25 and 1.4.29 - the stamp follows the file the code reads.
-    static let fieldRegistryVersion = "1.4.38"
+    static let fieldRegistryVersion = "1.4.39"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]

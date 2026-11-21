@@ -74,7 +74,7 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         val response = api.dates.getActiveDate(zone)
         response.body()?.takeIf { response.isSuccessful }?.let { body ->
             body.date?.let { DateRead.Active(it.toActiveDate()) }
-                ?: body.ended?.let { DateRead.Ended(EndedInChat(it.dateId, it.name, it.endedByYou, it.photoUrl?.let(api::absoluteUrl))) }
+                ?: body.ended?.let { DateRead.Ended(it.toOutcome(api)) }
                 ?: DateRead.None
         }
     }
@@ -150,5 +150,7 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         arrival = arrival?.let { DateArrival(it.checkedInAt.toInstant()) },
         change = change?.toChange(),
         changeRequest = changeRequest?.toSuggestion(),
+        endsEnabled = endsEnabled,
+        cancelPenaltyPoints = cancelPenaltyPoints,
     )
 }

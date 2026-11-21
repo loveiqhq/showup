@@ -24,7 +24,7 @@ Three groups, separated by two full-bleed interstitials that mark the transition
 
 **→ Embrace 2** — "add profile details" interstitial.
 
-**3 · "Share some details"** — 11 single-question steps: height, gender, orientation, dating language, education, religion, politics, interests, life, future, habits. Individually cheap, collectively the longest group. Each has its own `ProfileVisibility` control.
+**3 · "Share some details"** — 10 steps, one progress segment each: height, gender, orientation, dating language, education, religion, politics, interests (incl. How I live), life, future. Habits was cut 8 Oct 2026; its alcohol and smoking questions moved into interests. Individually cheap, collectively the longest group. Each has its own `ProfileVisibility` control.
 
 ## Stories
 
@@ -46,7 +46,9 @@ Each story is **one screen with all of its states**, and ships with a spec sheet
 | ~~11~~ | ~~Phone book concierge~~ | **Not in the MVP (25 Sep 2026)** — the AI call is interest-only. Backlog with the later scope |
 | 12 | Location permission | 3 — ask · system sheet · denied recovery |
 | 13 | Embrace 2 — interstitial | 1 |
-| 14–24 | "Share some details" ×11 | 2–3 each — empty · answered · (cap, where relevant) |
+| 14–20 | "Share some details" — height → politics | 2–3 each — ticketed 5 Oct 2026 |
+| 21 | Interests (incl. How I live) | 3 — empty · answered · 10 of 10 cap — ticketed 8 Oct 2026 |
+| 22–23 | Life · Future | 3 each — empty · one answered · all answered |
 
 **Story numbers after 06 shifted by one when verify profile was cut.** Prompts is **07**, media is **08**. Nothing past 06 had been ticketed, so no Jira issue changes number — but if you are holding an older copy of this epic, the media story moved.
 

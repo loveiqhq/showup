@@ -42,13 +42,20 @@ import com.showup.chat.ChatReason
 import com.showup.chat.ChatStore
 import com.showup.chat.EndResult
 import com.showup.date.ActiveDate
+import com.showup.date.CancelResult
+import com.showup.date.CancelStore
 import com.showup.date.DateArrival
+import com.showup.date.DateEndStore
 import com.showup.date.DatePlace
 import com.showup.date.DateRead
 import com.showup.date.DateSamples
 import com.showup.date.DateStore
 import com.showup.date.DateUnread
-import com.showup.date.EndedInChat
+import com.showup.date.EndDateResult
+import com.showup.date.EndEntry
+import com.showup.date.EndReason
+import com.showup.date.EndedOutcome
+import com.showup.date.OutcomeReason
 import com.showup.search.SearchProfile
 import com.showup.search.SearchSamples
 import kotlinx.coroutines.delay
@@ -86,7 +93,7 @@ class DevDateDemo(
     private val clock: () -> Instant = Instant::now,
     /** Milliseconds a write takes: long enough to see the sending state, short enough to walk. */
     private val latencyMs: Long = 600,
-) : DateStore, ChatStore, ChangeStore, ArrivalStore, LocationFixReader {
+) : DateStore, ChatStore, ChangeStore, ArrivalStore, LocationFixReader, DateEndStore, CancelStore {
 
     private val start = clock()
 
@@ -122,9 +129,10 @@ class DevDateDemo(
     private var myCheckIn = MyCheckIn.None
     private var partnerArrivedAt: Instant? = null
     private var partnerArrivalSeen = false
-    private var ended: EndedInChat? = null
+    private var ended: EndedOutcome? = null
     private var endSeen = false
     private var gone = false
+    private var discomfortFlagged = false
     private var nextId = 0
 
     // The failure frames fail once, so the retry is walked too.
@@ -208,6 +216,8 @@ class DevDateDemo(
             unread = theirs.lastOrNull()?.let { DateUnread(theirs.size, it.reason, it.body, it.sentAt) },
             checkedIn = committed,
             chatTutorialSeen = tutorialSeen,
+            endsEnabled = true,
+            cancelPenaltyPoints = DEMO_CANCEL_PENALTY,
             arrival = partnerArrivedAt?.takeIf { !partnerArrivalSeen }?.let(::DateArrival),
             change = DateChange(cutoff, allowed(now), slots(), timeWas, placeWas, pending),
             changeRequest = pending.filter { !it.byYou }.minByOrNull { it.deadline },
@@ -283,6 +293,7 @@ class DevDateDemo(
             ended = null
             endSeen = false
             gone = false
+            discomfortFlagged = false
             true
         },
     )
@@ -298,7 +309,7 @@ class DevDateDemo(
 
     override suspend fun matchEndsInChat(): Result<Boolean> = Result.success(
         locked {
-            ended = EndedInChat(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false)
+            ended = EndedOutcome(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false)
             endSeen = false
             true
         },
@@ -377,7 +388,7 @@ class DevDateDemo(
     override suspend fun endInChat(dateId: String): EndResult {
         delay(latencyMs)
         return locked {
-            val outcome = EndedInChat(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = true)
+            val outcome = EndedOutcome(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = true)
             ended = outcome
             endSeen = false
             EndResult.Ended(outcome)
@@ -386,6 +397,53 @@ class DevDateDemo(
 
     override suspend fun markEndSeen(dateId: String) {
         locked { endSeen = true }
+    }
+
+    // ── DateEndStore and CancelStore: the server's refusals, then the outcome the next read reports ──
+
+    /** The date is over for both, by [reason]; the next `active` read says how, until it is seen. */
+    private fun finish(reason: OutcomeReason): EndedOutcome {
+        val outcome = EndedOutcome(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = true, reason = reason)
+        ended = outcome
+        endSeen = false
+        return outcome
+    }
+
+    private val over: Boolean get() = gone || ended != null
+
+    override suspend fun end(dateId: String, reason: EndReason, entry: EndEntry): EndDateResult {
+        delay(latencyMs)
+        return locked { now ->
+            when {
+                over -> EndDateResult.Refused("date_not_active")
+                reason == EndReason.PartnerNoShow && now.isBefore(meetAt) -> EndDateResult.Refused("before_meet")
+                reason != EndReason.Met && !committed -> EndDateResult.Refused("not_checked_in")
+                else -> EndDateResult.Ended(
+                    finish(
+                        when (reason) {
+                            EndReason.Met -> OutcomeReason.Met
+                            EndReason.PartnerNoShow -> OutcomeReason.PartnerNoShow
+                            EndReason.Uncomfortable -> OutcomeReason.Uncomfortable
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    override suspend fun flagDiscomfort(dateId: String): Result<Boolean> = Result.success(
+        locked { discomfortFlagged = true; true },
+    )
+
+    override suspend fun cancel(dateId: String): CancelResult {
+        delay(latencyMs)
+        return locked {
+            when {
+                over -> CancelResult.Refused("date_not_active")
+                committed -> CancelResult.Refused("checked_in")
+                else -> CancelResult.Cancelled(finish(OutcomeReason.Cancelled))
+            }
+        }
     }
 
     // ── ChangeStore ─────────────────────────────────────────────────────────────────────────
@@ -480,6 +538,9 @@ class DevDateDemo(
 
     companion object {
         const val DEMO_DATE_ID = "demo-date"
+
+        /** What this stand-in server says a cancel costs; the apps only ever show the number a server sends. */
+        private const val DEMO_CANCEL_PENALTY = 10
 
         /** The kit's binding meet time, 19:00 Berlin on the sample day. */
         private val KIT_MEET: Instant = DateSamples.DATE.meetAt

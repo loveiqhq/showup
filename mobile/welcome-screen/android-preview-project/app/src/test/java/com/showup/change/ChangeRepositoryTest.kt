@@ -200,7 +200,7 @@ class ChangeRepositoryTest {
         "unlockAt":"2026-11-17T16:30:00.000Z","coordinateOpen":false,"place":{"name":"Cafe Krone","address":"X"},
         "match":{"userId":"u2","name":"Leonie","attendedCount":4},
         "motivations":{"you":null,"them":null},"sharedVibes":[],"sharedInterests":[],"unread":null,
-        "checkedIn":false,"arrival":null,"chatTutorialSeen":false$extra},"ended":null}"""
+        "checkedIn":false,"arrival":null,"chatTutorialSeen":false,"endsEnabled":false,"cancelPenaltyPoints":10$extra},"ended":null}"""
 
     @Test
     fun `the date payload carries the change block and the request card`() = runTest {

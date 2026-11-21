@@ -157,7 +157,7 @@ Rules that are easy to get wrong here:
 
 **Registry changes made for this ticket (1.4.22 / taxonomy 1.4.13):** §30 `check_in_motivation` **NEW** · §11 `checkin_motivation` **NEW** · §28 `motivation` confirmed · §9 `motivation` and §10 `dating_intent` now point at §30 · `motivation_selected` **respecified** (`value` → `motivation_id`, per accepted Continue, Class 1) · `check_in_step_answered` trigger extended for `motivation`.
 
-**Missing from the current build:** every event above is `implemented: false`. `motivation_selected` is marked backend *Live* under its old shape. **Confirm with the backend before building** what the server currently accepts.
+**Missing from the current build:** every event above is `implemented: false`. `motivation_selected` has no backend counterpart (checked 5 Nov 2026 — see *Open*); build it as specified.
 
 ## Out of scope
 
@@ -173,4 +173,4 @@ Vibe, Filters and Uplift (04–06). The profile's `MotivationPill` and its "only
 
 ## Open (not blocking)
 
-- **The live backend `motivation_selected`.** It is marked *Live* with a `value` string. Whether it accepts the new `motivation_id` key, or needs a server change first, is for the backend to confirm (see *Tracking*).
+- ~~**The live backend `motivation_selected`.**~~ **Settled 5 Nov 2026 against `loveiqhq/showup` `main @ 7a6018d`:** the *Live* label was stale. The backend has no `motivation_selected` in any shape — no emitter, no `value` key, no motivation field on check-ins — and no endpoint that receives client events yet (the analytics module has no controller). So there is no old shape to migrate and no server change to wait for: the client emits `motivation_id` + `window_id` as specified. Once a client ingest exists, both keys pass the server's privacy filter unchanged. Two server-side gaps this ticket depends on, owned by the backend: **`window_id` does not exist** (no check-in window id anywhere in the code), and **the last-answer store** has nothing to read on the server — prefill is client-side until it does.
