@@ -10,6 +10,7 @@ import { AppModule } from './../src/app.module';
 import { AnalyticsService } from './../src/modules/analytics/analytics.service';
 import { DEV_PARTNER_PHONE } from './../src/modules/date-screen/date-dev.service';
 import { DateEntity } from './../src/modules/dates/entities/date.entity';
+import { EndReason } from './../src/modules/dates/util/date-end';
 import { DateStatus } from './../src/modules/dates/util/date-lifecycle';
 import { NotificationDispatchService } from './../src/modules/notifications/services/notification-dispatch.service';
 import { SafetyService } from './../src/modules/safety/safety.service';
@@ -522,6 +523,74 @@ describe('Date 07 cancel (e2e)', () => {
         endedByYou: false,
         reason: 'cancelled',
       });
+    });
+  });
+
+  it('reports the newest unseen outcome: a later cancel (ended_at null) beats an older Date 06 end', async () => {
+    await clearPair();
+    const base = {
+      userAId: id.max,
+      userBId: id.leonie,
+      scheduledAt: new Date(Date.now() - 60 * MINUTE),
+    };
+    await dates.save(
+      dates.create({
+        ...base,
+        status: DateStatus.Ended,
+        endedById: id.leonie,
+        endedAt: new Date(Date.now() - 50 * MINUTE),
+        endReason: EndReason.Met,
+      }),
+    );
+    const cancelled = await dates.save(
+      dates.create({
+        ...base,
+        status: DateStatus.Cancelled,
+        cancelledById: id.leonie,
+        cancelledAt: new Date(Date.now() - 10 * MINUTE),
+        penaltyPoints: 10,
+      }),
+    );
+    const body = (await me('max')).body;
+    expect(body.date).toBeNull();
+    expect(body.ended).toMatchObject({
+      dateId: cancelled.id,
+      reason: 'cancelled',
+      endedByYou: false,
+    });
+  });
+
+  it('reports the newest unseen outcome: a later Date 06 end beats an older cancel (a cancel has a NULL ended_at, which Postgres sorts first)', async () => {
+    await clearPair();
+    const base = {
+      userAId: id.max,
+      userBId: id.leonie,
+      scheduledAt: new Date(Date.now() - 60 * MINUTE),
+    };
+    const ended = await dates.save(
+      dates.create({
+        ...base,
+        status: DateStatus.Ended,
+        endedById: id.leonie,
+        endedAt: new Date(Date.now() - 10 * MINUTE),
+        endReason: EndReason.Met,
+      }),
+    );
+    await dates.save(
+      dates.create({
+        ...base,
+        status: DateStatus.Cancelled,
+        cancelledById: id.leonie,
+        cancelledAt: new Date(Date.now() - 50 * MINUTE),
+        penaltyPoints: 10,
+      }),
+    );
+    const body = (await me('max')).body;
+    expect(body.date).toBeNull();
+    expect(body.ended).toMatchObject({
+      dateId: ended.id,
+      reason: 'met',
+      endedByYou: false,
     });
   });
 
