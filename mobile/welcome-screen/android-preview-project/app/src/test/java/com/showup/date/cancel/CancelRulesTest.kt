@@ -54,8 +54,20 @@ class CancelRulesTest {
     }
 
     @Test
-    fun `changeClosed is true when the server sent no change block`() {
-        assertTrue(changeClosed(null, cutoff.minusSeconds(3600)))
+    fun `changeClosed is false when the server sent no change block, and there are no tiles`() {
+        // Nothing was ever offered, so I (and its Message button) must not appear: the chat may be locked.
+        assertFalse(changeClosed(null, cutoff.minusSeconds(3600)))
+        assertEquals(emptyList<ChangeKind>(), cancelTiles(null, cutoff.minusSeconds(3600)))
+        assertFalse(showMessage(chatOpen = false, changeClosed = changeClosed(null, cutoff)))
+        assertTrue(showMessage(chatOpen = true, changeClosed = changeClosed(null, cutoff)))
+    }
+
+    @Test
+    fun `the body line needs a tile or a sent request, and never shows in I`() {
+        assertTrue(solutionBodyShown(listOf(ChangeKind.Place), sent = false, changeClosed = false))
+        assertTrue(solutionBodyShown(emptyList(), sent = true, changeClosed = false))
+        assertFalse(solutionBodyShown(emptyList(), sent = false, changeClosed = false))
+        assertFalse(solutionBodyShown(listOf(ChangeKind.Place), sent = true, changeClosed = true))
     }
 
     @Test

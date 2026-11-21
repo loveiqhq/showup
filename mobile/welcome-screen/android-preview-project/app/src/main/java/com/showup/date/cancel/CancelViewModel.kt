@@ -116,11 +116,16 @@ class CancelViewModel(
     /** What must outlive the process: the open sheet and what was sent from it. A closed sheet leaves nothing. */
     private fun persist() {
         val u = _ui.value
-        saved[KEY_OPEN] = u.open.takeIf { it }
-        saved[KEY_SENT_KIND] = u.sent?.takeIf { u.open }?.kind?.name
-        saved[KEY_SENT_LABEL] = u.sent?.takeIf { u.open }?.label
-        saved[KEY_REQUESTED] = u.changeRequested.takeIf { u.open }
-        saved[KEY_DATE] = boundId.takeIf { u.open }
+        write(KEY_OPEN, u.open.takeIf { it })
+        write(KEY_SENT_KIND, u.sent?.takeIf { u.open }?.kind?.name)
+        write(KEY_SENT_LABEL, u.sent?.takeIf { u.open }?.label)
+        write(KEY_REQUESTED, u.changeRequested.takeIf { u.open })
+        write(KEY_DATE, boundId.takeIf { u.open })
+    }
+
+    /** `bind` runs on every clock tick: a value that has not changed is not written again. */
+    private fun write(key: String, value: Any?) {
+        if (saved.get<Any>(key) != value) saved[key] = value
     }
 
     private fun change(block: (CancelUi) -> CancelUi) {

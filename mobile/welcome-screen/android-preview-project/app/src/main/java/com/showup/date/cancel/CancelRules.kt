@@ -21,8 +21,16 @@ import com.showup.date.OutcomeReason
 import java.time.Instant
 import java.time.ZoneId
 
-/** I: from Date 05's cutoff, or once either person has checked in, a new time or place can no longer be agreed. */
-fun changeClosed(change: DateChange?, now: Instant): Boolean = !changeWindowOpen(change, now)
+/**
+ * I: from Date 05's cutoff, or once either person has checked in, a new time or place can no longer be agreed.
+ * A server that sends no `change` block (before Date 05) is not "closed": nothing was ever offered, so there are no
+ * tiles and no body line, and `Message {name} instead` follows the chat alone -- it must not open a locked chat.
+ */
+fun changeClosed(change: DateChange?, now: Instant): Boolean = change != null && !changeWindowOpen(change, now)
+
+/** The body line shows only with something under it: a tile Date 05 still offers, or D's confirmation. */
+fun solutionBodyShown(tiles: List<ChangeKind>, sent: Boolean, changeClosed: Boolean): Boolean =
+    !changeClosed && (tiles.isNotEmpty() || sent)
 
 /** The tiles that still show, in the chips' order: Date 05's own gate for each kind. */
 fun cancelTiles(change: DateChange?, now: Instant): List<ChangeKind> =

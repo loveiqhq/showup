@@ -242,6 +242,36 @@ class CancelViewModelTest {
         assertTrue(vm.ui.value.open)
     }
 
+    @Test
+    fun `with no change block the sheet is not closed, and Message instead follows the chat alone`() = runTest(dispatcher) {
+        val locked = vm(date(chatOpen = false, change = null), now = meet.minusSeconds(10 * 60))
+        locked.open()
+        assertFalse(locked.ui.value.changeClosed)
+        assertFalse(locked.ui.value.showMessage)
+        locked.messageInstead()
+        assertTrue(locked.ui.value.open)
+        assertFalse(locked.ui.value.openChat)
+        locked.picker(ChangeKind.Time)
+        assertNull(locked.ui.value.openPicker)
+
+        val open = vm(date(chatOpen = true, change = null))
+        open.open()
+        assertTrue(open.ui.value.showMessage)
+        open.messageInstead()
+        assertTrue(open.ui.value.openChat)
+    }
+
+    @Test
+    fun `a clock tick writes nothing to the saved state`() = runTest(dispatcher) {
+        val handle = SavedStateHandle()
+        val vm = vm(saved = handle)
+        vm.open()
+        val before = handle.keys().associateWith { handle.get<Any>(it) }
+        vm.bind(date(), early.plusSeconds(1))
+        vm.bind(date(), early.plusSeconds(2))
+        assertEquals(before, handle.keys().associateWith { handle.get<Any>(it) })
+    }
+
     // ── the pickers over the sheet ──────────────────────────────────────────────────────────
 
     @Test

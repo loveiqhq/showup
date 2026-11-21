@@ -77,6 +77,7 @@ private val HeroText = TextStyle(fontFamily = Manrope, fontSize = 14.sp, lineHei
 private val RowText = TextStyle(fontFamily = Manrope, fontSize = 13.sp, lineHeight = (13 * 1.42).sp, color = Fg)
 
 const val OUTCOME_ROW_TAG = "outcome:row"
+const val OUTCOME_TILE_TAG = "outcome:tile"
 
 /**
  * The hero atmosphere; pad 4 20 0. The lilac card (radius 28, pad 26 24 24, centred): the avatar 72
@@ -171,11 +172,21 @@ fun DateEndedScreen(outcome: EndedOutcome, photoUrl: String?, onFindNext: () -> 
                                     .border(1.dp, BorderSoft, rowShape)
                                     // Pad 13 plus the 1 px border, which CSS counts in the box.
                                     .padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                                // H's rows (the reference sets no `alignItems`): the tile tops the row and only the text is
+                                // centred on it. Date 02's one row keeps its centred tile.
+                                verticalAlignment = if (cancelled) Alignment.Top else Alignment.CenterVertically,
                             ) {
-                                IconTile(34.dp, 11.dp, tile.first, icon, 17.dp, tile.second, 2f)
+                                Box(Modifier.testTag(OUTCOME_TILE_TAG)) { IconTile(34.dp, 11.dp, tile.first, icon, 17.dp, tile.second, 2f) }
                                 Spacer(Modifier.width(12.dp))
-                                Text(row, modifier = Modifier.weight(1f).prettyWrap(row, RowText).cssLineBox(RowText.lineHeight), style = RowText)
+                                Text(
+                                    row,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .then(if (cancelled) Modifier.align(Alignment.CenterVertically) else Modifier)
+                                        .prettyWrap(row, RowText)
+                                        .cssLineBox(RowText.lineHeight),
+                                    style = RowText,
+                                )
                             }
                         }
                     }

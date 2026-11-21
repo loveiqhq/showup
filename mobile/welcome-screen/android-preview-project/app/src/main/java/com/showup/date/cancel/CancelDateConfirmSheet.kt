@@ -209,6 +209,8 @@ private fun Portrait(name: String, pill: String, photoUrl: String?) {
             ),
         )
         Column(Modifier.align(Alignment.BottomStart).padding(start = 18.dp, end = 18.dp, bottom = 16.dp)) {
+            // The reference's `backdrop-filter: blur(6px)` is dropped on purpose: Compose has no cheap backdrop blur
+            // below API 31 (minSdk is 30), and over the gradient the 16 % white tint reads the same without it.
             val pillShape = RoundedCornerShape(50)
             Row(
                 Modifier
@@ -305,11 +307,11 @@ private fun Solution(ui: CancelUi, name: String, actions: CancelActions) {
                 Icon(BrandIcon.MessageCircle, 17.dp, tint = Orange, strokeWidth = 2.3f)
                 CancelText(AnnotatedString(CancelCopy.SOLUTION_TITLE.format(name)), SolutionTitle.copy(lineHeight = (13.5 * 1.366).sp), Modifier.weight(1f), pretty = false)
             }
-            if (!closed) {
+            val sent = ui.sent
+            if (solutionBodyShown(cancelTiles(ui.date?.change, ui.now), sent != null, closed)) {
                 Spacer(Modifier.height(6.dp))
                 CancelText(AnnotatedString(CancelCopy.SOLUTION_BODY.format(name)), SolutionBody, Modifier.testTag(CANCEL_SOLUTION_BODY_TAG))
                 Spacer(Modifier.height(13.dp))
-                val sent = ui.sent
                 if (sent != null) SentLine(sent, name) else Tiles(ui, actions)
             }
             if (ui.showMessage) {

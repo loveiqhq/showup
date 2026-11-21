@@ -30,6 +30,7 @@ import com.showup.change.DateChange
 import com.showup.chat.CHAT_CTA_TAG
 import com.showup.chat.DateEndedScreen
 import com.showup.chat.OUTCOME_ROW_TAG
+import com.showup.chat.OUTCOME_TILE_TAG
 import com.showup.date.ActiveDate
 import com.showup.date.DATE_CANCEL_TAG
 import com.showup.date.DATE_MATCH_MATE_TAG
@@ -296,6 +297,20 @@ class CancelDateConfirmSheetTest {
         onAllNodesWithText("Back").assertCountEquals(0)
         onAllNodesWithText("paused", substring = true).assertCountEquals(0)
         onAllNodesWithText("review", substring = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `H's tile tops its row and the text is centred on it, for the multi-line rows`() = runComposeUiTest {
+        setContent { DateEndedScreen(cancelled, photoUrl = null, onFindNext = {}) }
+        val rows = onAllNodesWithTag(OUTCOME_ROW_TAG).fetchSemanticsNodes()
+        val tiles = onAllNodesWithTag(OUTCOME_TILE_TAG).fetchSemanticsNodes()
+        assertEquals(3, rows.size)
+        assertEquals(3, tiles.size)
+        val pad = with(density) { 14.dp.toPx() }
+        rows.zip(tiles).forEach { (row, tile) ->
+            assertTrue("a multi-line row", row.size.height > with(density) { 34.dp.toPx() } + 2 * pad)
+            assertEquals(row.positionInRoot.y + pad, tile.positionInRoot.y, 1f)
+        }
     }
 
     @Test
