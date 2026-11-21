@@ -446,7 +446,8 @@ private struct CancelChoices: View {
         .disabled(ui.cancelling)
     }
 
-    /// `Cancel anyway and let her down`: drawn 30 tall, 14 / 600 in the red, underlined; it answers at 44.
+    /// `Cancel anyway and let her down`: drawn 30 tall, 14 / 600 in the red, underlined; it answers at 44. The kit's
+    /// underline offset of 3 is not reproduced: SwiftUI's `underline` takes no offset.
     private var confirm: some View {
         Button(action: actions.onCancel) {
             Text(CancelCopy.confirm).font(F.manrope(14, .semibold)).foregroundColor(cancelRed)

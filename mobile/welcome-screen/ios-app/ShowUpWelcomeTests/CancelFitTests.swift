@@ -83,7 +83,7 @@ final class CancelFitTests: XCTestCase {
 
     // MARK: the frames
 
-    private let meet = Date(timeIntervalSince1970: 1_795_024_800) // 2026-11-21T18:00:00Z
+    private let meet = Date(timeIntervalSince1970: 1_795_024_800) // 2026-11-18T18:00:00Z (19:00 Berlin)
     private let zone = DateSamples.zone
 
     /// One render: its label, the anchor that must be drawn, and what is drawn.

@@ -30,7 +30,7 @@ actor FakeCancelStore: CancelStoring {
 
 @MainActor
 final class CancelModelTests: XCTestCase {
-    private let meet = Date(timeIntervalSince1970: 1_795_024_800) // 2026-11-21T18:00:00Z
+    private let meet = Date(timeIntervalSince1970: 1_795_024_800) // 2026-11-18T18:00:00Z (19:00 Berlin)
     private var early: Date { meet.addingTimeInterval(-3 * 3600) }
     private let analytics = RecordingAnalytics()
     private let store = FakeCancelStore()

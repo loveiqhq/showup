@@ -48,6 +48,18 @@ struct DateEndedScreen: View {
         }
     }
 
+    /// The headline's runs for the variant -- one `if` chain, not a nested ternary of literals, which the Swift type
+    /// checker can give up on ("expression too complex").
+    private func headlineParts(g: Bool, cancelled: Bool, name: String) -> [(String, Bool)] {
+        if cancelled {
+            return [(CancelCopy.hHeadlineLead(name), false), (CancelCopy.hHeadlineItalic, true), (CancelCopy.hHeadlineRest, false)]
+        }
+        if g {
+            return [(ChatCopy.gHeadlineLead, false), (ChatCopy.gHeadlineItalic, true), (ChatCopy.gHeadlineRest, false)]
+        }
+        return [(ChatCopy.hHeadlineLead(name), false), (ChatCopy.hHeadlineItalic, true), (ChatCopy.hHeadlineRest, false)]
+    }
+
     private func hero(g: Bool, cancelled: Bool, name: String) -> some View {
         VStack(spacing: 0) {
             MatchPhoto(name: name, photoURL: photoURL, size: 72)
@@ -61,9 +73,7 @@ struct DateEndedScreen: View {
                         .accessibilityHidden(true)
                 }
             WashHeadline(
-                parts: cancelled ? [(CancelCopy.hHeadlineLead(name), false), (CancelCopy.hHeadlineItalic, true), (CancelCopy.hHeadlineRest, false)]
-                         : g ? [(ChatCopy.gHeadlineLead, false), (ChatCopy.gHeadlineItalic, true), (ChatCopy.gHeadlineRest, false)]
-                         : [(ChatCopy.hHeadlineLead(name), false), (ChatCopy.hHeadlineItalic, true), (ChatCopy.hHeadlineRest, false)],
+                parts: headlineParts(g: g, cancelled: cancelled, name: name),
                 fontSize: 26, lineHeightMultiple: 1.15, trackingEm: -0.01, balance: true, centered: true, heading: true)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 16)

@@ -308,14 +308,17 @@ private fun Solution(ui: CancelUi, name: String, actions: CancelActions) {
                 CancelText(AnnotatedString(CancelCopy.SOLUTION_TITLE.format(name)), SolutionTitle.copy(lineHeight = (13.5 * 1.366).sp), Modifier.weight(1f), pretty = false)
             }
             val sent = ui.sent
-            if (solutionBodyShown(cancelTiles(ui.date?.change, ui.now), sent != null, closed)) {
+            val bodyShown = solutionBodyShown(cancelTiles(ui.date?.change, ui.now), sent != null, closed)
+            if (bodyShown) {
                 Spacer(Modifier.height(6.dp))
                 CancelText(AnnotatedString(CancelCopy.SOLUTION_BODY.format(name)), SolutionBody, Modifier.testTag(CANCEL_SOLUTION_BODY_TAG))
                 Spacer(Modifier.height(13.dp))
                 if (sent != null) SentLine(sent, name) else Tiles(ui, actions)
             }
             if (ui.showMessage) {
-                Spacer(Modifier.height(if (closed) 10.dp else 8.dp))
+                // Straight under the title (frame I, or no change block): the title's 6 + Message's 4. Under the tiles or D:
+                // Message's 8 (the reference's `marginTop: changeClosed ? 4 : 8`). iOS draws the same.
+                Spacer(Modifier.height(if (closed || !bodyShown) 10.dp else 8.dp))
                 MessageButton(name, actions.onMessage, inert = ui.cancelling)
             }
         }
