@@ -1122,9 +1122,11 @@ private struct TutorialFlow: View {
         .onAppear { dateModel.onScreen(true) }
         .onDisappear { dateModel.onScreen(false) }
         .onChange(of: dateModel.state.ended) { _, ended in
-            // `from` stays nil: G and H read it as the Date screen, and whether Date 08's read was the launch's is
-            // decided from the held date (`partnerEndedReferrer`), not from `cameFrom`, which a launch never sets.
-            if let ended { routeEnded(ended, from: nil) }
+            // `from` is read from the stack (`endFoundFrom`): the chat when it is over this screen -- this read also runs
+            // on a return to the foreground under it, racing the chat's own -- nil when this screen was on top. Nil, G
+            // and H read it as the Date screen, and whether Date 08's read was the launch's is decided from the held
+            // date (`partnerEndedReferrer`), not from `cameFrom`, which a launch never sets.
+            if let ended { routeEnded(ended, from: endFoundFrom(chatPath)) }
         }
         // THE END SHEETS follow every read and the 1 s tick: pastMeet and the chat's lock are re-evaluated there.
         .onChange(of: shownDate.date, initial: true) { _, _ in bindDateEnd() }
@@ -1351,8 +1353,9 @@ private struct TutorialFlow: View {
     }
 
     /// An end that reached the person -- the Date screen's read, the chat's poll or its 409 re-read: ONE routing
-    /// (`endedRoute`). `from` is the chat when it found the end, nil when the Date screen's read did; G and H then read
-    /// as from the Date screen. Date 08's referrer is `partnerEndedReferrer`: none only when no date was held, the launch.
+    /// (`endedRoute`). `from` is the chat when the chat found the end or was on top when the Date screen's read did
+    /// (`endFoundFrom`), nil when the Date screen was on top; G and H then read nil as from the Date screen. Date 08's
+    /// referrer is `partnerEndedReferrer`: none only when no date was held, the launch.
     private func routeEnded(_ ended: EndedOutcome, from: ProfileScreen?) {
         switch endedRoute(ended) {
         case .dateEnded, .partnerCancelled: showOutcome(ended, from: from ?? .dateScreen)

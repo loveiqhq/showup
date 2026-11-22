@@ -102,6 +102,23 @@ final class PartnerEndedRoutingTests: XCTestCase {
         XCTAssertEqual(partnerEndedReferrer(heldDate: nil, from: .dateChat), .dateChat)
     }
 
+    /// iOS only: the Date model reads again on every return to the foreground, even with the chat pushed over it, so its
+    /// read and the chat's race for one end. Whichever wins, the referrer is where the person was, read from the stack.
+    func testAnEndTheDateScreensReadFindsUnderTheChatIsTheChatsWhicheverReadWins() {
+        XCTAssertNil(endFoundFrom([]), "the Date screen on top")
+        XCTAssertEqual(endFoundFrom([.chat(.openChat)]), .dateChat)
+        XCTAssertEqual(endFoundFrom([.chat(.readReply), .changePicker(kind: .time, entry: .chatChip)]), .dateChat)
+        XCTAssertEqual(endFoundFrom([.chatTutorial]), .dateChatTutorial)
+        XCTAssertNil(endFoundFrom([.changePicker(kind: .place, entry: .coordinateTile)]), "a picker over the Date screen")
+        // The Date screen's read with the chat up and the chat's own poll report the same referrer...
+        let held = date(checkedIn: true)
+        XCTAssertEqual(partnerEndedReferrer(heldDate: held, from: endFoundFrom([.chat(.openChat)])),
+                       partnerEndedReferrer(heldDate: held, from: .dateChat))
+        // ...and with the Date screen on top it is still the Date screen, a launch still none.
+        XCTAssertEqual(partnerEndedReferrer(heldDate: held, from: endFoundFrom([])), .dateScreen)
+        XCTAssertNil(partnerEndedReferrer(heldDate: nil, from: endFoundFrom([])))
+    }
+
     func testAColdStartShowsThePayloadsIdWithNoReferrer() {
         let analytics = RecordingAnalytics()
         ChatHostEvents(analytics: analytics).partnerEndedShown(.youNoShowed, referrer: nil)

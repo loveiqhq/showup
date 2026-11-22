@@ -115,8 +115,8 @@ func canGoBack(from top: AppRoute?) -> Bool {
 }
 
 /// Where the person was when Date 08 opened, for `referrer_screen_id` (R7). `from` is the chat when the chat found the
-/// end. Otherwise it was a read of the Date screen: `heldDate` is what that screen was showing, and a read that finds an
-/// end leaves it as it was. None held means this read is the launch's first and nothing was on screen yet. Android's
+/// end, or was on top when the Date screen's read did (`endFoundFrom`). Otherwise the Date screen was on top: `heldDate`
+/// is what that screen was showing, and a read that finds an end leaves it as it was. None held means this read is the launch's first and nothing was on screen yet. Android's
 /// `partnerEndedReferrer`.
 func partnerEndedReferrer(heldDate: ActiveDate?, from: ProfileScreen?) -> ProfileScreen? {
     if let from { return from }
