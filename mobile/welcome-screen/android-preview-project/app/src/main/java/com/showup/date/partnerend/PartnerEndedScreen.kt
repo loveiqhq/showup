@@ -148,7 +148,9 @@ private fun Hero(screen: PartnerScreen, p: PartnerEndedPayload, name: String, ph
                         .pillShadows(SolidColor(Color.White.copy(alpha = 0.72f)), listOf(CssShadow(ShadowInk.copy(alpha = 0.08f), offsetY = 2.dp, blur = 10.dp)))
                         .border(1.dp, Purple.copy(alpha = 0.16f), CircleShape),
                     contentAlignment = Alignment.Center,
-                ) { Icon(BrandIcon.HeartFilled, 34.dp, tint = Purple) }
+                    // The reference's `<Icon name="heart-filled" size={34}/>` passes no stroke, so the kit's `<svg>` strokes
+                    // the fill at its default 1.7: 2.4 dp wider than a plain fill.
+                ) { Icon(BrandIcon.HeartFilled, 34.dp, tint = Purple, fillAndStroke = true) }
             }
             Box(
                 Modifier

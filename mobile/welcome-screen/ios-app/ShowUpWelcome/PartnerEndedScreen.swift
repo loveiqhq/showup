@@ -132,7 +132,10 @@ struct PartnerEndedScreen: View {
         if p.usesPhoto {
             MatchPhoto(name: name, photoURL: photoURL, size: size)
         } else {
-            BrandIconView(icon: .heartFilled, size: 34, tint: .liqPurple)
+            // The reference's `<Icon name="heart-filled" size={34}/>` passes no stroke, so the kit's `<svg>` strokes the
+            // fill at its default 1.7 grid units: 2.4 pt wider than a plain fill. `BrandIconView` strokes in points, not
+            // grid units, hence the scale.
+            BrandIconView(icon: .heartFilled, size: 34, stroke: 1.7 * 34 / 24, tint: .liqPurple, fillAndStroke: true)
                 .frame(width: size, height: size)
                 .background(ShadowedShape(shape: Circle(), fill: Color.white.opacity(0.72),
                                           shadows: [ShadowLayer(color: Color.liqShadowInk.opacity(0.08), y: 2, blur: 10)]))
