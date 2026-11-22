@@ -97,7 +97,8 @@ import com.showup.date.cancel.CancelActions
 import com.showup.date.cancel.CancelDateSheetHost
 import com.showup.date.cancel.CancelViewModel
 import com.showup.date.cancel.cancelLinkShown
-import com.showup.date.cancel.cancelledOnYou
+import com.showup.date.cancel.EndedRoute
+import com.showup.date.cancel.endedRoute
 import com.showup.date.cancel.sentLabel
 import com.showup.date.end.DateEndOver
 import com.showup.date.end.DateEndSheetHost
@@ -1466,6 +1467,14 @@ class MainActivity : ComponentActivity() {
                 findNextDate()
             }
 
+            /** Every way an end reaches the person -- the Date screen's read, the chat's poll or 409 -- routes here. */
+            fun routeEnded(outcome: EndedOutcome, from: ProfileScreen) {
+                when (endedRoute(outcome)) {
+                    EndedRoute.DateEnded, EndedRoute.PartnerCancelled -> showOutcome(outcome, from)
+                    EndedRoute.Land -> landAfterEnd(outcome)
+                }
+            }
+
             // THE SYSTEM PICKER. No permission is requested and none is declared: it runs out of
             // process, shows the user their whole library, and returns only what they chose.
             val pickImage = rememberLauncherForActivityResult(
@@ -2701,14 +2710,8 @@ class MainActivity : ComponentActivity() {
                         LaunchedEffect(onTop, dateState.ended) {
                             val ended = dateState.ended
                             if (onTop && ended != null) {
-                                // Date 06's three reasons land after the end (R1); the chat's and a cancel keep G and H.
-                                when (ended.reason) {
-                                    OutcomeReason.Met, OutcomeReason.PartnerNoShow, OutcomeReason.Uncomfortable -> landAfterEnd(ended)
-                                    OutcomeReason.Chat -> showOutcome(ended, ProfileScreen.DateScreen)
-                                    // H for the person cancelled on; the canceller's own landing is the same slot as every end (flow 10 is not built).
-                                    OutcomeReason.Cancelled ->
-                                        if (cancelledOnYou(ended)) showOutcome(ended, ProfileScreen.DateScreen) else landAfterEnd(ended)
-                                }
+                                // Date 06's reasons land after the end (R1); the chat's and a cancel on you keep G and H.
+                                routeEnded(ended, ProfileScreen.DateScreen)
                             }
                         }
                         val heldDate = heldWhileLeaving(dateState, onTop)
@@ -3057,7 +3060,7 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(ui.outcome) {
                     ui.outcome?.let {
                         vm.close()
-                        showOutcome(it, ProfileScreen.DateChat)
+                        routeEnded(it, ProfileScreen.DateChat)
                     }
                 }
                 LaunchedEffect(ui.left) {

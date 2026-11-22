@@ -13,7 +13,7 @@ import com.showup.AppRoute
 import com.showup.analytics.AnalyticsTracker
 import com.showup.date.ActiveDate
 import com.showup.date.EndedOutcome
-import com.showup.date.OutcomeReason
+import com.showup.date.cancel.cancelledOnYou
 import com.showup.profile.ProfileAnalytics
 import com.showup.profile.ProfileScreen
 import com.showup.profile.report
@@ -48,7 +48,7 @@ fun openChatFromArrivalCard(date: ActiveDate, arrivalSeen: () -> Unit, open: (Ap
 fun outcomeRoute(outcome: EndedOutcome, photoUrl: String?): AppRoute.DateEnded =
     // The outcome's own photo first: at the next launch no date is held, and [photoUrl] -- the held
     // date's -- is null, so H drew an initial (the SHOWUP-194 review).
-    AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, outcome.photoUrl ?: photoUrl, cancelled = outcome.reason == OutcomeReason.Cancelled)
+    AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, outcome.photoUrl ?: photoUrl, cancelled = cancelledOnYou(outcome))
 
 /**
  * The events the host reports for the chat's destinations: `screen_viewed` for the tutorial, the chat

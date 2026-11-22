@@ -148,6 +148,21 @@ final class CancelRulesTests: XCTestCase {
 
     // MARK: where a cancel lands
 
+    func testWhereAnEndRoutesTheChatsGTheOthersCancelHEverythingElseLands() {
+        func outcome(_ reason: OutcomeReason, byYou: Bool) -> EndedOutcome {
+            EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: byYou, reason: reason)
+        }
+        XCTAssertEqual(endedRoute(outcome(.chat, byYou: false)), .dateEnded)
+        XCTAssertEqual(endedRoute(outcome(.chat, byYou: true)), .dateEnded)
+        XCTAssertEqual(endedRoute(outcome(.cancelled, byYou: false)), .partnerCancelled)
+        XCTAssertEqual(endedRoute(outcome(.cancelled, byYou: true)), .land)
+        // A Date 06 end reaching the person through the chat never shows Date 02's screen.
+        for reason in [OutcomeReason.met, .partnerNoShow, .uncomfortable] {
+            XCTAssertEqual(endedRoute(outcome(reason, byYou: false)), .land)
+            XCTAssertEqual(endedRoute(outcome(reason, byYou: true)), .land)
+        }
+    }
+
     func testACancelByTheOtherPersonIsHOneByYouOrAnyOtherReasonIsNot() {
         func outcome(_ reason: OutcomeReason, byYou: Bool) -> EndedOutcome {
             EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: byYou, reason: reason)

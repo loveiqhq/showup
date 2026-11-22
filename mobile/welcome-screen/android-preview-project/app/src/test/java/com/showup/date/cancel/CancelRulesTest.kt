@@ -163,6 +163,20 @@ class CancelRulesTest {
     // ── where a cancel lands ─────────────────────────────────────────────────────────────────
 
     @Test
+    fun `where an end routes - the chat's G, the other's cancel H, everything else lands`() {
+        fun o(reason: OutcomeReason, byYou: Boolean) = EndedOutcome("d1", "Leonie", byYou, reason = reason)
+        assertEquals(EndedRoute.DateEnded, endedRoute(o(OutcomeReason.Chat, byYou = false)))
+        assertEquals(EndedRoute.DateEnded, endedRoute(o(OutcomeReason.Chat, byYou = true)))
+        assertEquals(EndedRoute.PartnerCancelled, endedRoute(o(OutcomeReason.Cancelled, byYou = false)))
+        assertEquals(EndedRoute.Land, endedRoute(o(OutcomeReason.Cancelled, byYou = true)))
+        // A Date 06 end reaching the person through the chat never shows Date 02's screen.
+        for (reason in listOf(OutcomeReason.Met, OutcomeReason.PartnerNoShow, OutcomeReason.Uncomfortable)) {
+            assertEquals(EndedRoute.Land, endedRoute(o(reason, byYou = false)))
+            assertEquals(EndedRoute.Land, endedRoute(o(reason, byYou = true)))
+        }
+    }
+
+    @Test
     fun `a cancel by the other person is H, one by you or any other reason is not`() {
         fun o(reason: OutcomeReason, byYou: Boolean) = EndedOutcome("d1", "Leonie", byYou, reason = reason)
         assertTrue(cancelledOnYou(o(OutcomeReason.Cancelled, byYou = false)))

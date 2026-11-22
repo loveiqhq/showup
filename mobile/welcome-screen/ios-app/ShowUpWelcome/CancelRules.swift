@@ -47,6 +47,18 @@ func guardPill(_ date: ActiveDate, zone: TimeZone) -> String { headerLine(date, 
 /// H: the other person called the date off. The canceller's own landing is `landAfterEnd`.
 func cancelledOnYou(_ outcome: EndedOutcome) -> Bool { outcome.reason == .cancelled && !outcome.endedByYou }
 
+/// Where an ended date goes for the person who finds it ended: Date 02's G, Date 07's H, or the landing after an end.
+enum EndedRoute: Equatable { case dateEnded, partnerCancelled, land }
+
+/// ONE decision for every way an end reaches a person (the Date screen's read, the chat's poll and its 409 re-read):
+/// the chat's own end is G, a cancel by the other person is H, everything else -- the canceller's own cancel and Date
+/// 06's met / partner_no_show / uncomfortable for either side -- lands (flow 10 and Date 08 plug in there).
+func endedRoute(_ outcome: EndedOutcome) -> EndedRoute {
+    if outcome.reason == .chat { return .dateEnded }
+    if cancelledOnYou(outcome) { return .partnerCancelled }
+    return .land
+}
+
 // `CancelUi` has members named `changeClosed` and `showMessage`, which hide the free functions inside the type (as
 // `pastMeet` does for `DateEndUi`); it calls these.
 func cancelChangeClosed(_ change: DateChange?, now: Date) -> Bool { changeClosed(change, now: now) }

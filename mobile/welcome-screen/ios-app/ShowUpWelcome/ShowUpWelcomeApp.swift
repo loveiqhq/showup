@@ -1109,7 +1109,7 @@ private struct TutorialFlow: View {
         .onAppear { dateModel.onScreen(true) }
         .onDisappear { dateModel.onScreen(false) }
         .onChange(of: dateModel.state.ended) { _, ended in
-            if let ended { routeEnded(ended) }
+            if let ended { routeEnded(ended, from: .dateScreen) }
         }
         // THE END SHEETS follow every read and the 1 s tick: pastMeet and the chat's lock are re-evaluated there.
         .onChange(of: shownDate.date, initial: true) { _, _ in bindDateEnd() }
@@ -1335,14 +1335,12 @@ private struct TutorialFlow: View {
         if let date = shown.date { dateEnd.bind(date, now: shown.now) }
     }
 
-    /// A date that ended and was not seen: Date 06's three reasons land after the end (R1); the chat's and a cancel
-    /// keep G and H.
-    private func routeEnded(_ ended: EndedOutcome) {
-        switch ended.reason {
-        case .met, .partnerNoShow, .uncomfortable: landAfterEnd(ended)
-        case .chat: showOutcome(ended, from: .dateScreen)
-        // H for the person cancelled on; the canceller's own landing is the same slot as every end (flow 10 is not built).
-        case .cancelled: if cancelledOnYou(ended) { showOutcome(ended, from: .dateScreen) } else { landAfterEnd(ended) }
+    /// An end that reached the person -- the Date screen's read, the chat's poll or its 409 re-read: ONE routing
+    /// (`endedRoute`). Date 06's reasons land after the end (R1); the chat's and a cancel on you keep G and H.
+    private func routeEnded(_ ended: EndedOutcome, from: ProfileScreen) {
+        switch endedRoute(ended) {
+        case .dateEnded, .partnerCancelled: showOutcome(ended, from: from)
+        case .land: landAfterEnd(ended)
         }
     }
 
@@ -1569,7 +1567,7 @@ private struct TutorialFlow: View {
                 .onChange(of: model.ui.outcome) { _, outcome in
                     if let outcome {
                         model.close()
-                        showOutcome(outcome, from: .dateChat)
+                        routeEnded(outcome, from: .dateChat)
                     }
                 }
                 .onChange(of: model.ui.left) { _, left in
