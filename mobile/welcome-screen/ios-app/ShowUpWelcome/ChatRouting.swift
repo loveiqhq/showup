@@ -63,4 +63,10 @@ final class ChatHostEvents {
     func outcomeShown(referrer: ProfileScreen, cancelled: Bool = false) {
         analytics?.report(ProfileAnalytics.screenViewed(cancelled ? .datePartnerCancelled : .dateEndedInChat, referrer: referrer))
     }
+
+    /// Date 08 is shown, one view per showing. `referrer` is where the person was; nil on a launch, when nothing led
+    /// there. Proceed to review reports nothing, and `date_ended` is the server's, never the match's phone.
+    func partnerEndedShown(_ screen: PartnerScreen, referrer: ProfileScreen?) {
+        analytics?.report(ProfileAnalytics.screenViewed(partnerEndedScreenID(screen), referrer: referrer))
+    }
 }

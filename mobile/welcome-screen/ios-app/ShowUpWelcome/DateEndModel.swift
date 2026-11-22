@@ -327,6 +327,20 @@ final class DateEndModel {
         }
     }
 
+    /// The other person ended this date (Date 08, SHOWUP-199): the sheet closes whatever it is doing, including while an
+    /// end of ours is in flight (that call finishes on its own: a 409 re-reads into the same screen), and nothing of it
+    /// stays saved, so it cannot come back after a process death. Not a dismissal: nothing is reported.
+    func discardForPartnerEnd() {
+        guard ui.route != nil else { return }
+        change {
+            $0.route = nil
+            $0.step = .menu
+            $0.gated = nil
+            $0.openGate = nil
+            $0.failed = false
+        }
+    }
+
     /// The CTA of C, G or I: end the date. Inert while one is already in flight.
     func end() {
         guard let date = ui.date, let route = ui.route else { return }

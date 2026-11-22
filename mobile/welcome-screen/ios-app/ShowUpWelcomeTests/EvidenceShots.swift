@@ -351,4 +351,27 @@ final class EvidenceShots: XCTestCase {
             }
         }
     }
+
+    /// SHOWUP-199's evidence: Date 08's three payloads at the three frames the ticket names -- 9 images -- and A and B
+    /// again at 375 x 667 scrolled to the end, where the CTA is the last item (2 more): the ticket asks that the 375 x 667
+    /// shot show the CTA reached by scrolling. Whether it needs the scroll there is `PartnerEndedFitTests`' measurement.
+    /// Android's `SHOWUP-199` block, shot for shot.
+    func testPartnerEndedEvidence() throws {
+        let dir = try folder("199-partner-ended")
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        let payloads: [(String, PartnerScreen, Bool)] = [
+            ("A-no-show", .youNoShowed, true), ("B-uncomfortable", .dateEndedDiscomfort, true),
+            ("C-met", .dateClosedPositive, false),
+        ]
+        for device in frames {
+            for (name, screen, _) in payloads {
+                try shoot(PartnerEndedSamples.frame(screen), name, on: device, into: dir)
+            }
+        }
+        for device in frames where (device.width, device.height) == (375, 667) {
+            for (name, screen, scrolled) in payloads where scrolled {
+                try shoot(PartnerEndedSamples.frame(screen, scrollToEnd: true), "\(name)-scrolled-end", on: device, into: dir)
+            }
+        }
+    }
 }

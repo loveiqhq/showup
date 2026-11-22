@@ -177,6 +177,13 @@ final class CancelModel {
         change { Self.closing(&$0) }
     }
 
+    /// The other person ended this date (Date 08, SHOWUP-199): the guard closes and its saved state goes with it, so it
+    /// cannot restore after a process death. Not a dismissal: `cancel_abandoned_at_guard` is for the person's own exit.
+    func discardForPartnerEnd() {
+        guard ui.open else { return }
+        change { Self.closing(&$0) }
+    }
+
     /// The red link: B or C (the sheet reads the chat from the date).
     func open() {
         guard let date = ui.date, !ui.open, date.endsEnabled, !date.checkedIn else { return }

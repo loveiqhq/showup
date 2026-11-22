@@ -460,9 +460,9 @@ enum DevDateAction: CaseIterable, Hashable, Sendable {
         case .matchAgrees: return "Leonie agrees to my suggestion (SHOWUP-196 G)"
         case .expireSuggestions: return "Expire suggestions now (SHOWUP-196 H)"
         case .partnerCancels: return "Leonie cancels this date (SHOWUP-198 H)"
-        case .partnerEndsMet: return "Leonie ends the date: We met (SHOWUP-197, Date 08 slot)"
-        case .partnerEndsNoShow: return "Leonie ends the date: didn't show (SHOWUP-197, Date 08 slot)"
-        case .partnerEndsUncomfortable: return "Leonie ends the date: uncomfortable (SHOWUP-197, Date 08 slot)"
+        case .partnerEndsMet: return "Leonie ends the date: We met (SHOWUP-199)"
+        case .partnerEndsNoShow: return "Leonie ends the date: didn't show (SHOWUP-199)"
+        case .partnerEndsUncomfortable: return "Leonie ends the date: uncomfortable (SHOWUP-199)"
         case .end: return "End test date"
         }
     }

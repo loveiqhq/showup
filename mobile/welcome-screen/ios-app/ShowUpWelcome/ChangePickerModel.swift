@@ -288,6 +288,15 @@ final class ChangePickerModel {
         }
     }
 
+    /// The other person ended the date (Date 08, SHOWUP-199): the picker ends with nothing sent, and its draft goes, so
+    /// opening it again after a process death finds nothing. Not the person's Cancel: no `change_picker_dismissed`. A send
+    /// already on its way finishes on its own; an ended picker writes no draft again.
+    func discardForPartnerEnd() {
+        loadTask?.cancel()
+        ui.closed = true
+        persistDraft("")
+    }
+
     /// Cancel or back: nothing was stored or sent. Ignored while a send is in flight (both buttons are inert).
     func cancel() {
         guard !ui.sending, !ui.closed, !ui.done, !ui.stale else { return }

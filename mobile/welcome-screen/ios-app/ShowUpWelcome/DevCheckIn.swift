@@ -189,6 +189,10 @@ let devStates: [DevState] = [
     DevState(id: "198F", ticket: "SHOWUP-198 Cancel this date", label: "F · After check-in — no link"),
     DevState(id: "198H", ticket: "SHOWUP-198 Cancel this date", label: "H · What the match sees"),
     DevState(id: "198I", ticket: "SHOWUP-198 Cancel this date", label: "I · Guard sheet — from meet − 0:30"),
+    DevState(id: "199A", ticket: "SHOWUP-199 What the other side sees", label: "A · You didn't show up"),
+    DevState(id: "199B", ticket: "SHOWUP-199 What the other side sees", label: "B · Uncomfortable"),
+    DevState(id: "199C", ticket: "SHOWUP-199 What the other side sees", label: "C · We met"),
+    DevState(id: "199A-chat", ticket: "SHOWUP-199 What the other side sees", label: "A · B in the chat when A ends"),
 ]
 
 /// The tickets, in the order their frames are listed.
@@ -213,6 +217,7 @@ enum DevFrame: Equatable, CaseIterable {
     case changeA, changeB, changeC, changeD, changeE, changeF, changeG, changeH, changeI, changeJ, changeK, changeL, changeM, changeN
     case endA, endB, endC, endD, endE, endF, endG, endH, endI, endJ
     case cancelA, cancelB, cancelC, cancelD, cancelE, cancelF, cancelH, cancelI
+    case partnerEndedA, partnerEndedB, partnerEndedC, partnerEndedAChat
 
     static func of(_ id: String) -> DevFrame? {
         switch id {
@@ -301,6 +306,10 @@ enum DevFrame: Equatable, CaseIterable {
         case "198F": return .cancelF
         case "198H": return .cancelH
         case "198I": return .cancelI
+        case "199A": return .partnerEndedA
+        case "199B": return .partnerEndedB
+        case "199C": return .partnerEndedC
+        case "199A-chat": return .partnerEndedAChat
         default: return nil
         }
     }
@@ -402,6 +411,10 @@ struct CheckInGalleryFrame: View {
             DateEndSamples.frame(String(state.dropFirst(3)))
         case .cancelA?, .cancelB?, .cancelC?, .cancelD?, .cancelE?, .cancelF?, .cancelH?, .cancelI?:
             CancelSamples.frame(String(state.dropFirst(3)))
+        // 199's rows open live on the demo date; the picture is the fallback the gallery draws if one is opened here.
+        case .partnerEndedA?, .partnerEndedAChat?: PartnerEndedSamples.frame(.youNoShowed)
+        case .partnerEndedB?: PartnerEndedSamples.frame(.dateEndedDiscomfort)
+        case .partnerEndedC?: PartnerEndedSamples.frame(.dateClosedPositive)
         case nil:
             // Loud, never a quiet fallback: a menu entry with no frame must be seen.
             Text("Unknown state \(state)")

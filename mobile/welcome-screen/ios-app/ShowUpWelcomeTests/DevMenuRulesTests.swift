@@ -134,9 +134,10 @@ final class DevMenuRulesTests: XCTestCase {
         XCTAssertEqual(Set(devStates.map(\.id)).count, devStates.count)
         var perTicket: [String: Int] = [:]
         for state in devStates { perTicket[String(state.id.prefix(3)), default: 0] += 1 }
+        // 199: A, B, C and the chat variant of A.
         XCTAssertEqual(perTicket, ["178": 2, "179": 5, "180": 3, "181": 5, "182": 3, "183": 5, "184": 10, "194": 11, "195": 9, "196": 14,
-                                    "197": 10, "198": 8])
-        XCTAssertEqual(devStateTickets.count, 12)
+                                    "197": 10, "198": 8, "199": 4])
+        XCTAssertEqual(devStateTickets.count, 13)
     }
 
     func testTheDateActionsOfferLeonieCheckingInBeforeTheEnd() {

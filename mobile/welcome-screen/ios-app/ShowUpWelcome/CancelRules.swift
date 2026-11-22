@@ -47,15 +47,18 @@ func guardPill(_ date: ActiveDate, zone: TimeZone) -> String { headerLine(date, 
 /// H: the other person called the date off. The canceller's own landing is `landAfterEnd`.
 func cancelledOnYou(_ outcome: EndedOutcome) -> Bool { outcome.reason == .cancelled && !outcome.endedByYou }
 
-/// Where an ended date goes for the person who finds it ended: Date 02's G, Date 07's H, or the landing after an end.
-enum EndedRoute: Equatable { case dateEnded, partnerCancelled, land }
+/// Where an ended date goes for the person who finds it ended: G, H, Date 08's screen (with the payload the server
+/// picked), or the landing after an end. Android's `EndedRoute`; the screen rides in the case, so no caller unwraps it.
+enum EndedRoute: Equatable { case dateEnded, partnerCancelled, partnerEnded(PartnerScreen), land }
 
 /// ONE decision for every way an end reaches a person (the Date screen's read, the chat's poll and its 409 re-read):
-/// the chat's own end is G, a cancel by the other person is H, everything else -- the canceller's own cancel and Date
-/// 06's met / partner_no_show / uncomfortable for either side -- lands (flow 10 and Date 08 plug in there).
+/// the chat's own end is G, a cancel by the other person is H, a Date 06 end by the other person is Date 08 (the server
+/// sends `EndedOutcome.partnerScreen` only to the match; an older server sends none, so that end lands), everything
+/// else -- the canceller's own cancel and Date 06's own end -- lands (flow 10 plugs in there).
 func endedRoute(_ outcome: EndedOutcome) -> EndedRoute {
     if outcome.reason == .chat { return .dateEnded }
     if cancelledOnYou(outcome) { return .partnerCancelled }
+    if let screen = outcome.partnerScreen, !outcome.endedByYou { return .partnerEnded(screen) }
     return .land
 }
 
