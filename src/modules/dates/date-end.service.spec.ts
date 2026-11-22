@@ -1,6 +1,7 @@
 import {
   ConflictException,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -29,6 +30,7 @@ function build(
     affected?: number;
     flag?: string;
     nodeEnv?: string;
+    pushFails?: boolean;
   } = {},
 ) {
   const row = opts.row ?? dateRow();
@@ -51,17 +53,26 @@ function build(
       key === 'DATE_ENDS_ENABLED' ? opts.flag : (opts.nodeEnv ?? 'test'),
     ),
   };
+  const dispatch = {
+    sendPush: opts.pushFails
+      ? jest.fn().mockRejectedValue(new Error('push down'))
+      : jest.fn().mockResolvedValue({ status: 'sent', delivered: 1 }),
+  };
+  const names: Record<string, string> = { [ME]: 'Max', [THEM]: 'Leonie' };
   const service = new DateEndService(
     { transaction: (cb: (e: unknown) => unknown) => cb(em) } as never,
     { findOne: jest.fn().mockResolvedValue(row) } as never,
     flags as never,
     {
-      findOne: jest.fn().mockResolvedValue({ displayName: 'Leonie' }),
+      findOne: jest.fn(({ where }: { where: { userId: string } }) =>
+        Promise.resolve({ displayName: names[where.userId] }),
+      ),
     } as never,
     analytics as never,
     config as never,
+    dispatch as never,
   );
-  return { service, em, analytics, flags };
+  return { service, em, analytics, flags, dispatch };
 }
 
 const body = (reason: EndReason, entry = EndEntry.EndDateBar) => ({
@@ -131,6 +142,60 @@ describe('DateEndService.end', () => {
         minutes_vs_start: 30,
       },
     });
+  });
+
+  it('sends date_partner_ended to the match only, once, after the end commits', async () => {
+    const { service, dispatch, em } = build({ committed: [ME] });
+    await service.end('d1', ME, body(EndReason.Uncomfortable), NOW);
+    expect(dispatch.sendPush).toHaveBeenCalledTimes(1);
+    expect(dispatch.sendPush).toHaveBeenCalledWith(
+      THEM,
+      'date_partner_ended',
+      { name: 'Max' },
+      { type: 'date_partner_ended', dateId: 'd1' },
+    );
+    expect(dispatch.sendPush).not.toHaveBeenCalledWith(
+      ME,
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(em.update.mock.invocationCallOrder[0]).toBeLessThan(
+      dispatch.sendPush.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('a failed push never fails the end', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    const { service } = build({ pushFails: true });
+    await expect(
+      service.end('d1', ME, body(EndReason.Met), NOW),
+    ).resolves.toMatchObject({ reason: 'met' });
+    expect(warn).toHaveBeenCalledWith(expect.not.stringContaining('Leonie'));
+    warn.mockRestore();
+  });
+
+  it('a refused end pushes nothing', async () => {
+    const ended = build({ row: dateRow({ status: DateStatus.Ended }) });
+    await code(ended.service.end('d1', ME, body(EndReason.Met), NOW));
+    const raced = build({ affected: 0 });
+    await code(raced.service.end('d1', ME, body(EndReason.Met), NOW));
+    const early = build({ committed: [ME] });
+    await code(
+      early.service.end(
+        'd1',
+        ME,
+        body(EndReason.PartnerNoShow),
+        new Date('2026-11-21T18:00:00Z'),
+      ),
+    );
+    const unchecked = build();
+    await code(
+      unchecked.service.end('d1', ME, body(EndReason.Uncomfortable), NOW),
+    );
+    for (const b of [ended, raced, early, unchecked]) {
+      expect(b.dispatch.sendPush).not.toHaveBeenCalled();
+    }
   });
 
   it('refuses a date that is not confirmed with 409 date_not_active, firing nothing', async () => {

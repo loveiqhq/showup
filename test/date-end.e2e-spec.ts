@@ -11,6 +11,7 @@ import { AnalyticsService } from './../src/modules/analytics/analytics.service';
 import { DEV_PARTNER_PHONE } from './../src/modules/date-screen/date-dev.service';
 import { DateEntity } from './../src/modules/dates/entities/date.entity';
 import { DateStatus } from './../src/modules/dates/util/date-lifecycle';
+import { NotificationDispatchService } from './../src/modules/notifications/services/notification-dispatch.service';
 import { Profile } from './../src/modules/profiles/entities/profile.entity';
 import { User } from './../src/modules/users/entities/user.entity';
 
@@ -37,6 +38,7 @@ describe('Date 06 end and report (e2e)', () => {
   const id: Record<string, string> = {};
   let dateId: string;
   let events: SentEvent[];
+  let pushes: Array<{ userId: string; type: string; params: unknown }>;
 
   const as = (who: string) => `Bearer ${token[who]}`;
   const named = (name: string) => events.filter((e) => e.eventName === name);
@@ -157,10 +159,17 @@ describe('Date 06 end and report (e2e)', () => {
         events.push(p);
         return Promise.resolve();
       });
+    jest
+      .spyOn(app.get(NotificationDispatchService), 'sendPush')
+      .mockImplementation((userId, type, params) => {
+        pushes.push({ userId, type, params });
+        return Promise.resolve({ status: 'sent', delivered: 1 });
+      });
   });
 
   beforeEach(async () => {
     events = [];
+    pushes = [];
     jest.spyOn(config, 'get').mockRestore();
     await newDate(-30);
   });
@@ -180,6 +189,32 @@ describe('Date 06 end and report (e2e)', () => {
       .get<Repository<User>>(getRepositoryToken(User), { strict: false })
       .delete({ phone: In([...Object.values(PHONES), DEV_PARTNER_PHONE]) });
     await app.close();
+  });
+
+  describe('the match is told', () => {
+    it.each([
+      ['met', () => Promise.resolve()],
+      ['partner_no_show', () => checkIn('you')],
+      ['uncomfortable', () => checkIn('you')],
+    ])(
+      'pushes date_partner_ended to her, never to you, after %s',
+      async (reason, prepare) => {
+        await prepare();
+        await end('you', reason).expect(200);
+        expect(pushes).toEqual([
+          {
+            userId: id.leonie,
+            type: 'date_partner_ended',
+            params: { name: 'Max' },
+          },
+        ]);
+      },
+    );
+
+    it('pushes nothing for a refused end', async () => {
+      await end('you', 'partner_no_show').expect(409);
+      expect(pushes).toHaveLength(0);
+    });
   });
 
   describe('We met', () => {
