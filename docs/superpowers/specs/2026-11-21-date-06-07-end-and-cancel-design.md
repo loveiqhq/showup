@@ -41,13 +41,15 @@ blocked deletion · final push copy · Date 05's pickers (consumed with `entry: 
   match to Date 08; a cancel sends the canceller to flow 10. None of those screens exist. Date 07's ticket decides
   its case: *"If [flow 10] isn't built when this ships, the link ships hidden — a cancel with nowhere to land is a
   dead end."* The same holds for every Date 06 end, so one rule covers both:
-  - **One server switch, `DATE_ENDS_ENABLED`:** `true`/`false` when set; unset means on everywhere except
-    `NODE_ENV=production`. The active-date payload carries it as `endsEnabled`.
+  - **One server switch, `DATE_ENDS_ENABLED`:** `true`/`false` when set; unset means on everywhere, production
+    included. The active-date payload carries it as `endsEnabled`.
+  - **Esma, 22 Nov 2026:** do not hide them, even before flow 10 and Date 08 exist. This overrides Date 07's
+    dependency clause above; an end and a cancel land on Search until those screens exist.
   - **Off:**
     - the End Date bar's button, the Check-in bar's `End date` link and the Cancel link are not rendered;
     - the Report card is not rendered (epic rule 8, *hidden until real*);
     - the endpoints answer 404.
-  - **On** (development, the dev demo, staging once the variable is set): everything works. After an end, the
+  - **On** (every environment unless the variable is `false`): everything works. After an end, the
     ender leaves the Date screen the way a date that went away does today (to Search). Flow 10's slot is one
     function per platform, `landAfterEnd(outcome)`.
     - The match of a Date 06 end also goes to Search (Date 08's slot, the same function).
@@ -55,12 +57,11 @@ blocked deletion · final push copy · Date 05's pickers (consumed with `entry: 
   - Rests on: Date 07's dependency clause; epic rule 8.
   - Costs if wrong: one default. Flipping the switch, or wiring flow 10 / Date 08 into `landAfterEnd`, is all
     that changes.
-  - Owed: `DATE_ENDS_ENABLED=true` on staging for Philipp's walk.
 - **R2 — States after an end.**
   - New `date_status_enum` value **`ended`** for a Date 06 end. A cancel uses the existing `cancelled`.
   - Neither status locks matching (`date-lock.ts`), so both people can search again.
   - Search stays blocked until the review (epic rule 5), but that block is flow 10's to enforce. Until then the
-    switch keeps the routes off in production.
+    end lands on Search, with nothing enforcing the block yet.
   - The pair's match is closed, as Date 02's end in chat does.
 - **R3 — The ended payload, one shape for every end.** `GET /me/date`'s `ended` object gains:
   - `reason`: `chat` · `cancelled` · `met` · `partner_no_show` · `uncomfortable`;
@@ -212,10 +213,8 @@ blocked deletion · final push copy · Date 05's pickers (consumed with `entry: 
 ## 7. Owed by others
 
 - **Philipp:**
-  - R1, whether an end should stay hidden in production until flow 10 and Date 08 exist;
   - Date 06 Open item 2, the copy consistency (`End Date → Review` vs `End date and review`, `Cancel date in the
     chat menu`, `End Date` vs `End date`), kept as written until he decides;
   - push copy;
   - final rate values.
-- **Ops:** `DATE_ENDS_ENABLED=true` on staging.
 - **Devices:** the two-phone recordings both tickets ask for.

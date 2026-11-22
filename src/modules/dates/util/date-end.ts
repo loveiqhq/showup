@@ -28,9 +28,10 @@ export type RefusalCode =
   | 'checked_in';
 
 /**
- * Whether Date 06's end and discomfort routes are on (R1). `flag` is the `DATE_ENDS_ENABLED`
- * variable: `true` / `false` win when set; unset means on everywhere except production, where an end
- * has nowhere to land until flow 10 and Date 08 exist.
+ * Whether Date 06's end and discomfort routes and Date 07's cancel are on (R1). `flag` is the
+ * `DATE_ENDS_ENABLED` variable: `true` / `false` win when set; unset means on everywhere, production
+ * included (Esma, 22 Nov 2026: shown before flow 10 and Date 08 exist, an end lands on Search until
+ * then). `false` is the one way to hide them.
  */
 export function dateEndsEnabled(env: {
   flag?: string;
@@ -39,7 +40,7 @@ export function dateEndsEnabled(env: {
   const flag = env.flag?.trim().toLowerCase();
   if (flag === 'true') return true;
   if (flag === 'false') return false;
-  return env.nodeEnv !== 'production';
+  return true;
 }
 
 /**

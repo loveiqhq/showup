@@ -18,12 +18,12 @@ describe('dateEndsEnabled (R1)', () => {
     expect(dateEndsEnabled({ flag: 'TRUE', nodeEnv: 'production' })).toBe(true);
     expect(dateEndsEnabled({ flag: 'False', nodeEnv: 'staging' })).toBe(false);
   });
-  it('is off only in production when unset', () => {
-    expect(dateEndsEnabled({ nodeEnv: 'production' })).toBe(false);
+  it('is on everywhere when unset, production included (22 Nov)', () => {
+    expect(dateEndsEnabled({ nodeEnv: 'production' })).toBe(true);
     expect(dateEndsEnabled({ nodeEnv: 'staging' })).toBe(true);
     expect(dateEndsEnabled({ nodeEnv: 'development' })).toBe(true);
     expect(dateEndsEnabled({})).toBe(true);
-    expect(dateEndsEnabled({ flag: '', nodeEnv: 'production' })).toBe(false);
+    expect(dateEndsEnabled({ flag: '', nodeEnv: 'production' })).toBe(true);
   });
 });
 
