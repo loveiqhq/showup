@@ -10,10 +10,13 @@
 package com.showup.date.end
 
 object DateEndCopy {
+    // Ticket Open item 2, decided by Esma 22 Nov 2026: End date with a small d everywhere, and the note points to the
+    // Date screen's Cancel this date link -- the chat menu has no Cancel date (its call-off is I can't make it today).
+
     // A: the End Date bar
     const val BAR_TITLE = "Your date with %s"
-    const val BAR_LINE = "Tap End Date - when your date is finished."
-    const val BAR_BUTTON = "End Date"
+    const val BAR_LINE = "Tap End date - when your date is finished."
+    const val BAR_BUTTON = "End date"
 
     // B: How did it go?
     const val WRAP_TITLE = "How did it go with %s?"
@@ -32,9 +35,9 @@ object DateEndCopy {
     const val C_NOTE_1 = "This is only for dates that happened. Need to call it off "
     const val C_NOTE_BOLD_1 = "before"
     const val C_NOTE_2 = " meeting? Use "
-    const val C_NOTE_BOLD_2 = "Cancel date"
-    const val C_NOTE_3 = " in the chat menu. Ending a date you didn’t attend counts as a no-show and lowers your Show-up Rate."
-    const val C_CTA = "End Date → Review"
+    const val C_NOTE_BOLD_2 = "Cancel this date"
+    const val C_NOTE_3 = " at the bottom of the Date screen. Ending a date you didn’t attend counts as a no-show and lowers your Show-up Rate."
+    const val C_CTA = "End date → Review"
 
     // What happens next
     const val WHAT_NEXT = "What happens next"

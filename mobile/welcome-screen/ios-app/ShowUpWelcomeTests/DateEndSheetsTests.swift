@@ -49,8 +49,8 @@ final class DateEndSheetsTests: XCTestCase {
 
     func testAReadsItsThreeStrings() {
         XCTAssertEqual(DateEndCopy.barTitle("Leonie"), "Your date with Leonie")
-        XCTAssertEqual(DateEndCopy.barLine, "Tap End Date - when your date is finished.")
-        XCTAssertEqual(DateEndCopy.barButton, "End Date")
+        XCTAssertEqual(DateEndCopy.barLine, "Tap End date - when your date is finished.")
+        XCTAssertEqual(DateEndCopy.barButton, "End date")
         lay(EndDateBar(name: "Leonie", onEnd: {}))
     }
 
@@ -76,9 +76,9 @@ final class DateEndSheetsTests: XCTestCase {
         XCTAssertEqual(DateEndCopy.cStep1, "Please review your date now.")
         XCTAssertEqual(DateEndCopy.cStep2, "Search for new dates resumes after the review.")
         XCTAssertEqual(DateEndCopy.cNote1 + DateEndCopy.cNoteBold1 + DateEndCopy.cNote2 + DateEndCopy.cNoteBold2 + DateEndCopy.cNote3,
-                       "This is only for dates that happened. Need to call it off before meeting? Use Cancel date in the chat menu. "
+                       "This is only for dates that happened. Need to call it off before meeting? Use Cancel this date at the bottom of the Date screen. "
                        + "Ending a date you didn’t attend counts as a no-show and lowers your Show-up Rate.")
-        XCTAssertEqual(DateEndCopy.cCta, "End Date → Review")
+        XCTAssertEqual(DateEndCopy.cCta, "End date → Review")
         lay(host(ui(.wrap, .met)))
     }
 
