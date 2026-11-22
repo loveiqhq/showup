@@ -36,8 +36,9 @@ export function dateEndsEnabled(env: {
   flag?: string;
   nodeEnv?: string;
 }): boolean {
-  if (env.flag === 'true') return true;
-  if (env.flag === 'false') return false;
+  const flag = env.flag?.trim().toLowerCase();
+  if (flag === 'true') return true;
+  if (flag === 'false') return false;
   return env.nodeEnv !== 'production';
 }
 

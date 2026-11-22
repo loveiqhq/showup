@@ -14,6 +14,10 @@ describe('dateEndsEnabled (R1)', () => {
       false,
     );
   });
+  it('reads the flag case-insensitively', () => {
+    expect(dateEndsEnabled({ flag: 'TRUE', nodeEnv: 'production' })).toBe(true);
+    expect(dateEndsEnabled({ flag: 'False', nodeEnv: 'staging' })).toBe(false);
+  });
   it('is off only in production when unset', () => {
     expect(dateEndsEnabled({ nodeEnv: 'production' })).toBe(false);
     expect(dateEndsEnabled({ nodeEnv: 'staging' })).toBe(true);
