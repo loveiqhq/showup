@@ -16,7 +16,6 @@ export const DATE_ENDED_IN_CHAT = 'date_ended_in_chat';
 export interface DateEventInput {
   id: string;
   venueId?: string | null;
-  cancelReason?: string | null;
 }
 
 export interface AnalyticsEventSpec {
@@ -37,13 +36,24 @@ export function dateCompletedEvent(date: DateEventInput): AnalyticsEventSpec {
   return { eventName: DATE_COMPLETED, properties: { date_id: date.id } };
 }
 
-/** A date was cancelled. The reason text is never sent — only whether one was given. */
-export function dateCancelledEvent(date: DateEventInput): AnalyticsEventSpec {
+/**
+ * A date was cancelled from the red link (Date 07, registry 1.4.37). Server-sent, once, on success only.
+ * No `initiator`, no `reason`: one canceller, no reason asked. `hours_notice` is to the latest agreed
+ * meet time (negative after it).
+ */
+export function dateCancelledEvent(input: {
+  dateId: string;
+  hoursNotice: number;
+  penaltyPoints: number;
+  changeRequested: boolean;
+}): AnalyticsEventSpec {
   return {
     eventName: DATE_CANCELLED,
     properties: {
-      date_id: date.id,
-      had_reason: (date.cancelReason ?? null) != null,
+      date_id: input.dateId,
+      hours_notice: input.hoursNotice,
+      penalty_points: input.penaltyPoints,
+      change_requested: input.changeRequested,
     },
   };
 }
@@ -193,5 +203,45 @@ export function changeExpiredEvent(
   return {
     eventName: CHANGE_EXPIRED,
     properties: { date_id: dateId, suggestion_id: suggestionId, kind },
+  };
+}
+
+export const DATE_ENDED = 'date_ended';
+export const PROBLEM_STAY_FLAGGED = 'problem_stay_flagged';
+
+/**
+ * `date_ended` (Date 06, registry 1.4.36, server). Once, on a successful end only: how it ended (§43),
+ * where it started (§45), each person's committed check-in at that moment, and whole minutes from the
+ * latest agreed meet time (negative before it). Never a coordinate, a place or free text.
+ */
+export function dateEndedEvent(p: {
+  dateId: string;
+  endReason: string;
+  entry: string;
+  enderCheckedIn: boolean;
+  partnerCheckedIn: boolean;
+  minutesVsStart: number;
+}): AnalyticsEventSpec {
+  return {
+    eventName: DATE_ENDED,
+    properties: {
+      date_id: p.dateId,
+      end_reason: p.endReason,
+      entry: p.entry,
+      ender_checked_in: p.enderCheckedIn,
+      partner_checked_in: p.partnerCheckedIn,
+      minutes_vs_start: p.minutesVsStart,
+    },
+  };
+}
+
+/** `problem_stay_flagged` (Date 06, server): one per "Stay for now" tap, each stored as a flag row. */
+export function problemStayFlaggedEvent(
+  dateId: string,
+  minutesVsStart: number,
+): AnalyticsEventSpec {
+  return {
+    eventName: PROBLEM_STAY_FLAGGED,
+    properties: { date_id: dateId, minutes_vs_start: minutesVsStart },
   };
 }

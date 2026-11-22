@@ -67,23 +67,46 @@ struct ActiveDate: Equatable, Sendable {
     var change: DateChange? = nil
     /// Date 05: the match's open suggestion with the earliest deadline, for the hoisted request card.
     var changeRequest: ChangeSuggestion? = nil
+    /// Date 06 / 07: the end and cancel routes are on (the server's `DATE_ENDS_ENABLED`). False renders no entry for either.
+    var endsEnabled: Bool = false
+    /// Date 07: the Show-up Rate points a cancel costs, as the server's rate config says; never a number written in the app.
+    var cancelPenaltyPoints: Int = 0
 }
 
-/// A date ended in the chat after "I can't make it today" (Date 02) that the viewer has not seen yet: the
-/// other person's first name and whether the viewer ended it. Shown once; after it is marked seen the read
-/// is `.none`.
-struct EndedInChat: Hashable, Sendable {
+/// A date that ended -- in the chat (Date 02), by a cancel (Date 07) or by an end (Date 06) -- that the viewer has
+/// not seen yet: the other person's first name and whether the viewer ended it. Shown once; after it is marked
+/// seen the read is `.none`. `reason` says how it ended; `partnerScreen` is set only for the match of a Date 06 end.
+struct EndedOutcome: Hashable, Sendable {
     var dateId: String
     var name: String
     var endedByYou: Bool
     /// The match's first photo, as the server sent it: G or H drawn with no date held, at the next launch.
     var photoUrl: URL? = nil
+    var reason: OutcomeReason = .chat
+    var partnerScreen: PartnerScreen? = nil
+}
+
+/// How an ended date ended, the server's `reason`. The raw value is the wire value.
+enum OutcomeReason: String, CaseIterable, Hashable, Sendable {
+    case chat, cancelled, met, partnerNoShow = "partner_no_show", uncomfortable
+
+    /// A payload with no reason is an older server's, from when the chat was the only way a date ended.
+    static func fromWire(_ wire: String?) -> OutcomeReason { wire.flatMap(OutcomeReason.init(rawValue:)) ?? .chat }
+}
+
+/// Which screen the MATCH of a Date 06 end sees (Date 08), as the server picked it.
+enum PartnerScreen: String, CaseIterable, Hashable, Sendable {
+    case dateClosedPositive = "date_closed_positive"
+    case youNoShowed = "you_no_showed"
+    case dateEndedDiscomfort = "date_ended_discomfort"
+
+    static func fromWire(_ wire: String?) -> PartnerScreen? { wire.flatMap(PartnerScreen.init(rawValue:)) }
 }
 
 /// What `GET /me/date` found: a date, an ended-in-chat outcome to show, or neither. A failed call is the
 /// `Result`'s.
 enum DateRead: Equatable, Sendable {
     case active(ActiveDate)
-    case ended(EndedInChat)
+    case ended(EndedOutcome)
     case none
 }

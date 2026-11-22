@@ -67,20 +67,52 @@ data class ActiveDate(
     val change: DateChange? = null,
     /** Date 05: the match's open suggestion with the earliest deadline, for the hoisted request card. */
     val changeRequest: ChangeSuggestion? = null,
+    /** Date 06 / 07: the end and cancel routes are on (the server's `DATE_ENDS_ENABLED`). False renders no entry for either. */
+    val endsEnabled: Boolean = false,
+    /** Date 07: the Show-up Rate points a cancel costs, as the server's rate config says; never a number written in the app. */
+    val cancelPenaltyPoints: Int = 0,
 )
 
 /**
- * A date ended in the chat after "I can't make it today" (Date 02) that the viewer has not seen yet:
- * the other person's first name and whether the viewer ended it. Shown once; after it is marked seen
- * the read is [DateRead.None].
+ * A date that ended -- in the chat (Date 02), by a cancel (Date 07) or by an end (Date 06) -- that the viewer
+ * has not seen yet: the other person's first name and whether the viewer ended it. Shown once; after it is
+ * marked seen the read is [DateRead.None]. [reason] says how it ended; [partnerScreen] is set only for the
+ * match of a Date 06 end.
  */
-data class EndedInChat(
+data class EndedOutcome(
     val dateId: String,
     val name: String,
     val endedByYou: Boolean,
     /** The match's first photo, as the server sent it: G or H drawn with no date held, at the next launch. */
     val photoUrl: String? = null,
+    val reason: OutcomeReason = OutcomeReason.Chat,
+    val partnerScreen: PartnerScreen? = null,
 )
+
+/** How an ended date ended, the server's `reason`. */
+enum class OutcomeReason(val wire: String) {
+    Chat("chat"),
+    Cancelled("cancelled"),
+    Met("met"),
+    PartnerNoShow("partner_no_show"),
+    Uncomfortable("uncomfortable");
+
+    companion object {
+        /** A payload with no reason is an older server's, from when the chat was the only way a date ended. */
+        fun fromWire(wire: String?): OutcomeReason = entries.firstOrNull { it.wire == wire } ?: Chat
+    }
+}
+
+/** Which screen the MATCH of a Date 06 end sees (Date 08), as the server picked it. */
+enum class PartnerScreen(val wire: String) {
+    DateClosedPositive("date_closed_positive"),
+    YouNoShowed("you_no_showed"),
+    DateEndedDiscomfort("date_ended_discomfort");
+
+    companion object {
+        fun fromWire(wire: String?): PartnerScreen? = entries.firstOrNull { it.wire == wire }
+    }
+}
 
 /**
  * What `GET /me/date` found: a date, an ended-in-chat outcome to show, or neither. A failed call is the
@@ -88,6 +120,6 @@ data class EndedInChat(
  */
 sealed interface DateRead {
     data class Active(val date: ActiveDate) : DateRead
-    data class Ended(val outcome: EndedInChat) : DateRead
+    data class Ended(val outcome: EndedOutcome) : DateRead
     data object None : DateRead
 }

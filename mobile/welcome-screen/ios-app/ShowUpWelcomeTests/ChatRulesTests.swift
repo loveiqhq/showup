@@ -131,7 +131,7 @@ final class ChatRulesTests: XCTestCase {
     }
 
     func testAnOutcomeRoutesToTheOutcomeScreenWithEverythingItDraws() {
-        let outcome = EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false)
+        let outcome = EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false)
         XCTAssertEqual(outcomeRoute(outcome, photoURL: nil), .dateEnded(outcome, photoURL: nil))
     }
 
@@ -145,15 +145,15 @@ final class ChatRulesTests: XCTestCase {
     func testTheOutcomesOwnPhotoWinsAndTheHeldDatesStandsInWhenItHasNone() {
         let held = URL(string: "https://x/held.jpg")
         let own = URL(string: "https://x/own.jpg")
-        var outcome = EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false)
+        var outcome = EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false)
         XCTAssertEqual(outcomeRoute(outcome, photoURL: held), .dateEnded(outcome, photoURL: held))
         outcome.photoUrl = own
         XCTAssertEqual(outcomeRoute(outcome, photoURL: held), .dateEnded(outcome, photoURL: own))
     }
 
     func testAnUnseenEndedOutcomeOpensTheDateScreenAtLaunch() {
-        let ended: Result<DateRead, CallFailure> = .success(.ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false)))
+        let ended: Result<DateRead, CallFailure> = .success(.ended(EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false)))
         XCTAssertEqual(launchTarget(date: ended, checkInActive: true), .date)
-        XCTAssertEqual(endedOutcome(ended), EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))
+        XCTAssertEqual(endedOutcome(ended), EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false))
     }
 }

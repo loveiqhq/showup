@@ -6,11 +6,12 @@ package com.showup.arrival
 
 import java.time.Instant
 
-/** `enums.json` §41 `arrival_entry`: where the person tapped. `report` is reserved for Date 06. */
+/** `enums.json` §41 `arrival_entry`: where the person tapped. `report` and `wrapup` are Date 06's: the gate its problem routes run first. */
 enum class ArrivalEntry(val wire: String) {
     DateScreen("date_screen"),
     ChatChip("chat_chip"),
     Report("report"),
+    Wrapup("wrapup"),
 }
 
 /** How long one location read may take before the person is told, in ms. */

@@ -17,11 +17,19 @@ struct SheetPrimaryButton: View {
     var waiting = false
     /// The fit tests' name for this button's frame, when one is measured.
     var anchor: String? = nil
+    /// A mark before the label, 9 from it (Date 06's `Message {name}`: `message-circle` 20 / 2.2, white).
+    var leadingIcon: BrandIcon? = nil
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(label).font(F.manrope(16.5, .bold)).foregroundColor(.white)
+            HStack(spacing: 9) {
+                if let leadingIcon {
+                    BrandIconView(icon: leadingIcon, size: 20, stroke: 2.2, tint: .white).accessibilityHidden(true)
+                }
+                Text(label).font(F.manrope(16.5, .bold)).foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+            }
                 .frame(maxWidth: .infinity, minHeight: 56)
                 // The glow behind, then the reference's 135deg sunset clipped to the radius-18 shape.
                 .background(SunsetFill(shape: RoundedRectangle(cornerRadius: 18), shadows: enabled ? shadowCta : []))
@@ -35,24 +43,40 @@ struct SheetPrimaryButton: View {
 }
 
 /// The white secondary, h 50 (a minimum, so the largest type grows it), radius 16, the soft border, 14.5 / 700 muted.
+///
+/// Date 06 draws it in four more ways, all defaults here: B and H's `Cancel` (h 52, 15), `Stay for now` in the ink,
+/// and the guide's end button, which `locked` greys (the raised fill, the subtle ink, inert) and may lead with a mark
+/// (`leadingIcon`, 7 from the label: `clock` 16 / 2.2 in the subtle ink).
 struct SheetSecondaryButton: View {
     let label: String
     var inert = false
     /// The fit tests' name for this button's frame, when one is measured.
     var anchor: String? = nil
+    var minHeight: CGFloat = 50
+    var fontSize: CGFloat = 14.5
+    var textColor: Color = .liqMuted
+    var locked = false
+    var leadingIcon: BrandIcon? = nil
     let action: () -> Void
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 16)
+        let ink = locked ? Color.liqSubtle : textColor
         Button(action: action) {
-            Text(label).font(F.manrope(14.5, .bold)).foregroundColor(.liqMuted)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .background(shape.fill(Color.liqElevated))
+            HStack(spacing: 7) {
+                if let leadingIcon {
+                    BrandIconView(icon: leadingIcon, size: 16, stroke: 2.2, tint: ink).accessibilityHidden(true)
+                }
+                Text(label).font(F.manrope(fontSize, .bold)).foregroundColor(ink)
+                    .multilineTextAlignment(.center)
+            }
+                .frame(maxWidth: .infinity, minHeight: minHeight)
+                .background(shape.fill(locked ? Color.liqRaised : Color.liqElevated))
                 .overlay(shape.strokeBorder(Color.liqBorderSoft, lineWidth: 1))
         }
         .buttonStyle(PressScale())
         .fitTapArea()
         .fitAnchor(ifGiven: anchor)
-        .disabled(inert)
+        .disabled(inert || locked)
     }
 }

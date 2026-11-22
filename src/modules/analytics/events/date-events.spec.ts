@@ -19,6 +19,10 @@ import {
   dateCompletedEvent,
   dateConfirmedEvent,
   dateEndedInChatEvent,
+  DATE_ENDED,
+  PROBLEM_STAY_FLAGGED,
+  dateEndedEvent,
+  problemStayFlaggedEvent,
 } from './date-events';
 
 describe('date analytics events', () => {
@@ -40,17 +44,28 @@ describe('date analytics events', () => {
     });
   });
 
-  it('date_cancelled flags whether a reason was given (never the reason text)', () => {
-    expect(
-      dateCancelledEvent({ id: 'd4', cancelReason: 'Something came up' }),
-    ).toEqual({
-      eventName: DATE_CANCELLED,
-      properties: { date_id: 'd4', had_reason: true },
+  it('date_cancelled carries exactly date_id, hours_notice, penalty_points, change_requested (Date 07)', () => {
+    const spec = dateCancelledEvent({
+      dateId: 'd4',
+      hoursNotice: 71.5,
+      penaltyPoints: 10,
+      changeRequested: true,
     });
-    expect(dateCancelledEvent({ id: 'd5', cancelReason: null })).toEqual({
+    expect(spec).toEqual({
       eventName: DATE_CANCELLED,
-      properties: { date_id: 'd5', had_reason: false },
+      properties: {
+        date_id: 'd4',
+        hours_notice: 71.5,
+        penalty_points: 10,
+        change_requested: true,
+      },
     });
+    expect(Object.keys(spec.properties).sort()).toEqual([
+      'change_requested',
+      'date_id',
+      'hours_notice',
+      'penalty_points',
+    ]);
   });
 
   it('coordinate_unlocked carries only minutes_before_start and cause (Date 03, registry 1.4.38)', () => {
@@ -157,6 +172,36 @@ describe('date analytics events', () => {
     expect(changeExpiredEvent('d1', 's1', 'time')).toEqual({
       eventName: CHANGE_EXPIRED,
       properties: { date_id: 'd1', suggestion_id: 's1', kind: 'time' },
+    });
+  });
+
+  it('date_ended carries the six fields and nothing else', () => {
+    expect(
+      dateEndedEvent({
+        dateId: 'd1',
+        endReason: 'partner_no_show',
+        entry: 'report',
+        enderCheckedIn: true,
+        partnerCheckedIn: false,
+        minutesVsStart: -5,
+      }),
+    ).toEqual({
+      eventName: DATE_ENDED,
+      properties: {
+        date_id: 'd1',
+        end_reason: 'partner_no_show',
+        entry: 'report',
+        ender_checked_in: true,
+        partner_checked_in: false,
+        minutes_vs_start: -5,
+      },
+    });
+  });
+
+  it('problem_stay_flagged carries the date and the minutes', () => {
+    expect(problemStayFlaggedEvent('d1', 12)).toEqual({
+      eventName: PROBLEM_STAY_FLAGGED,
+      properties: { date_id: 'd1', minutes_vs_start: 12 },
     });
   });
 });

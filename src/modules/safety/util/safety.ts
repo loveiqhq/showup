@@ -72,8 +72,11 @@ export function isDiscoverable(standing: ModerationStanding): boolean {
 export function dedupeBlockIds(
   blockedByViewer: string[],
   blockedTheViewer: string[],
+  pairBlocked: string[] = [],
 ): string[] {
-  return [...new Set([...blockedByViewer, ...blockedTheViewer])];
+  return [
+    ...new Set([...blockedByViewer, ...blockedTheViewer, ...pairBlocked]),
+  ];
 }
 
 /** The result of a verification attempt (SHOWUP-110). */

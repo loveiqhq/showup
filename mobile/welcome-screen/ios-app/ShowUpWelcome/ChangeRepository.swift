@@ -17,12 +17,13 @@ enum ChangeKind: String, Hashable, Sendable {
     case place
 }
 
-/// §42 `change_entry`: where the picker was opened from. `cancel_sheet` is Date 07's, not built here.
+/// §42 `change_entry`: where the picker was opened from. `cancel_sheet` is Date 07's guard sheet.
 enum ChangeEntry: String, Hashable, Sendable {
     case coordinateTile = "coordinate_tile"
     case chatChip = "chat_chip"
     case counterCard = "counter_card"
     case counterThread = "counter_thread"
+    case cancelSheet = "cancel_sheet"
 }
 
 /// Where `I agree` was tapped: the request card on the Date screen, or the card in the thread.

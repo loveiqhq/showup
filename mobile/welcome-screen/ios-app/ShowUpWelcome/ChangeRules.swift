@@ -23,8 +23,17 @@ func changeClock(_ at: Date, zone: TimeZone) -> String { meetTime(at, zone: zone
 /// only -- while there is no later slot. Evaluated with the screens' clock tick, so they hide in place. A server
 /// before Date 05 sends no block: neither shows.
 func changeKindAvailable(_ change: DateChange?, kind: ChangeKind, now: Date) -> Bool {
-    guard let change, change.allowed, now < change.cutoffAt else { return false }
+    guard changeWindowOpen(change, now: now), let change else { return false }
     return kind != .time || !change.slots.isEmpty
+}
+
+/// The first half of `changeKindAvailable`: a new time or place can still be agreed at `now` -- the server says so (no
+/// committed check-in), and the cutoff has not passed. Date 07's cancel sheet reads this same function (R12), so its
+/// body line, its tiles and its `Message {name} instead` follow Date 05's gate and never a copy of it. A server before
+/// Date 05 sends no block: nothing can be agreed.
+func changeWindowOpen(_ change: DateChange?, now: Date) -> Bool {
+    guard let change else { return false }
+    return change.allowed && now < change.cutoffAt
 }
 
 /// The locked card's tiles, in the chips' order.

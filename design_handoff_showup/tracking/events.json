@@ -1,5 +1,8 @@
 {
   "taxonomy_version": "1.4.31",
+  "reconciled_against": "loveiqhq/showup main @ c195089",
+  "generated": "2026-09-25",
+  "event_count": 308,
   "changed_in_1_4_31": [
     "Date 03 (Arrival check-in) build questions, 16 Nov 2026 — registry 1.4.38.",
     "location_gate_shown — NEW optional payload screen_id (§11): date_location_gate when the gate blocks the Date screen (context=date). Absent = search_location_gate, so a Search 04 emitter built without it stays correct.",
@@ -7,7 +10,25 @@
     "No new events. A check-in that was not stored (Date 03 C2) fires no arrival_confirmed.",
     "coordinate_unlocked — RESPECIFIED: the chat also opens on the first committed arrival check-in. NEW payload cause: time | arrival_check_in. Still once per date, whichever comes first."
   ],
-  "merge_note_1_4_31": "1.4.28 (Date 05) is merged here; 1.4.29-1.4.30 (Date 06 / 07) are not: their tickets carry them.",
+  "changed_in_1_4_30": [
+    "Date 07 (Cancel this date), 16 Nov 2026 — family K. Registry 1.4.37.",
+    "cancel_guard_shown — RESPECIFIED: date_id, chat_open, minutes_before_start NEW; penalty_points kept.",
+    "cancel_abandoned_at_guard — RESPECIFIED: date_id, exit (§46 NEW), change_requested NEW; penalty_points REMOVED.",
+    "date_cancelled — RESPECIFIED: initiator and reason REMOVED, change_requested NEW. Code still ships {date_id, had_reason}.",
+    "RETIRED (removed): cancel_link_tapped (the tap always opens the guard) · partner_cancellation_received (screen_viewed on date_partner_cancelled) · rematch_started (a red-link pair is never re-matched). Do not reuse the names.",
+    "change_* entry: §42 cancel_sheet NEW.",
+    "event_count 311 → 308."
+  ],
+  "changed_in_1_4_29": [
+    "Date 06 (End date and report a problem), 10 Nov 2026 — family N respecified for 07a. Registry 1.4.36.",
+    "wrapup_opened · date_ended (server) · problem_stay_flagged (server) — NEW.",
+    "wrapup_outcome_selected — RESPECIFIED: met / left_early / partner_no_show bools REMOVED → outcome (§43) + checked_in + date_id. A half-written emitter using the bools still compiles — check it.",
+    "problem_report_opened — date_id kept, checked_in + minutes_vs_start NEW. problem_category_selected — category now §44 (partner_no_show · uncomfortable; unsafe + something_else RESERVED), checked_in NEW. VALUE RENAMED: waited → partner_no_show.",
+    "RETIRED (removed): wrapup_prompted (no 30-min timer in 07a) · wrapup_confirmed (replaced by date_ended) · grace_period_started and grace_period_expired (nothing measures the 10 minutes; the end unlocks at the binding meet time) · no_penalty_exit_granted (07a stores, flow 10 decides; date_ended.end_reason carries it). Do not reuse the names.",
+    "arrival_* entry: §41 report is live; wrapup NEW (End date sheet → My date isn't showing up).",
+    "Failures fire nothing new: an end that did not go through fires no date_ended.",
+    "event_count 313 → 311."
+  ],
   "changed_in_1_4_28": [
     "Date 05 (Change meet time and place), 10 Nov 2026 — five NEW events in family K: change_picker_opened · change_picker_dismissed (client) · change_suggested · change_agreed · change_expired (server). §42 change_entry NEW.",
     "A suggestion is NOT a message: message_sent / message_received never fire for it. action_chip_used still fires on the chip / tile tap (reason change_time | change_place, surface dock | entry | coordinate_card).",
@@ -16,12 +37,6 @@
     "Never in any change payload: place name, address, coordinates, distance.",
     "event_count 308 → 313."
   ],
-  "changed_in_1_4_24": [
-    "Search 01 decisions, 27 Oct 2026: filters_active compares saved genders with checkinGenderDefault on the viewer's current profile and lists true dealbreakers; gender values are never sent. Search filter saves add opened_from: search to check_in_filters_changed without Check-In funnel events. Returning from Filters is a new Search visit, position resets to 1, and the coach remains suppressed. The no-results state emits search_empty_shown with reason no_results."
-  ],
-  "reconciled_against": "loveiqhq/showup development @ 8540ee4",
-  "generated": "2026-09-25",
-  "event_count": 313,
   "changed_in_1_4_27": [
     "Date 03 (Arrival check-in, incl. the folded Date 04), 6 Nov 2026 — family M arrival events respecified for the arrival check-in.",
     "arrival_confirm_shown — NEW (client): the guard is shown. entry §41 NEW. Not yet fires nothing.",
@@ -43,6 +58,10 @@
   "changed_in_1_4_25": [
     "date_screen_viewed — respecified for Date 01: date_id, has_unread, checked_in NEW; minutes_before_start counts from the latest agreed meet time. 2 Nov 2026.",
     "date_quick_action_tapped — NEW (family K), action §38. Date 01, 2 Nov 2026."
+  ],
+  "changed_in_1_4_24": [
+    "Search 01 dev answers (SHOWUP-184), 27 Oct 2026: check_in_filters_changed — opened_from NEW (\"checkin\" | \"search\"). The Filters screen opened from the Search top bar fires the same event on an accepted save, with opened_from search; Check-In funnels filter on checkin. From Search, check_in_step_answered and check_in_closed never fire.",
+    "search_viewed.filters_active — DEFINED: the §10 filter_ids whose saved value differs from the start value: meet_gender vs checkinGenderDefault(the viewer's current profile gender × orientation), computed on the client, no server field; age_range vs 18 → 65+; distance_km vs 10; age_dealbreaker / distance_dealbreaker when true. Order as filters_changed. Gender values are never sent."
   ],
   "changed_in_1_4_23": [
     "Check-In 05b (Filters v2), 26 Oct 2026: check_in_filters_changed — age_dealbreaker NEW · distance_dealbreaker NEW (bool, §10). filters_changed order extended to meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker. Cadence unchanged: once per accepted Continue. A switch tap fires nothing."
@@ -2527,7 +2546,7 @@
             },
             {
               "name": "screen_id",
-              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate. Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
+              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate, or date_location_gate on the Date screen (16 Nov 2026). Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
               "required": false
             }
           ],
@@ -2552,7 +2571,7 @@
             },
             {
               "name": "screen_id",
-              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate. Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
+              "type": "str — enums.json §11. OPTIONAL: sent by the location gate as search_location_gate, or date_location_gate on the Date screen (16 Nov 2026). Absent on Profile 12 (built 5 Oct 2026 without it) — absent means profile_location. Added 22 Oct 2026 (Search 04).",
               "required": false
             }
           ],
@@ -3025,10 +3044,6 @@
           "tier": "T2",
           "payload": [
             {
-              "name": "opened_from",
-              "type": "\"checkin\" | \"search\" — where the Filters screen was opened: the Check-In step, or the Search top-bar filter button. NEW 1.4.24"
-            },
-            {
               "name": "filters_changed",
               "type": "str — the enums §10 filter_ids whose value differs from what the step showed on entry, in the order meet_gender,age_range,age_dealbreaker,distance_km,distance_dealbreaker, comma-joined, no spaces; \"none\" when nothing changed. Order extended 1.4.23"
             },
@@ -3055,11 +3070,15 @@
             {
               "name": "window_id",
               "type": "str"
+            },
+            {
+              "name": "opened_from",
+              "type": "\"checkin\" | \"search\" — where the Filters screen was opened: the Check-In step, or the Search top-bar filter button. NEW 1.4.24"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "User taps Continue on checkin_filters and the save succeeds, including unchanged settings (filters_changed none). From Check-In, follows check_in_step_answered. opened_from on every accepted save: checkin from the Check-In step, search from Search's filter button (1.4.24); from Search, with no check_in_step_answered or check_in_closed. age_dealbreaker and distance_dealbreaker go on every accepted Continue, changed or not -- false for both while the filters_dealbreakers flag is off. Never per chip tap, slider drag or switch tap, on close, a failed save, or the no-gender toast. Gender values are never sent. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24); dealbreakers 26 Oct 2026 (Check-In 05b, taxonomy 1.4.23).",
+          "trigger": "From Search (opened_from search, 1.4.24): once per accepted save, same payload, no check_in_step_answered before it. From Check-In: user taps Continue on checkin_filters and it is accepted — once per accepted Continue, after check_in_step_answered, including settings Continued unchanged (filters_changed \"none\"). Never per chip tap or slider drag; never on ✕; never for the no-gender toast. meet_gender values are never sent. Respecified 13 Oct 2026 (Check-In 05, taxonomy 1.4.15): was filter_id · value · is_premium_filter, per modification.",
           "implemented": true
         },
         {
@@ -3639,7 +3658,7 @@
           ],
           "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "The Search no-results state becomes visible, once per visit, with reason no_results; not for loading or a failed request. Returning from Filters begins a new visit. Approved 27 Oct 2026 (Search 01, taxonomy 1.4.24).",
+          "trigger": "Zero results returned in search feed",
           "implemented": true
         },
         {
@@ -4239,7 +4258,7 @@
           "implemented": false
         },
         {
-          "name": "cancel_link_tapped",
+          "name": "cancel_guard_shown",
           "code_anchor": null,
           "source": "client",
           "tier": "T2",
@@ -4247,27 +4266,23 @@
             {
               "name": "date_id",
               "type": "str"
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Client only",
-          "trigger": "Cancel Date link tapped",
-          "implemented": false
-        },
-        {
-          "name": "cancel_guard_shown",
-          "code_anchor": null,
-          "source": "client",
-          "tier": "T2",
-          "payload": [
+            },
+            {
+              "name": "chat_open",
+              "type": "bool — Message {name} instead shown (from meet − 1:30)"
+            },
             {
               "name": "penalty_points",
-              "type": "int"
+              "type": "int — the drop shown in the cost box, from the shared rate config (10 in MVP)"
+            },
+            {
+              "name": "minutes_before_start",
+              "type": "int — from the latest agreed meet time; negative after it"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "Penalty score modal rendered",
+          "trigger": "The Cancel this date guard sheet is shown (red link tapped). Fires each time it opens. RESPECIFIED 1.4.30, Date 07, 16 Nov 2026.",
           "implemented": false
         },
         {
@@ -4277,13 +4292,21 @@
           "tier": "T2",
           "payload": [
             {
-              "name": "penalty_points",
-              "type": "int"
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "exit",
+              "type": "str — enums.json §46 cancel_guard_exit"
+            },
+            {
+              "name": "change_requested",
+              "type": "bool — a time or place was requested from this sheet before it closed"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "User backs out of cancellation UI",
+          "trigger": "The guard sheet closed without a cancel: Don't cancel my date, scrim / swipe, or Message {name} instead. Opening a picker is not an exit. RESPECIFIED 1.4.30, Date 07.",
           "implemented": false
         },
         {
@@ -4298,62 +4321,22 @@
             },
             {
               "name": "hours_notice",
-              "type": "float"
-            },
-            {
-              "name": "initiator",
-              "type": "\"self\"|\"partner\""
+              "type": "float — hours from the cancel to the latest AGREED meet time; negative after it. Stored for analysis; no rule reads it"
             },
             {
               "name": "penalty_points",
-              "type": "int"
+              "type": "int — from the rate config (10 in MVP)"
             },
             {
-              "name": "reason",
-              "type": "str"
+              "name": "change_requested",
+              "type": "bool — a change was requested from the guard sheet before the cancel"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Partial",
-          "trigger": "Date status marked cancelled in DB",
+          "trigger": "The server cancelled the date from the red link (Date 07). Fires once, on success only; a failed or losing (simultaneous) attempt fires nothing. NOT fired for an end in the chat (date_ended_in_chat) or a Date 06 end (date_ended). RESPECIFIED 1.4.30.",
           "implemented": true,
           "code_delta": "Replace had_reason with the four spec properties. Show-up Rate cannot be computed without hours_notice and penalty_points — this is a requirement, not a preference."
-        },
-        {
-          "name": "partner_cancellation_received",
-          "code_anchor": null,
-          "source": "client",
-          "tier": "T2",
-          "payload": [
-            {
-              "name": "hours_notice",
-              "type": "float"
-            },
-            {
-              "name": "rate_impact",
-              "type": "\"none\""
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Partial",
-          "trigger": "In-app alert shown for partner cancel",
-          "implemented": false
-        },
-        {
-          "name": "rematch_started",
-          "code_anchor": null,
-          "source": "client",
-          "tier": "T2",
-          "payload": [
-            {
-              "name": "previous_date_id",
-              "type": "str"
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "User enters re-matching pool post-cancel",
-          "implemented": false
         },
         {
           "name": "date_quick_action_tapped",
@@ -5151,27 +5134,35 @@
     },
     {
       "id": "N",
-      "name": "Wrap-up & Safety",
+      "name": "Wrap-up & Safety — End date and report a problem (Date 06)",
       "events": [
         {
-          "name": "wrapup_prompted",
+          "name": "wrapup_opened",
+          "source": "client",
           "code_anchor": null,
-          "source": "server",
           "tier": "T2",
-          "payload": [
-            {
-              "name": "trigger",
-              "type": "\"timer\"|\"manual\""
-            },
-            {
-              "name": "minutes_elapsed",
-              "type": "int"
-            }
-          ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "30-min status push dispatched",
-          "implemented": false
+          "implemented": false,
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §45 end_entry, end_date_bar | checkin_bar_link only"
+            },
+            {
+              "name": "checked_in",
+              "type": "bool"
+            },
+            {
+              "name": "minutes_vs_start",
+              "type": "int — from the latest AGREED meet time; negative = before"
+            }
+          ],
+          "trigger": "NEW 1.4.29 (Date 06). 'How did it go with {name}?' opens — from End Date on the End Date bar (after check-in) or the End date link under the Check-in bar (before). Cancel / scrim fires nothing."
         },
         {
           "name": "wrapup_outcome_selected",
@@ -5180,90 +5171,58 @@
           "tier": "T2",
           "payload": [
             {
-              "name": "met",
-              "type": "bool"
+              "name": "date_id",
+              "type": "str"
             },
-            {
-              "name": "left_early",
-              "type": "bool"
-            },
-            {
-              "name": "partner_no_show",
-              "type": "bool"
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "User selects initial 30-min outcome pill",
-          "implemented": false
-        },
-        {
-          "name": "wrapup_confirmed",
-          "code_anchor": null,
-          "source": "server",
-          "tier": "T2",
-          "payload": [
             {
               "name": "outcome",
-              "type": "str"
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "Outcome logic saved in database",
-          "implemented": false
-        },
-        {
-          "name": "grace_period_started",
-          "code_anchor": null,
-          "source": "server",
-          "tier": "T2",
-          "payload": [
-            {
-              "name": "minutes",
-              "type": "10"
+              "type": "str — enums.json §43 date_end_reason, met | partner_no_show only. NEW 1.4.29"
             },
             {
-              "name": "context",
-              "type": "\"no_show\""
+              "name": "checked_in",
+              "type": "bool — NEW 1.4.29. This user has a stored arrival check-in"
             }
           ],
           "sensitivity_class": 0,
           "backend_status": "Not built",
-          "trigger": "10-minute buffer window initialized",
+          "trigger": "RESPECIFIED 1.4.29 (Date 06). User taps an option on 'How did it go with {name}?' (DateWrapSheet). Fires on the tap, before the check-in gate or the confirm step. Was: 'User selects initial 30-min outcome pill' with met / left_early / partner_no_show bools — those three REMOVED.",
           "implemented": false
         },
         {
-          "name": "grace_period_expired",
-          "code_anchor": null,
+          "name": "date_ended",
           "source": "server",
+          "code_anchor": null,
           "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "implemented": false,
           "payload": [
             {
               "name": "date_id",
               "type": "str"
-            }
-          ],
-          "sensitivity_class": 0,
-          "backend_status": "Not built",
-          "trigger": "Buffer expires without confirmation",
-          "implemented": false
-        },
-        {
-          "name": "no_penalty_exit_granted",
-          "code_anchor": null,
-          "source": "server",
-          "tier": "T2",
-          "payload": [
+            },
             {
-              "name": "reason",
-              "type": "\"waited_out_window\"|\"unsafe\""
+              "name": "end_reason",
+              "type": "str — enums.json §43 date_end_reason"
+            },
+            {
+              "name": "entry",
+              "type": "str — enums.json §45 end_entry"
+            },
+            {
+              "name": "ender_checked_in",
+              "type": "bool"
+            },
+            {
+              "name": "partner_checked_in",
+              "type": "bool — decides the match's Date 08 screen for partner_no_show"
+            },
+            {
+              "name": "minutes_vs_start",
+              "type": "int — from the latest AGREED meet time; negative = before"
             }
           ],
-          "sensitivity_class": null,
-          "backend_status": "Not built",
-          "trigger": "Penalty shield applied to user record",
-          "implemented": false
+          "trigger": "NEW 1.4.29 (Date 06). The server ended the date from a Date 06 path: End Date → Review (met), End date and review (partner_no_show), Head out now (uncomfortable). Fires once, on success only — a failed end fires nothing. Both users move on: the ender to flow 10, the match to a Date 08 screen. NOT fired for an end in the chat (date_ended_in_chat), a cancel (date_cancelled) or the +2 h switch (09)."
         },
         {
           "name": "problem_report_opened",
@@ -5274,11 +5233,19 @@
             {
               "name": "date_id",
               "type": "str"
+            },
+            {
+              "name": "checked_in",
+              "type": "bool — NEW 1.4.29"
+            },
+            {
+              "name": "minutes_vs_start",
+              "type": "int — from the latest AGREED meet time; negative = before. NEW 1.4.29"
             }
           ],
-          "sensitivity_class": null,
+          "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "Report Problem modal opened",
+          "trigger": "RESPECIFIED 1.4.29 (Date 06). The Report a problem sheet opens from the entry card on the Date screen. Was: 'Report Problem modal opened'.",
           "implemented": false
         },
         {
@@ -5288,14 +5255,42 @@
           "tier": "T2",
           "payload": [
             {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
               "name": "category",
-              "type": "\"unsafe\"|\"uncomfortable\"|\"waited\""
+              "type": "str — enums.json §44 problem_category. NEW 1.4.29 (was unsafe | uncomfortable | waited)"
+            },
+            {
+              "name": "checked_in",
+              "type": "bool — NEW 1.4.29"
             }
           ],
-          "sensitivity_class": null,
+          "sensitivity_class": 0,
           "backend_status": "Client only",
-          "trigger": "Incident category selected",
+          "trigger": "RESPECIFIED 1.4.29 (Date 06). User taps an option on the Report a problem menu. Fires on the tap, before the check-in gate. Values unsafe and something_else are RESERVED (parked, not in the MVP menu).",
           "implemented": false
+        },
+        {
+          "name": "problem_stay_flagged",
+          "source": "server",
+          "code_anchor": null,
+          "tier": "T2",
+          "sensitivity_class": 0,
+          "backend_status": "Not built",
+          "implemented": false,
+          "payload": [
+            {
+              "name": "date_id",
+              "type": "str"
+            },
+            {
+              "name": "minutes_vs_start",
+              "type": "int — from the latest AGREED meet time; negative = before"
+            }
+          ],
+          "trigger": "NEW 1.4.29 (Date 06). Report → I don't feel comfortable → Stay for now: the server stored an internal discomfort flag against the date (evidence for flow 10). The date continues. Never shown to either user."
         },
         {
           "name": "safety_call_triggered",
@@ -5310,7 +5305,7 @@
           ],
           "sensitivity_class": null,
           "backend_status": "Not built",
-          "trigger": "Emergency helpline link executed",
+          "trigger": "PARKED (2 Nov 2026) — the AI safety call / I'm in danger is out of MVP. Emergency helpline link executed",
           "implemented": false
         },
         {
@@ -5326,7 +5321,7 @@
           ],
           "sensitivity_class": null,
           "backend_status": "Not built",
-          "trigger": "Voice trunk connects to safety center",
+          "trigger": "PARKED (2 Nov 2026) — the AI safety call / I'm in danger is out of MVP. Voice trunk connects to safety center",
           "implemented": false
         },
         {
@@ -6693,8 +6688,8 @@
       ]
     }
   ],
-  "reconciled_with_code": "Reconciled against both apps' shipped code, 12 October 2026: 94 events implemented -- 86 client events that production code on BOTH Android and iOS actually fires (definitions alone, tests and the debug developer menu do not count), and 8 server events the backend emits. Supersedes the 7 September 2026 catalogue (35 events). Names for the built flows follow the code; unbuilt events keep their spec names. 13 Oct 2026: merged into handoff registry 1.4.25 / taxonomy 1.4.16 (Check-In 01-06); the reconciliation above was carried over event by event, and event_count is the real count (the handoff file said one fewer). 19 Oct 2026: 11 more turned on, the 48hrs Check-In's ten client events and permission_status_changed (the shared permission reconciler), each fired by production code on both apps: 105 implemented, 97 client and 8 server. 19 Oct 2026, later: signup_code_verify_failed fires again (on a code the server refused, with its 1-based attempt), so it is implemented and its code_delta is gone: 106 implemented, 98 client.",
-  "implemented_count": 108,
+  "reconciled_with_code": "ShowUp app + server tracking catalogue, 7 September 2026 (35 events). Names for the built flows follow the code; unbuilt events keep their spec names.",
+  "implemented_count": 35,
   "code_delta_count": 31,
   "screen_identity_note": "Two properties, on purpose. screen_id is the stable machine key and never changes. screen_name is the human label and is what a person searches for in the analytics tool. Only screen_viewed carries both; every other event carries screen_id alone and joins to it. Both values come from the enums.json §11 registry — never typed at a call site."
 }

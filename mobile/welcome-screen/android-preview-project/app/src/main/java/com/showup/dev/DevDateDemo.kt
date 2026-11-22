@@ -42,13 +42,22 @@ import com.showup.chat.ChatReason
 import com.showup.chat.ChatStore
 import com.showup.chat.EndResult
 import com.showup.date.ActiveDate
+import com.showup.date.CancelResult
+import com.showup.date.CancelStore
 import com.showup.date.DateArrival
+import com.showup.date.DateEndStore
 import com.showup.date.DatePlace
 import com.showup.date.DateRead
 import com.showup.date.DateSamples
 import com.showup.date.DateStore
 import com.showup.date.DateUnread
-import com.showup.date.EndedInChat
+import com.showup.date.EndDateResult
+import com.showup.date.EndEntry
+import com.showup.date.EndReason
+import com.showup.date.EndedOutcome
+import com.showup.date.OutcomeReason
+import com.showup.date.cancel.CancelSamples
+import com.showup.date.end.DateEndSamples
 import com.showup.search.SearchProfile
 import com.showup.search.SearchSamples
 import kotlinx.coroutines.delay
@@ -57,6 +66,30 @@ import java.time.Instant
 
 /** Where a frame opens once its date is read: the screen the sheet draws it on. */
 enum class DemoLanding { DateScreen, Chat, TimePicker, PlacePicker }
+
+/**
+ * What the host does after landing so a SHOWUP-197 or 198 frame shows its sheet at its step. Each is one public call
+ * on the real view models (`DateEndViewModel`, `CancelViewModel`), the call the same tap makes: no second code path.
+ */
+enum class DemoStep { OpenWrap, OpenReport, PickMet, PickNoShow, PickUncomfortable, ConfirmWait, OpenCancel, CancelSent }
+
+/** The steps a frame performs, in order, once its date is read; empty for a frame that is the Date screen itself. */
+fun demoSteps(frame: String): List<DemoStep> = when (frame) {
+    "197B" -> listOf(DemoStep.OpenWrap)
+    "197C" -> listOf(DemoStep.OpenWrap, DemoStep.PickMet)
+    // D is the gate (not checked in), E and F the guide (before and after the meet time): the same pick, a different date.
+    "197D", "197E", "197F" -> listOf(DemoStep.OpenWrap, DemoStep.PickNoShow)
+    "197G", "197J" -> listOf(DemoStep.OpenWrap, DemoStep.PickNoShow, DemoStep.ConfirmWait)
+    "197H" -> listOf(DemoStep.OpenReport)
+    "197I" -> listOf(DemoStep.OpenReport, DemoStep.PickUncomfortable)
+    "198B", "198C", "198E", "198I" -> listOf(DemoStep.OpenCancel)
+    "198D" -> listOf(DemoStep.OpenCancel, DemoStep.CancelSent)
+    else -> emptyList()
+}
+
+/** Every frame id a launch can carry: Date 05's letters, and the two tickets' prefixed ids. */
+val DEV_LIVE_FRAMES: Set<String> =
+    (ChangeSamples.LETTERS + DateEndSamples.LETTERS.map { "197$it" } + CancelSamples.LETTERS.map { "198$it" }).toSet()
 
 fun demoLanding(frame: String): DemoLanding = when (frame) {
     "A", "K" -> DemoLanding.TimePicker
@@ -74,7 +107,7 @@ data class DevDateLaunch(val frame: String) {
         const val EXTRA_FRAME = "dev_date_frame"
 
         fun from(intent: android.content.Intent?): DevDateLaunch? =
-            intent?.getStringExtra(EXTRA_FRAME)?.takeIf { it in ChangeSamples.LETTERS }?.let(::DevDateLaunch)
+            intent?.getStringExtra(EXTRA_FRAME)?.takeIf { it in DEV_LIVE_FRAMES }?.let(::DevDateLaunch)
     }
 }
 
@@ -86,16 +119,21 @@ class DevDateDemo(
     private val clock: () -> Instant = Instant::now,
     /** Milliseconds a write takes: long enough to see the sending state, short enough to walk. */
     private val latencyMs: Long = 600,
-) : DateStore, ChatStore, ChangeStore, ArrivalStore, LocationFixReader {
+) : DateStore, ChatStore, ChangeStore, ArrivalStore, LocationFixReader, DateEndStore, CancelStore {
 
     private val start = clock()
 
     /** The sheet's clock for this frame: 15:55 while the chat is locked (I, J), past the 18:30 deadline in H. */
     private val kitNow: Instant = when (frame) {
-        "I", "J" -> DateSamples.A_NOW
+        "I", "J", "198B" -> DateSamples.A_NOW
         "H" -> KIT_MEET.minusSeconds(29 * 60)
+        // Ten minutes past the meet time: F, G and J need the end button open. 198I is 25 minutes before it, past the cutoff.
+        "197F", "197G", "197J" -> KIT_MEET.plusSeconds(10 * 60)
+        "198I" -> KIT_MEET.minusSeconds(25 * 60)
         else -> DateSamples.B_NOW
     }
+    /** The frames drawn with the chat still locked (nothing unlocked it yet, nothing could have been sent). */
+    private val chatLocked = frame in setOf("I", "J", "198B")
     private val shift: Duration = Duration.between(kitNow, start)
 
     /** A kit time, moved to today. */
@@ -117,25 +155,32 @@ class DevDateDemo(
      * The server's `coordinate_unlocked_at`: once the chat has opened it stays open, even when a later time is agreed.
      * Every frame but I and J is drawn with the chat open, so it has opened already (G's at the original 19:00).
      */
-    private var unlockStamped = frame !in setOf("I", "J")
+    private var unlockStamped = !chatLocked
     private var tutorialSeen = true
-    private var myCheckIn = MyCheckIn.None
+    /** Date 06's frames except D (the gate) and Date 07's F are drawn after this person has checked in. */
+    private var myCheckIn = if (frame.startsWith("197") && frame != "197D" || frame == "198F") MyCheckIn.Committed else MyCheckIn.None
     private var partnerArrivedAt: Instant? = null
     private var partnerArrivalSeen = false
-    private var ended: EndedInChat? = null
+    /** 198H: the match cancelled on this person, so the first read is the outcome. */
+    private var ended: EndedOutcome? =
+        if (frame == "198H") EndedOutcome(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false, reason = OutcomeReason.Cancelled) else null
     private var endSeen = false
     private var gone = false
+    private var discomfortFlagged = false
     private var nextId = 0
 
     // The failure frames fail once, so the retry is walked too.
     private var failSuggest = frame == "K"
     private var failAgree = frame == "L"
     private var failPlaces = frame == "M"
+    /** J's end and E's cancel fail once, so the retry is walked too. */
+    private var failEnd = frame == "197J"
+    private var failCancel = frame == "198E"
 
     private enum class MyCheckIn { None, Stored, Committed }
 
     init {
-        if (frame !in setOf("I", "J")) messages += ChangeSamples.SEED.copy(sentAt = kit(ChangeSamples.SEED.sentAt))
+        if (!chatLocked) messages += ChangeSamples.SEED.copy(sentAt = kit(ChangeSamples.SEED.sentAt))
         // E and L draw her running-late message, unread, under the request (ChangeSamples.E_DATE). J's chat is still
         // locked, so nothing could have been sent yet.
         if (frame in setOf("E", "L")) {
@@ -151,6 +196,8 @@ class DevDateDemo(
                 meetAt = kit(ChangeSamples.SLOTS[1])
             }
             "H" -> suggestions += ChangeSamples.EXPIRED_TIME.moved()
+            // The request D's line reports, sent from the sheet: it is open on the server as well.
+            "198D" -> suggestions += ChangeSamples.MINE_TIME.moved()
         }
     }
 
@@ -208,6 +255,8 @@ class DevDateDemo(
             unread = theirs.lastOrNull()?.let { DateUnread(theirs.size, it.reason, it.body, it.sentAt) },
             checkedIn = committed,
             chatTutorialSeen = tutorialSeen,
+            endsEnabled = true,
+            cancelPenaltyPoints = DEMO_CANCEL_PENALTY,
             arrival = partnerArrivedAt?.takeIf { !partnerArrivalSeen }?.let(::DateArrival),
             change = DateChange(cutoff, allowed(now), slots(), timeWas, placeWas, pending),
             changeRequest = pending.filter { !it.byYou }.minByOrNull { it.deadline },
@@ -283,6 +332,7 @@ class DevDateDemo(
             ended = null
             endSeen = false
             gone = false
+            discomfortFlagged = false
             true
         },
     )
@@ -298,7 +348,34 @@ class DevDateDemo(
 
     override suspend fun matchEndsInChat(): Result<Boolean> = Result.success(
         locked {
-            ended = EndedInChat(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false)
+            ended = EndedOutcome(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false)
+            endSeen = false
+            true
+        },
+    )
+
+    override suspend fun partnerCancels(): Result<Boolean> = Result.success(
+        locked {
+            if (over) return@locked false
+            ended = EndedOutcome(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false, reason = OutcomeReason.Cancelled)
+            endSeen = false
+            true
+        },
+    )
+
+    override suspend fun partnerEnds(reason: EndReason): Result<Boolean> = Result.success(
+        locked { now ->
+            if (over) return@locked false
+            // The server has her check in first for the two problem reasons, so her arrival card stands behind it.
+            if (reason != EndReason.Met) partnerArrivedAt = partnerArrivedAt ?: now
+            ended = EndedOutcome(
+                DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false,
+                reason = when (reason) {
+                    EndReason.Met -> OutcomeReason.Met
+                    EndReason.PartnerNoShow -> OutcomeReason.PartnerNoShow
+                    EndReason.Uncomfortable -> OutcomeReason.Uncomfortable
+                },
+            )
             endSeen = false
             true
         },
@@ -377,7 +454,7 @@ class DevDateDemo(
     override suspend fun endInChat(dateId: String): EndResult {
         delay(latencyMs)
         return locked {
-            val outcome = EndedInChat(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = true)
+            val outcome = EndedOutcome(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = true)
             ended = outcome
             endSeen = false
             EndResult.Ended(outcome)
@@ -386,6 +463,61 @@ class DevDateDemo(
 
     override suspend fun markEndSeen(dateId: String) {
         locked { endSeen = true }
+    }
+
+    // ── DateEndStore and CancelStore: the server's refusals, then the outcome the next read reports ──
+
+    /** The date is over for both, by [reason]; the next `active` read says how, until it is seen. */
+    private fun finish(reason: OutcomeReason): EndedOutcome {
+        val outcome = EndedOutcome(DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = true, reason = reason)
+        ended = outcome
+        endSeen = false
+        return outcome
+    }
+
+    private val over: Boolean get() = gone || ended != null
+
+    override suspend fun end(dateId: String, reason: EndReason, entry: EndEntry): EndDateResult {
+        delay(latencyMs)
+        return locked { now ->
+            when {
+                over -> EndDateResult.Refused("date_not_active")
+                failEnd -> {
+                    failEnd = false
+                    EndDateResult.Failed(CallFailure.Network)
+                }
+                reason == EndReason.PartnerNoShow && now.isBefore(meetAt) -> EndDateResult.Refused("before_meet")
+                reason != EndReason.Met && !committed -> EndDateResult.Refused("not_checked_in")
+                else -> EndDateResult.Ended(
+                    finish(
+                        when (reason) {
+                            EndReason.Met -> OutcomeReason.Met
+                            EndReason.PartnerNoShow -> OutcomeReason.PartnerNoShow
+                            EndReason.Uncomfortable -> OutcomeReason.Uncomfortable
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    override suspend fun flagDiscomfort(dateId: String): Result<Boolean> = Result.success(
+        locked { discomfortFlagged = true; true },
+    )
+
+    override suspend fun cancel(dateId: String): CancelResult {
+        delay(latencyMs)
+        return locked {
+            when {
+                over -> CancelResult.Refused("date_not_active")
+                failCancel -> {
+                    failCancel = false
+                    CancelResult.Failed(CallFailure.Network)
+                }
+                committed -> CancelResult.Refused("checked_in")
+                else -> CancelResult.Cancelled(finish(OutcomeReason.Cancelled))
+            }
+        }
     }
 
     // ── ChangeStore ─────────────────────────────────────────────────────────────────────────
@@ -480,6 +612,9 @@ class DevDateDemo(
 
     companion object {
         const val DEMO_DATE_ID = "demo-date"
+
+        /** What this stand-in server says a cancel costs; the apps only ever show the number a server sends. */
+        private const val DEMO_CANCEL_PENALTY = 10
 
         /** The kit's binding meet time, 19:00 Berlin on the sample day. */
         private val KIT_MEET: Instant = DateSamples.DATE.meetAt

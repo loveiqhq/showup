@@ -173,6 +173,6 @@ Check-In steps (stories 02–06) and their ✕. Instant's own 15-second flow. Th
 ## Open (not blocking)
 
 - **An expired Check-In.** When a 48-hour window ends with no new Check-In, does the user see B as drawn, or different copy ("Check in again…")? B's copy is written for a first-time user.
-- **`check_in_completed` vs `check_in_created`.** Both describe a committed Check-In record; the second already ships. Settle which one survives in the completion ticket.
+- ~~**`check_in_completed` vs `check_in_created`.**~~ ⚠ *Settled 13 Oct 2026 by Check-In 06:* `check_in_created` is the one commit event; `check_in_completed` is retired.
 - **`quick_checkin_completed`** (Instant) keeps the old prefix until Instant is ticketed.
 - **`Check-in` vs the product term `Check-In`.** Kept as drawn by decision. The terminology rule in `CLAUDE.md` names `Check-In`; if the two are ever unified, it is a copy change across A, B and the step header.

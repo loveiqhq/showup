@@ -34,6 +34,18 @@ protocol DateStoring: Sendable {
     func matchAgrees() async -> Bool
     /// Debug only (Date 05): every pending suggestion is past its deadline and the expiry runs once.
     func expireSuggestions() async -> Bool
+    /// Debug only (Date 07 H): the test match cancels the viewer's date from the red link; the viewer's next read is
+    /// the cancelled outcome. Android's `partnerCancels`. A default that refuses, so only the real store and the demo
+    /// carry it.
+    func partnerCancels() async -> Bool
+    /// Debug only (Date 06, the Date 08 slot): the test match ends the viewer's date with `reason`. The server has her
+    /// check in first for the two problem reasons. Android's `partnerEnds`.
+    func partnerEnds(reason: EndReason) async -> Bool
+}
+
+extension DateStoring {
+    func partnerCancels() async -> Bool { false }
+    func partnerEnds(reason: EndReason) async -> Bool { false }
 }
 
 struct DateRepository: DateStoring {
@@ -45,9 +57,7 @@ struct DateRepository: DateStoring {
                 let dto = try ok.body.json
                 if let date = dto.date?.value1 { return .success(.active(ActiveDate(date, api: api))) }
                 if let ended = dto.ended?.value1 {
-                    return .success(.ended(EndedInChat(dateId: ended.dateId, name: ended.name,
-                                                       endedByYou: ended.endedByYou,
-                                                       photoUrl: ended.photoUrl.flatMap { api.absoluteURL($0) })))
+                    return .success(.ended(EndedOutcome(ended, api: api)))
                 }
                 return .success(.none)
             }
@@ -123,6 +133,19 @@ struct DateRepository: DateStoring {
         return true
     }
 
+    func partnerCancels() async -> Bool {
+        guard case .noContent? = try? await api.client.cancelDevDateAsPartner() else { return false }
+        return true
+    }
+
+    func partnerEnds(reason: EndReason) async -> Bool {
+        // By wire value, not case name, as every dev call here.
+        guard let wire = Components.Schemas.DateEndReason(rawValue: reason.rawValue) else { return false }
+        let dto = Components.Schemas.DevDatePartnerEndsDto(reason: .init(value1: wire))
+        guard case .noContent? = try? await api.client.endDevDateAsPartner(body: .json(dto)) else { return false }
+        return true
+    }
+
     /// No response is `network`; a response that could not be read is the server's.
     private static func failure(_ error: any Error) -> CallFailure {
         ShowUpAPI.isNoResponse(error) ? .network : .server
@@ -162,6 +185,8 @@ extension ActiveDate {
             chatTutorialSeen: dto.chatTutorialSeen,
             arrival: dto.arrival.map { DateArrival(checkedInAt: $0.value1.checkedInAt) },
             change: dto.change.map { DateChange($0.value1) },
-            changeRequest: dto.changeRequest.flatMap { ChangeSuggestion($0.value1) })
+            changeRequest: dto.changeRequest.flatMap { ChangeSuggestion($0.value1) },
+            endsEnabled: dto.endsEnabled,
+            cancelPenaltyPoints: dto.cancelPenaltyPoints)
     }
 }

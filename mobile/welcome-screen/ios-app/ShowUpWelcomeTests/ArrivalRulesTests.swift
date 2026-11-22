@@ -45,6 +45,6 @@ final class ArrivalRulesTests: XCTestCase {
     }
 
     func testTheEntryWireValuesAreTheRegistrys() {
-        XCTAssertEqual(ArrivalEntry.allCases.map(\.wire), ["date_screen", "chat_chip", "report"])
+        XCTAssertEqual(ArrivalEntry.allCases.map(\.wire), ["date_screen", "chat_chip", "report", "wrapup"])
     }
 }

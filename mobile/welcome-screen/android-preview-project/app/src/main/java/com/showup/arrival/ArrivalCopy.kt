@@ -37,6 +37,6 @@ object ArrivalCopy {
     const val ARRIVED_BODY = "%s has arrived at the meeting location."
     const val OPEN_CHAT = "Open chat"
 
-    /** Built for Date 06's report flow, shown by no screen yet. */
+    /** The gate's note for Date 06's two entries, `report` and `wrapup` (frame D). */
     const val REPORT_NOTE = "Check in first, so we can confirm you were there."
 }

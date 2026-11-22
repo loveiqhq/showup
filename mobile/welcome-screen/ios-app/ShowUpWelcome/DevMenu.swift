@@ -444,7 +444,8 @@ struct DevMenu: View {
 /// dev-server route. Android's `DevDateAction`, with the same labels.
 enum DevDateAction: CaseIterable, Hashable, Sendable {
     case createIn180, createIn60, message, matchCantMakeIt, matchEndsInChat, partnerChecksIn,
-         matchSuggestsTime, matchSuggestsPlace, matchAgrees, expireSuggestions, end
+         matchSuggestsTime, matchSuggestsPlace, matchAgrees, expireSuggestions,
+         partnerCancels, partnerEndsMet, partnerEndsNoShow, partnerEndsUncomfortable, end
 
     var label: String {
         switch self {
@@ -458,6 +459,10 @@ enum DevDateAction: CaseIterable, Hashable, Sendable {
         case .matchSuggestsPlace: return "Leonie suggests another place (SHOWUP-196 E / J)"
         case .matchAgrees: return "Leonie agrees to my suggestion (SHOWUP-196 G)"
         case .expireSuggestions: return "Expire suggestions now (SHOWUP-196 H)"
+        case .partnerCancels: return "Leonie cancels this date (SHOWUP-198 H)"
+        case .partnerEndsMet: return "Leonie ends the date: We met (SHOWUP-197, Date 08 slot)"
+        case .partnerEndsNoShow: return "Leonie ends the date: didn't show (SHOWUP-197, Date 08 slot)"
+        case .partnerEndsUncomfortable: return "Leonie ends the date: uncomfortable (SHOWUP-197, Date 08 slot)"
         case .end: return "End test date"
         }
     }

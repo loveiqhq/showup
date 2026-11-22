@@ -130,6 +130,8 @@ private struct TutorialFlow: View {
                                       SceneKey.scoped("basics.hideAge", epoch: epoch))
         _searchLikeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("search.like", epoch: epoch))
         _changeStored = SceneStorage(wrappedValue: "", SceneKey.scoped("change.picker", epoch: epoch))
+        _dateEndStored = SceneStorage(wrappedValue: "", SceneKey.scoped("date.end", epoch: epoch))
+        _cancelStored = SceneStorage(wrappedValue: "", SceneKey.scoped("date.cancel", epoch: epoch))
     }
 
     // SceneStorage, not State: a process death mid-tutorial should not silently drop the user back
@@ -290,6 +292,10 @@ private struct TutorialFlow: View {
     /// The open picker's selection, field and send id (`ChangePickerDraft`), epoch-scoped like every key here. The
     /// pushed destination is not restored after the process dies; opening the same picker again finds this.
     @SceneStorage private var changeStored: String
+    /// The open Date 06 sheet, its step and the gated step (`DateEndDraft`), epoch-scoped like every key here.
+    @SceneStorage private var dateEndStored: String
+    /// The open Date 07 guard sheet and the request sent from it (`CancelDraft`), epoch-scoped like every key here.
+    @SceneStorage private var cancelStored: String
 
     // ── the date (SHOWUP-193) ─────────────────────────────────────────────────
     //
@@ -344,6 +350,34 @@ private struct TutorialFlow: View {
     // retries hold the store and the date id, never the model, so they outlive the screen.
     @State private var arrivalGate = ArrivalGateModel(store: ArrivalRepository(api: APIAccess.client),
                                                       reader: CLLocationFixReader(), analytics: AppAnalytics.shared)
+    // ── end the date and report a problem (SHOWUP-197) ────────────────────────
+    //
+    // One model per account, beside the gate's: it owns the open sheet, its step, the step a gated route is heading
+    // for and the end in flight. A 409 reads the date again; Stay for now's flag holds the store, not the model.
+    private let apiDateEndStore = DateEndRepository(api: APIAccess.client)
+    private var dateEndStore: any DateEndStoring {
+        #if DEBUG
+        if let devDate { return devDate }
+        #endif
+        return apiDateEndStore
+    }
+    @State private var dateEnd = DateEndModel(store: DateEndRepository(api: APIAccess.client),
+                                              analytics: AppAnalytics.shared)
+    // ── cancel this date (SHOWUP-198) ─────────────────────────────────────────
+    //
+    // One model per account beside the end sheets': the guard sheet, the request sent from it and the cancel in flight.
+    // A 409 reads the date again; the pickers open over the sheet and report back through it.
+    private let apiCancelStore = CancelRepository(api: APIAccess.client)
+    private var cancelStore: any CancelStoring {
+        #if DEBUG
+        if let devDate { return devDate }
+        #endif
+        return apiCancelStore
+    }
+    @State private var dateCancel = CancelModel(store: CancelRepository(api: APIAccess.client),
+                                                analytics: AppAnalytics.shared)
+    /// `landAfterEnd` runs once per ended date.
+    @State private var landedOnce = LandedOnce()
     /// Where G or H was reached from, for its `screen_viewed` referrer.
     @State private var outcomeFrom: ProfileScreen = .dateScreen
     /// The share sheet's sentence while it is up, and the calendar sheet's event.
@@ -807,6 +841,14 @@ private struct TutorialFlow: View {
                                             analytics: AppAnalytics.shared, players: sharedMediaPlayer)
         arrivalGate = ArrivalGateModel(store: ArrivalRepository(api: APIAccess.client),
                                        reader: CLLocationFixReader(), analytics: AppAnalytics.shared)
+        // The old model lets go of scene storage first, as the others do, then the new one starts clean.
+        dateEnd.attach(stored: "") { _ in }
+        dateEnd = DateEndModel(store: dateEndStore, analytics: AppAnalytics.shared)
+        dateEndStored = ""
+        dateCancel.attach(stored: "") { _ in }
+        dateCancel = CancelModel(store: cancelStore, analytics: AppAnalytics.shared)
+        cancelStored = ""
+        landedOnce = LandedOnce()
         chatModel = nil
         chatDateId = nil
         chatPath = []
@@ -1067,7 +1109,57 @@ private struct TutorialFlow: View {
         .onAppear { dateModel.onScreen(true) }
         .onDisappear { dateModel.onScreen(false) }
         .onChange(of: dateModel.state.ended) { _, ended in
-            if let ended { showOutcome(ended, from: .dateScreen) }
+            if let ended { routeEnded(ended, from: .dateScreen) }
+        }
+        // THE END SHEETS follow every read and the 1 s tick: pastMeet and the chat's lock are re-evaluated there.
+        .onChange(of: shownDate.date, initial: true) { _, _ in bindDateEnd() }
+        .onChange(of: shownDate.now) { _, _ in bindDateEnd() }
+        // THE GUARD SHEET follows the same reads and clock; a check-in closes it.
+        .onChange(of: shownDate.date, initial: true) { _, _ in bindDateCancel() }
+        .onChange(of: shownDate.now) { _, _ in bindDateCancel() }
+        // A tile: Date 05's picker over the sheet, entry `cancel_sheet`. No chip was tapped, so only the picker's own open fires.
+        .onChange(of: dateCancel.ui.openPicker) { _, kind in
+            guard let kind else { return }
+            dateCancel.consumePicker()
+            openChangePicker(.changePicker(kind: kind, entry: .cancelSheet))
+        }
+        // Message instead: the flow is closed, nothing is cancelled, the chat opens.
+        .onChange(of: dateCancel.ui.openChat) { _, asked in
+            if asked {
+                dateCancel.consumeOpenChat()
+                openChat()
+            }
+        }
+        // The server confirmed: the canceller lands where every end lands (flow 10's slot, R1).
+        .onChange(of: dateCancel.ui.landed) { _, outcome in
+            if let outcome {
+                dateCancel.consumeLanded()
+                landAfterEnd(outcome)
+            }
+        }
+        // A gated route asks for Date 03's gate with the note. Already checked in by the gate's word: continue.
+        .onChange(of: dateEnd.ui.openGate) { _, entry in
+            guard let entry else { return }
+            dateEnd.consumeGate()
+            if !arrivalGate.open(entry, note: ArrivalCopy.reportNote) {
+                if arrivalGate.checkedIn() { dateEnd.gateCommitted() } else { dateEnd.gateNotYet() }
+            }
+        }
+        // Close on the done sheet, its scrim, or the app leaving it: the commit reopens the sheet at its step.
+        .onChange(of: arrivalGate.ui.committed) { _, committed in
+            if committed { dateEnd.gateCommitted() }
+        }
+        .onChange(of: dateEnd.ui.openChat) { _, asked in
+            if asked {
+                dateEnd.consumeOpenChat()
+                openChat()
+            }
+        }
+        .onChange(of: dateEnd.ui.landed) { _, outcome in
+            if let outcome {
+                dateEnd.consumeLanded()
+                landAfterEnd(outcome)
+            }
         }
         // THE CLOCK, while the screen is up: A becomes B at meet − 1:30 in place, and C's `now` becomes
         // the time it was sent.
@@ -1130,10 +1222,23 @@ private struct TutorialFlow: View {
                 ui: arrivalGate.ui,
                 name: shown.date?.match.name ?? "",
                 onYes: { arrivalGate.yes() },
-                onNotYet: { arrivalGate.notYet() },
+                onNotYet: {
+                    // Not yet is inert while the location is read; the end model hears it only when it took effect.
+                    var busy = false
+                    if case .confirm(_, _, let reading, _) = arrivalGate.ui.phase { busy = reading }
+                    arrivalGate.notYet()
+                    if !busy { dateEnd.gateNotYet() }
+                },
                 onClose: { arrivalGate.close() },
-                onUndo: { arrivalGate.undo() }
-            ) { dateScreenContent(shown) }
+                onUndo: {
+                    arrivalGate.undo()
+                    dateEnd.gateUndone()
+                }
+            ) {
+                DateEndOver(visible: dateEnd.ui.visible || dateCancel.ui.open, name: shown.date?.match.name ?? "",
+                            zone: .current, ui: dateEnd.ui, actions: endActions,
+                            cancelUi: dateCancel.ui, cancelActions: cancelActions) { dateScreenContent(shown) }
+            }
         }
     }
 
@@ -1142,6 +1247,8 @@ private struct TutorialFlow: View {
             ui: shown,
             zone: .current,
             onOpenChat: { openChat(clearingArrival: true) },
+            onReport: { dateEnd.openReport() },
+            showReport: shown.date?.endsEnabled == true,
             onDirections: {
                 guard let place = dateModel.state.date?.place, let url = directionsURL(place) else { return }
                 dateModel.quickAction(.directions)
@@ -1167,10 +1274,20 @@ private struct TutorialFlow: View {
                 dateModel.leftFor(.searchProfile)
                 dateProfileModel.open()
             },
-            // R15: the End date link waits for Date 06.
+            // A: this user's own check-in only; the match's does not hide it.
+            onCancel: { dateCancel.open() },
+            showCancel: shown.date.map(cancelLinkShown) ?? false,
+            // The link shows only while the end routes are on (R1).
             checkInBar: {
                 AnyView(CheckInBar(name: shown.date?.match.name ?? "",
-                                   onCheckIn: { arrivalGate.open(.dateScreen) }, onEnd: nil))
+                                   onCheckIn: { arrivalGate.open(.dateScreen) },
+                                   onEnd: shown.date?.endsEnabled == true ? { dateEnd.openWrap(.checkinBarLink) } : nil))
+            },
+            // The whole bar, button and all, waits for the switch.
+            endDateBar: {
+                shown.date?.endsEnabled == true
+                    ? AnyView(EndDateBar(name: shown.date?.match.name ?? "", onEnd: { dateEnd.openWrap(.endDateBar) }))
+                    : AnyView(EmptyView())
             },
             // Locked tabs never call this: only Settings does, and it fires nothing -- `tab_switched`
             // needs a tab it switched from, and no tab is active here.
@@ -1184,6 +1301,59 @@ private struct TutorialFlow: View {
             onAgree: { dateModel.agreeRequest() },
             // Only `change_picker_opened`: no chip was tapped (the ticket's tracking rule).
             onSuggestAnother: { kind in openChangePicker(counterCardRoute(kind)) })
+    }
+
+    /// Every tap the guard sheet can send, bound to the model.
+    private var cancelActions: CancelActions {
+        CancelActions(onKeep: { dateCancel.keep() }, onDismiss: { dateCancel.dismiss() },
+                      onMessage: { dateCancel.messageInstead() }, onTile: { dateCancel.picker($0) },
+                      onCancel: { dateCancel.cancel() })
+    }
+
+    /// Binds the cancel model to scene storage (once) and to the date as read.
+    private func bindDateCancel() {
+        let stored = $cancelStored
+        dateCancel.reread = { dateModel.foreground() }
+        dateCancel.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
+        let shown = shownDate
+        if let date = shown.date { dateCancel.bind(date, now: shown.now) }
+    }
+
+    /// Every tap the end sheets can send, bound to the model.
+    private var endActions: EndActions {
+        EndActions(onPick: { dateEnd.pick($0) }, onBack: { dateEnd.back() }, onClose: { dateEnd.close() },
+                   onConfirmWait: { dateEnd.confirmWait() }, onMessage: { dateEnd.message() },
+                   onEnd: { dateEnd.end() }, onStay: { dateEnd.stay() })
+    }
+
+    /// Binds the end model to scene storage (once) and to the date as read, shown with this session's commit.
+    private func bindDateEnd() {
+        let stored = $dateEndStored
+        dateEnd.reread = { dateModel.foreground() }
+        dateEnd.attach(stored: stored.wrappedValue) { stored.wrappedValue = $0 }
+        let shown = shownDate
+        if let date = shown.date { dateEnd.bind(date, now: shown.now) }
+    }
+
+    /// An end that reached the person -- the Date screen's read, the chat's poll or its 409 re-read: ONE routing
+    /// (`endedRoute`). Date 06's reasons land after the end (R1); the chat's and a cancel on you keep G and H.
+    private func routeEnded(_ ended: EndedOutcome, from: ProfileScreen) {
+        switch endedRoute(ended) {
+        case .dateEnded, .partnerCancelled: showOutcome(ended, from: from)
+        case .land: landAfterEnd(ended)
+        }
+    }
+
+    /// An end the server confirmed, or one found on a read (the match's, or this phone's after a restart): the date is
+    /// over for this person, so it is marked seen and the normal Search resume runs. FLOW 10 (Review your date) and
+    /// DATE 08 (what the match sees) PLUG IN HERE: until they exist, every Date 06 reason lands where a date that went
+    /// away does (R1). Once per ended date: a re-read that sees the end before navigation must not route twice.
+    private func landAfterEnd(_ outcome: EndedOutcome) {
+        guard landedOnce.first(outcome.dateId) else { return }
+        let store = chatStore
+        let id = outcome.dateId
+        Task { await store.markEndSeen(dateId: id) }
+        findNextDate()
     }
 
     private func routeArrivalUndoOnDate() {
@@ -1209,7 +1379,7 @@ private struct TutorialFlow: View {
     }
 
     /// G or H over whatever is up: back from it never reopens the chat.
-    private func showOutcome(_ outcome: EndedInChat, from: ProfileScreen) {
+    private func showOutcome(_ outcome: EndedOutcome, from: ProfileScreen) {
         outcomeFrom = from
         chatPath = [outcomeRoute(outcome, photoURL: dateModel.state.date?.match.photoUrl)]
     }
@@ -1271,6 +1441,11 @@ private struct TutorialFlow: View {
                 // itself on its poll). Nothing was shown as changed before this.
                 .onChange(of: model.ui.done) { _, done in
                     if done {
+                        // D: a request sent from the cancel sheet shows there, and the sheet stays open under the pop.
+                        if model.ui.entry == .cancelSheet {
+                            dateCancel.pickerSent(kind: model.ui.kind, label: sentLabel(
+                                kind: model.ui.kind, slot: model.ui.slot, placeName: model.ui.place?.name, zone: .current))
+                        }
                         dateModel.foreground()
                         popChangePicker()
                     }
@@ -1392,7 +1567,7 @@ private struct TutorialFlow: View {
                 .onChange(of: model.ui.outcome) { _, outcome in
                     if let outcome {
                         model.close()
-                        showOutcome(outcome, from: .dateChat)
+                        routeEnded(outcome, from: .dateChat)
                     }
                 }
                 .onChange(of: model.ui.left) { _, left in
@@ -1406,12 +1581,12 @@ private struct TutorialFlow: View {
     }
 
     /// G or H. Seen once it has shown: a crash before this frame shows it again next launch.
-    private func dateEndedView(_ outcome: EndedInChat, photoURL: URL?) -> some View {
+    private func dateEndedView(_ outcome: EndedOutcome, photoURL: URL?) -> some View {
         DateEndedScreen(outcome: outcome, photoURL: photoURL, onFindNext: { findNextDate() })
             .toolbar(.hidden, for: .navigationBar)
             .navigationBarBackButtonHidden(true)
             .onFirstAppear {
-                chatEvents.outcomeShown(referrer: outcomeFrom)
+                chatEvents.outcomeShown(referrer: outcomeFrom, cancelled: cancelledOnYou(outcome))
                 let store = chatStore
                 let id = outcome.dateId
                 Task { await store.markEndSeen(dateId: id) }
@@ -1967,6 +2142,13 @@ private struct TutorialFlow: View {
         dateModel = DateModel(store: demo, analytics: AppAnalytics.shared, changes: demo)
         dateProfileModel = DateProfileModel(store: demo, analytics: AppAnalytics.shared, players: sharedMediaPlayer)
         arrivalGate = ArrivalGateModel(store: demo, reader: demo, analytics: AppAnalytics.shared)
+        dateEnd.attach(stored: "") { _ in }
+        dateEnd = DateEndModel(store: demo, analytics: AppAnalytics.shared)
+        dateEndStored = ""
+        dateCancel.attach(stored: "") { _ in }
+        dateCancel = CancelModel(store: demo, analytics: AppAnalytics.shared)
+        cancelStored = ""
+        landedOnce = LandedOnce()
         toDate()
         dateModel.foreground()
         Task { await landDevDate(frame) }
@@ -1979,6 +2161,30 @@ private struct TutorialFlow: View {
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
         guard dateModel.state.date != nil else { return }
+        // SHOWUP-197 and 198: the sheet the frame draws, opened by the calls its own taps make. Each model is bound to
+        // the date by the host's own effect, so wait for that first.
+        let steps = demoSteps(frame)
+        if !steps.isEmpty {
+            for _ in 0..<50 where dateEnd.ui.date == nil || dateCancel.ui.date == nil {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            for step in steps {
+                switch step {
+                case .openWrap: dateEnd.openWrap(.endDateBar)
+                case .openReport: dateEnd.openReport()
+                case .pickMet: dateEnd.pick(.met)
+                case .pickNoShow: dateEnd.pick(.noShow)
+                case .pickUncomfortable: dateEnd.pick(.uncomfortable)
+                case .confirmWait: dateEnd.confirmWait()
+                case .openCancel: dateCancel.open()
+                case .cancelSent:
+                    // The request the demo server holds for D, sent from the sheet: its time is the line's value.
+                    let sent = dateModel.state.date?.change?.pending.first { $0.byYou && $0.kind == .time }
+                    dateCancel.pickerSent(kind: .time, label: sentLabel(kind: .time, slot: sent?.time, placeName: nil,
+                                                                        zone: .current))
+                }
+            }
+        }
         switch demoLanding(frame) {
         case .dateScreen: return
         case .chat: openChat()
@@ -2044,6 +2250,10 @@ private struct TutorialFlow: View {
                         case .matchSuggestsPlace: _ = await store.matchSuggests(kind: .place)
                         case .matchAgrees: _ = await store.matchAgrees()
                         case .expireSuggestions: _ = await store.expireSuggestions()
+                        case .partnerCancels: _ = await store.partnerCancels()
+                        case .partnerEndsMet: _ = await store.partnerEnds(reason: .met)
+                        case .partnerEndsNoShow: _ = await store.partnerEnds(reason: .partnerNoShow)
+                        case .partnerEndsUncomfortable: _ = await store.partnerEnds(reason: .uncomfortable)
                         case .end: _ = await store.endTestDate()
                         }
                         // The Date screen's own read shows the result: a new date or message lands in place,

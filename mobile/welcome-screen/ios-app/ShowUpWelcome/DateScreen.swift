@@ -110,6 +110,21 @@ func dateBarInFlow(bar: CGFloat, tab: CGFloat, frame: CGFloat) -> Bool {
     frame > 0 && bar + tab > frame * footerMaxShare
 }
 
+/// The id at the very end of the Date screen's scroll, for `dateScrollsToEnd`.
+private let dateScrollEnd = "date.scroll.end"
+
+private struct DateScrollsToEndKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// EVIDENCE ONLY, false in the app (see `DateScreen.scrollsToEnd`). Android's sample frames scroll the screen.
+    var dateScrollsToEnd: Bool {
+        get { self[DateScrollsToEndKey.self] }
+        set { self[DateScrollsToEndKey.self] = newValue }
+    }
+}
+
 private extension View {
     func measuredHeight(_ id: String) -> some View {
         background(GeometryReader { g in Color.clear.preference(key: DateHeightsKey.self, value: [id: g.size.height]) })
@@ -123,12 +138,17 @@ struct DateScreen: View {
     var zone: TimeZone = .current
     var onOpenChat: () -> Void = {}
     var onReport: () -> Void = {}
+    /// The Report card shows only while the end routes are on (Date 06, R1: hidden until real).
+    var showReport = true
     var onDirections: () -> Void = {}
     var onShare: () -> Void = {}
     var onCalendar: () -> Void = {}
     var onCopy: () -> Void = {}
     var onSeeProfile: () -> Void = {}
     var onCancel: () -> Void = {}
+    /// The red link: Date 07's A. Shown while THIS user has not checked in and the end routes are on (`cancelLinkShown`);
+    /// the match's check-in does not hide it. Default on, so the screens that do not wire the sheet keep drawing it.
+    var showCancel = true
     /// ⑯ The footer before check-in: the Check-in bar, Date 03's. Empty until it ships.
     var checkInBar: () -> AnyView = { AnyView(EmptyView()) }
     /// ⑯ The footer after check-in: the End Date bar, Date 06's. Empty until it ships.
@@ -148,6 +168,8 @@ struct DateScreen: View {
 
     /// Measured, local and disposable: what the footer rule needs.
     @State private var heights: [String: CGFloat] = [:]
+    /// EVIDENCE ONLY, false in the app: the scroll comes to rest at its end, where the red link sits (Date 07's A and F).
+    @Environment(\.dateScrollsToEnd) private var scrollsToEnd
 
 
     var body: some View {
@@ -162,6 +184,7 @@ struct DateScreen: View {
         ZStack(alignment: .bottom) {
             // Names and districts breakable after their hyphens, as Android's (the 4 Nov 2026 audit).
             if let date = ui.date.map(withBreakableNames), let state = ui.state {
+                ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 0) {
                         content(date, state)
@@ -170,12 +193,16 @@ struct DateScreen: View {
                                 DateWash(holes: holes)
                             }
                         if barInFlow { barView(date) }
-                        Color.clear.frame(height: tab + (barInFlow ? 0 : bar))
+                        Color.clear.frame(height: tab + (barInFlow ? 0 : bar)).id(dateScrollEnd)
                     }
                     // The whole scroll, reserve included: where its end comes to rest (DateFitTests).
                     .fitAnchor("date:content")
                 }
                 .fitAnchor("date:screen")
+                // Follows the measured footer: its reserve lengthens the scroll after the first layout.
+                .onAppear { if scrollsToEnd { proxy.scrollTo(dateScrollEnd, anchor: .bottom) } }
+                .onChange(of: heights) { _, _ in if scrollsToEnd { proxy.scrollTo(dateScrollEnd, anchor: .bottom) } }
+                }
                 VStack(spacing: 0) {
                     if !barInFlow { barView(date) }
                     tabBar
@@ -235,7 +262,7 @@ struct DateScreen: View {
             if hoist { coordinate(date, state) }
             TimePlaceCard(date: date, zone: zone, copied: ui.copied, onCopy: onCopy, now: ui.now).fitAnchor("date:time-card")
             if !hoist { coordinate(date, state) }
-            ReportRow(onReport: onReport).fitAnchor("date:report")
+            if showReport { ReportRow(onReport: onReport).fitAnchor("date:report") }
             IntentCard(date: date).fitAnchor("date:intent")
             QuickActions(hasPlace: date.place != nil, onDirections: onDirections, onShare: onShare, onCalendar: onCalendar)
                 .fitAnchor("date:actions")
@@ -245,7 +272,8 @@ struct DateScreen: View {
             DateWorksCard(date: date, zone: zone).fitAnchor("date:works")
             // ⑮ Match Mate: Date 10 adds its card here, between How the date works and Cancel.
             Color.clear.frame(height: 24)
-            CancelLink(onCancel: onCancel).fitAnchor("date:cancel")
+            // The last item of the scroll: 24 above, 80 below. Gone with this user's check-in, the 24 kept.
+            if showCancel { CancelLink(onCancel: onCancel).fitAnchor("date:cancel") }
             Color.clear.frame(height: 80)
         }
         .padding(EdgeInsets(top: 0, leading: 16, bottom: 24, trailing: 16))

@@ -811,7 +811,14 @@ enum BrandIcon { case phone, apple, google, facebook, calendar, chevronDown, che
                  copy, share, hourglass, binoculars, frown, coffee,
                  // The chat (SHOWUP-194): `walking` is the "When will you arrive?" chip's mark,
                  // from its `circle` and `d` strings.
-                 walking }
+                 walking,
+                 // Date 06 (SHOWUP-197): `hand` is the "I don't feel comfortable" option's mark,
+                 // `shield-alert` the We-met note's. From `components/shared.jsx` as path data,
+                 // verbatim -- the same strings as Android's `KitPaths`.
+                 hand, shieldAlert,
+                 // Date 07 (SHOWUP-198): `smile` is the guard sheet's first reason, `user-x` the match's third row on H.
+                 // The same strings as Android's `KitPaths`.
+                 smile, userX }
 
 struct BrandIconView: View {
     let icon: BrandIcon
@@ -1452,6 +1459,18 @@ struct BrandIconView: View {
             case .walking:
                 filled = false
                 p = Self.walkingPath
+            case .hand:
+                filled = false
+                p = Self.handPath
+            case .shieldAlert:
+                filled = false
+                p = Self.shieldAlertPath
+            case .smile:
+                filled = false
+                p = Self.smilePath
+            case .userX:
+                filled = false
+                p = Self.userXPath
             case .phone:
                 filled = false
                 p = Self.phonePath
@@ -1560,6 +1579,23 @@ struct BrandIconView: View {
     /// the same string as Android's `KitPaths.walking`.
     static let walkingPath = SVGPath.parse(
         "M14.7 4A1.7 1.7 0 1 1 11.3 4A1.7 1.7 0 1 1 14.7 4ZM13 6v6M13 12l3 4v5M13 12l-3 4-1 5M13 8l4 1.2M13 8l-3-1"
+    )
+
+    /// `hand` (SHOWUP-197): four paths, the same string as Android's `KitPaths.hand`.
+    static let handPath = SVGPath.parse(
+        "M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" +
+        "M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"
+    )
+    /// `shield-alert`: the shield, the bar and the dot (`line 12,15.5 12.01,15.5` under a round cap), the same
+    /// string as Android's `KitPaths.shieldAlert`.
+    static let shieldAlertPath = SVGPath.parse("M12 2L4 5V11C4 16 7.4 20.5 12 22C16.6 20.5 20 16 20 11V5L12 2ZM12 8L12 12M12 15.5L12.01 15.5")
+    /// `smile` (SHOWUP-198): the face, the mouth and the two eye dots (zero-length lines under a round cap).
+    static let smilePath = SVGPath.parse(
+        "M22 12A10 10 0 1 1 2 12A10 10 0 1 1 22 12ZM8 14s1.5 2 4 2 4-2 4-2M9 9.2L9.01 9.2M15 9.2L15.01 9.2"
+    )
+    /// `user-x`: the shoulders, the head (`circle 9,7 r4`) and the cross.
+    static let userXPath = SVGPath.parse(
+        "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M13 7A4 4 0 1 1 5 7A4 4 0 1 1 13 7ZM17 8L22 13M22 8L17 13"
     )
 
     /// How far a mark's ink is from the centre of its artboard, in 24-grid units.

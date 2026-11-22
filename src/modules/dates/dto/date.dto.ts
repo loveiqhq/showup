@@ -32,10 +32,11 @@ export class ConfirmHappenedDto {
   rating: number;
 }
 
-/** Body for cancelling a date. */
+/** Body for cancelling a date: empty. An old `reason` is still accepted and ignored (Date 07). */
 export class CancelDateDto {
   @ApiPropertyOptional({
-    description: 'Optional reason for cancelling (max 500 characters)',
+    deprecated: true,
+    description: 'Ignored. No reason is asked for a cancel (Date 07).',
   })
   @IsOptional()
   @IsString()

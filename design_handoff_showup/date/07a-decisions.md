@@ -111,7 +111,7 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - **One guidance, one copy:** "Please give it at least 10 minutes" · CTA `End date and review` · secondary `Back`.
 - **Head out now ends the date:** ender → flow 10 (review line added to What happens next); match → `date-ended-discomfort`.
 - **Stay for now** stores an internal discomfort flag (evidence for flow 10).
-- **No-show end while the match has checked in** → the match sees the neutral `date-closed-positive`; flow 10 decides.
+- ~~**No-show end while the match has checked in** → the match sees the neutral `date-closed-positive`~~ — superseded 17 Nov 2026, see Date 08.
 - **"This is on them" removed** from Thanks for waiting — only the ender's rate is promised.
 - **Something else** (free text, safety team) — **parked** with *I'm in danger*.
 - **End Date bar "Date complete · Rate" variant deleted** (contradicts rule 5).
@@ -137,3 +137,20 @@ Input for the 07a ticket. Kit: `ui_kits/show-up/screens-date-chat.jsx` → `Chec
 - **Open:** push copy · the solution box body inside meet − 0:30 (tiles hidden).
 - **Push copy deferred (16 Nov 2026):** all notification copy is written at the end of the project, in one pass, so it isn't reworked repeatedly. Tickets build the triggers with placeholder strings.
 - **Guard sheet tiles follow Date 05's cutoff (16 Nov 2026):** from binding meet − 0:30 (and after either check-in) a change could no longer be agreed — only running late matters. The solution box loses its body line and both tiles; the title and `Message {name} instead` stay (closes the cancel flow, opens the chat). Kit: `CancelDateConfirmSheet changeClosed`, Cancel this date · 2e.
+
+
+## Date 08 · What the other side sees (17 Nov 2026)
+
+A ends the date; B sees one screen at once, whatever B is doing (replaces the Date screen, chat or any open sheet). Its only exit is **Proceed to review**.
+
+| A's end | A goes to | B sees | B then goes to |
+|---|---|---|---|
+| We met | normal review (`rating`) | `date-closed-positive` | normal review |
+| My date isn't showing up (A always checked in — Date 06 server rule) | normal review (no-show branch) | `you-no-showed` — **checked in or not** | normal review with claim headline (`rating-claimed-noshow`) |
+| I don't feel comfortable → Head out now | `rating-uncomfortable` (no penalty) | `date-ended-discomfort` | normal review |
+
+- **You didn't show up is a claim.** Row 1 unchanged. Row 2: "To clear this up, proceed to the review and give us your side." Row 3: "Once you've completed the review, we run an automated check: did you both check in, and did you message each other? Your Show-up Rate only drops if the no-show is proven." The rate line and the "less visible / lose App access" row are removed.
+- **Automated check** (flow 10): both check-ins (150 m circles overlap, similar time) and chat contact decide whether the no-show is proven. A is always checked in for a no-show end, so a B check-in that overlaps disproves the claim.
+- **Discomfort screen:** gender-neutral headline ("{name} ended the date, saying they didn't feel comfortable in the situation."); "uncomfortable" only — **unsafe is out of MVP** (the `rating-unsafe` artboards are parked).
+- **No way around the review.** No close, back or swipe-down on any Date 08 screen; **Proceed to review** is the only exit, and the review must be sent before anything else in the app opens. Reopening the app returns to the same screen (or the started review) until it is sent.
+- **Simultaneous ends:** ignored — one end is always first; the server takes the first.

@@ -8,6 +8,8 @@ export enum ArrivalEntry {
   DateScreen = 'date_screen',
   ChatChip = 'chat_chip',
   Report = 'report',
+  /** End date → My date isn't showing up, not checked in (Date 06, registry 1.4.36). */
+  Wrapup = 'wrapup',
 }
 
 /**

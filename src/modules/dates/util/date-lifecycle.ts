@@ -13,6 +13,8 @@ export enum DateStatus {
   Disputed = 'disputed',
   /** Ended from the chat after an "I can't make it today" message (Date 02): no review, no flow 10. */
   EndedInChat = 'ended_in_chat',
+  /** Ended by one person from Date 06's end or report: both are released, a review follows (flow 10). */
+  Ended = 'ended',
 }
 
 /**
@@ -31,12 +33,14 @@ const ALLOWED_TRANSITIONS: Record<DateStatus, DateStatus[]> = {
     DateStatus.Completed,
     DateStatus.NoShowReported,
     DateStatus.EndedInChat,
+    DateStatus.Ended,
   ],
   [DateStatus.NoShowReported]: [DateStatus.Disputed, DateStatus.Completed],
   [DateStatus.Disputed]: [DateStatus.Completed, DateStatus.Cancelled],
   [DateStatus.Cancelled]: [],
   [DateStatus.Completed]: [],
   [DateStatus.EndedInChat]: [],
+  [DateStatus.Ended]: [],
 };
 
 /** Whether a date may move from `from` to `to`. */

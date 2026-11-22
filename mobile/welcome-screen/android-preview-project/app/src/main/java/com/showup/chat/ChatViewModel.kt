@@ -45,7 +45,7 @@ import com.showup.api.Outcome
 import com.showup.date.ActiveDate
 import com.showup.date.DateRead
 import com.showup.date.DateStore
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import com.showup.profile.report
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -85,8 +85,8 @@ data class ChatUi(
     val ending: Boolean = false,
     /** Why the last End date did not land; the sheet stays open. */
     val endFailed: CallFailure? = null,
-    /** The date ended in the chat: G when [EndedInChat.endedByYou], H otherwise. The host shows it. */
-    val outcome: EndedInChat? = null,
+    /** The date ended in the chat: G when [EndedOutcome.endedByYou], H otherwise. The host shows it. */
+    val outcome: EndedOutcome? = null,
     /** The date is gone some other way: the host goes back to the Date screen. */
     val left: Boolean = false,
     /**
@@ -426,7 +426,7 @@ class ChatViewModel(
         return _ui.value.outcome == null && !_ui.value.left
     }
 
-    private fun ended(outcome: EndedInChat) {
+    private fun ended(outcome: EndedOutcome) {
         poll?.cancel()
         poll = null
         _ui.update {

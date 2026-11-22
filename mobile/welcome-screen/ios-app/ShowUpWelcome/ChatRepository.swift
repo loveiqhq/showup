@@ -27,7 +27,7 @@ struct ChatMessage: Equatable, Sendable, Identifiable {
 
 /// What `End date` came back with.
 enum EndResult: Equatable, Sendable {
-    case ended(EndedInChat)
+    case ended(EndedOutcome)
     /// 409: the date had already ended -- the other person did it, or a second tap. The next date read says how.
     case alreadyEnded
     case failed(CallFailure)
@@ -99,7 +99,7 @@ struct ChatRepository: ChatStoring {
             switch response {
             case .ok(let ok):
                 let dto = try ok.body.json
-                return .ended(EndedInChat(dateId: dto.dateId, name: dto.name, endedByYou: dto.endedByYou))
+                return .ended(EndedOutcome(dateId: dto.dateId, name: dto.name, endedByYou: dto.endedByYou))
             case let .undocumented(statusCode, _) where statusCode == 409:
                 return .alreadyEnded
             default:

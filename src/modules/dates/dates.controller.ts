@@ -9,9 +9,10 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { EndedInChatDto } from '../date-screen/dto/active-date.dto';
+import { EndedOutcomeDto } from '../date-screen/dto/active-date.dto';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -38,6 +39,9 @@ import {
   DateDto,
   SendChatMessageDto,
 } from './dto/date.dto';
+import { DateCancelService } from './date-cancel.service';
+import { DateEndService } from './date-end.service';
+import { EndDateDto } from './dto/end-date.dto';
 import { DatesService } from './dates.service';
 
 @ApiTags('dates')
@@ -49,6 +53,8 @@ export class DatesController {
     private readonly arrivals: ArrivalCheckInsService,
     private readonly places: PlacesService,
     private readonly changes: ChangeSuggestionsService,
+    private readonly ends: DateEndService,
+    private readonly cancels: DateCancelService,
   ) {}
 
   /** The dates the user is part of. */
@@ -60,18 +66,20 @@ export class DatesController {
     return dates.map((d) => DateDto.from(d, user.id));
   }
 
-  /** Cancel a date (single cancellation type; always counts against the canceller). */
+  /**
+   * Cancel a date from the red link (Date 07): a no-show for the canceller, a permanent pair block,
+   * the match told. Body `{}`; an old `reason` is accepted and ignored.
+   */
   @Post('dates/:id/cancel')
   @ApiOperation({ operationId: 'cancelDate' })
+  @ApiBody({ type: CancelDateDto, required: false })
   @HttpCode(200)
-  @ApiOkResponse({ type: DateDto })
+  @ApiOkResponse({ type: EndedOutcomeDto })
   async cancel(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CancelDateDto,
-  ): Promise<DateDto> {
-    const date = await this.dates.cancel(id, user.id, dto.reason);
-    return DateDto.from(date, user.id);
+  ): Promise<EndedOutcomeDto> {
+    return this.cancels.cancel(id, user.id);
   }
 
   /** Confirm the date happened and rate it. Completes once both people confirm. */
@@ -151,12 +159,46 @@ export class DatesController {
   @Post('dates/:id/end-in-chat')
   @ApiOperation({ operationId: 'endDateInChat' })
   @HttpCode(200)
-  @ApiOkResponse({ type: EndedInChatDto })
+  @ApiOkResponse({ type: EndedOutcomeDto })
   async endInChat(
     @CurrentUser() user: User,
     @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<EndedInChatDto> {
+  ): Promise<EndedOutcomeDto> {
     return this.dates.endInChat(id, user.id);
+  }
+
+  /**
+   * Ends the date for both people from the Date screen (Date 06, SHOWUP-197): we met, my date is not
+   * showing up, or I do not feel comfortable. 200 with the outcome; 409 with a body `code` of
+   * `date_not_active` (over already, or the other person got there first), `before_meet` (a no-show
+   * before the agreed time) or `not_checked_in` (a no-show or uncomfortable end without a committed
+   * check-in); 404 while `DATE_ENDS_ENABLED` is off.
+   */
+  @Post('dates/:id/end')
+  @ApiOperation({ operationId: 'endDate' })
+  @HttpCode(200)
+  @ApiOkResponse({ type: EndedOutcomeDto })
+  async end(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: EndDateDto,
+  ): Promise<EndedOutcomeDto> {
+    return this.ends.end(id, user.id, dto);
+  }
+
+  /**
+   * "Stay for now" (Date 06): stores an internal discomfort flag against the date and leaves it
+   * active. Every call stores one more. 404 while the switch is off, 409 `date_not_active` once over.
+   */
+  @Post('dates/:id/discomfort')
+  @ApiOperation({ operationId: 'flagDateDiscomfort' })
+  @HttpCode(204)
+  @ApiNoContentResponse()
+  async discomfort(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<void> {
+    await this.ends.flagDiscomfort(id, user.id);
   }
 
   /** The caller has seen their outcome screen, G or H, for a date ended in the chat (Date 02). */

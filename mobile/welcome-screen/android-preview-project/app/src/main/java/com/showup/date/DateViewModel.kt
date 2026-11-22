@@ -64,7 +64,7 @@ data class DateUi(
      * The date ended in the chat and the viewer has not seen it (SHOWUP-194): the host shows G or H.
      * [date] stays as it was, for the match's face on that screen.
      */
-    val ended: EndedInChat? = null,
+    val ended: EndedOutcome? = null,
     /** `I agree` on the request card is on its way (Date 05 L): both buttons are inert and `I agree` sits at .6. */
     val agreeing: Boolean = false,
     /** The last `I agree` on the card got no server OK: the red line shows, and nothing else has changed. */

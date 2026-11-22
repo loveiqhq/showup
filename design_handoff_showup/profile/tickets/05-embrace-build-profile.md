@@ -121,7 +121,7 @@ Both come from the registry row for this screen in `tracking/enums.json` §11 �
 
 ## Out of scope
 
-The photos screen (the destination), the sibling bridge that appears later in the flow (`variant: "add_details"` — same shell, its own ticket), the confetti treatment that belongs to that sibling and **not** to this screen, the "Share some details" progress bar, the profile-attribute persistence layer beyond updating the saved flow position, and any onboarding-value experiment on this copy.
+The photos screen (the destination), the sibling bridge that appears later in the flow (`variant: "add_details"` — same shell, its own ticket: Profile 13, 5 Oct 2026), the confetti treatment that belongs to that sibling and **not** to this screen, the "Share some details" progress bar, the profile-attribute persistence layer beyond updating the saved flow position, and any onboarding-value experiment on this copy.
 
 ## Dependencies
 

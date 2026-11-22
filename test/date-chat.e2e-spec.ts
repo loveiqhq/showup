@@ -323,16 +323,21 @@ describe('The Coordinate chat (e2e)', () => {
         }).expect(201);
 
         const res = await end(dateId, 'you').expect(200);
-        expect(res.body).toEqual({ dateId, name: 'Leonie', endedByYou: true });
+        expect(res.body).toEqual({
+          dateId,
+          name: 'Leonie',
+          endedByYou: true,
+          reason: 'chat',
+        });
         await end(dateId, 'you').expect(409);
 
         expect((await getDate('you')).body).toEqual({
           date: null,
-          ended: { dateId, name: 'Leonie', endedByYou: true },
+          ended: { dateId, name: 'Leonie', endedByYou: true, reason: 'chat' },
         });
         expect((await getDate('leonie')).body).toEqual({
           date: null,
-          ended: { dateId, name: 'Max', endedByYou: false },
+          ended: { dateId, name: 'Max', endedByYou: false, reason: 'chat' },
         });
         expect(await datesService.isLockedFromMatching(id.you)).toBe(false);
         expect(await datesService.isLockedFromMatching(id.leonie)).toBe(false);
@@ -447,7 +452,12 @@ describe('The Coordinate chat (e2e)', () => {
       }).expect(201);
       await dates.update({ id: dateId }, { scheduledAt: minutesFromNow(-30) });
       const res = await end(dateId, 'leonie').expect(200);
-      expect(res.body).toEqual({ dateId, name: 'Max', endedByYou: true });
+      expect(res.body).toEqual({
+        dateId,
+        name: 'Max',
+        endedByYou: true,
+        reason: 'chat',
+      });
     });
 
     it('is not a past date to Search: it hides neither from the other and books nobody a date', async () => {

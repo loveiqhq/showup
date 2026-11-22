@@ -66,6 +66,6 @@ class ArrivalRulesTest {
 
     @Test
     fun `the entry wire values are the registry's`() {
-        assertEquals(listOf("date_screen", "chat_chip", "report"), ArrivalEntry.entries.map { it.wire })
+        assertEquals(listOf("date_screen", "chat_chip", "report", "wrapup"), ArrivalEntry.entries.map { it.wire })
     }
 }

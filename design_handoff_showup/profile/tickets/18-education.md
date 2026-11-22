@@ -176,4 +176,4 @@ Religion and the later steps. Also: school or university names, field of study, 
 - **A saved answer cannot be removed in onboarding.** Clearing the selection on a resume and pressing Continue is a Skip, and rule 0 keeps the earlier value. The screen then shows nothing selected while the profile still holds the old value. Default: keep it this way for the MVP; removing belongs to profile editing. Same open point as Profile 17.
 - **The 375 × 667 deficit (≈ 6 px) is measured from the kit**, not a device. The scroll handles any value; the evidence screenshot shows the real one.
 - **The option set is German-market** (`A-Levels / Abitur`). Kept as drawn for the MVP; a market-specific set is a later decision.
-- **The progress-bar count** (10 segments against 9 §2 indices) is still open from Profile 14. It belongs to the group shell; this screen is `current={5}` either way.
+- **The progress-bar count** is resolved: **10 segments** — the habits screen was cut and Life and Future each got their own segment (Interests 8 · Life 9 · Future 10, decided 8 Oct 2026 with Profile 21). It belongs to the group shell; this screen is `current={5}` either way.

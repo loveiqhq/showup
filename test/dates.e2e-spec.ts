@@ -5,6 +5,7 @@ import { DataSource, In, Repository } from 'typeorm';
 
 import { AppModule } from './../src/app.module';
 import { CheckInsService } from './../src/modules/check-ins/check-ins.service';
+import { DateCancelService } from './../src/modules/dates/date-cancel.service';
 import { DatesService } from './../src/modules/dates/dates.service';
 import { DateEntity } from './../src/modules/dates/entities/date.entity';
 import { DateStatus } from './../src/modules/dates/util/date-lifecycle';
@@ -28,6 +29,7 @@ const hoursFromNow = (h: number) =>
 describe('Dates (e2e)', () => {
   let app: INestApplication;
   let dates: DatesService;
+  let cancels: DateCancelService;
   let matching: MatchingService;
   let checkIns: CheckInsService;
   let users: Repository<User>;
@@ -57,6 +59,7 @@ describe('Dates (e2e)', () => {
     await app.init();
 
     dates = app.get(DatesService);
+    cancels = app.get(DateCancelService);
     matching = app.get(MatchingService);
     checkIns = app.get(CheckInsService);
     users = app.get<Repository<User>>(getRepositoryToken(User), {
@@ -139,10 +142,12 @@ describe('Dates (e2e)', () => {
 
   it('cancelling records the canceller and moves the date to cancelled', async () => {
     const date = await dates.createConfirmedDateForMatch(id.a, id.b);
-    const cancelled = await dates.cancel(date!.id, id.a, 'Something came up');
-    expect(cancelled.status).toBe(DateStatus.Cancelled);
-    expect(cancelled.cancelledById).toBe(id.a);
-    expect(cancelled.cancelReason).toBe('Something came up');
+    const outcome = await cancels.cancel(date!.id, id.a);
+    expect(outcome.reason).toBe('cancelled');
+    const cancelled = await dates.listForUser(id.a);
+    const row = cancelled.find((d) => d.id === date!.id)!;
+    expect(row.status).toBe(DateStatus.Cancelled);
+    expect(row.cancelledById).toBe(id.a);
   });
 
   it('refuses a review before the date has finished', async () => {
@@ -165,12 +170,12 @@ describe('Dates (e2e)', () => {
 
   it('rejects acting on a date you are not part of', async () => {
     const date = await dates.createConfirmedDateForMatch(id.a, id.b);
-    await expect(dates.cancel(date!.id, id.c)).rejects.toThrow();
+    await expect(cancels.cancel(date!.id, id.c)).rejects.toThrow();
   });
 
   it('blocks an invalid stage move (confirming a cancelled date)', async () => {
     const date = await dates.createConfirmedDateForMatch(id.a, id.b);
-    await dates.cancel(date!.id, id.a);
+    await cancels.cancel(date!.id, id.a);
     await expect(dates.confirmHappened(date!.id, id.b, 5)).rejects.toThrow();
   });
 

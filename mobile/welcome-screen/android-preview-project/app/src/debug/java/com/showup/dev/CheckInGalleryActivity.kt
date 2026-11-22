@@ -20,6 +20,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import com.showup.arrival.ArrivalSamples
 import com.showup.change.ChangeSamples
+import com.showup.date.cancel.CancelSamples
+import com.showup.date.end.DateEndSamples
 import com.showup.search.messageDraft
 import com.showup.search.SearchUiState
 import com.showup.search.SearchSamples
@@ -174,6 +176,24 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "196L" -> ChangeSamples.frame("L")
         "196M" -> ChangeSamples.frame("M")
         "196N" -> ChangeSamples.frame("N")
+        "197A" -> DateEndSamples.frame("A")
+        "197B" -> DateEndSamples.frame("B")
+        "197C" -> DateEndSamples.frame("C")
+        "197D" -> DateEndSamples.frame("D")
+        "197E" -> DateEndSamples.frame("E")
+        "197F" -> DateEndSamples.frame("F")
+        "197G" -> DateEndSamples.frame("G")
+        "197H" -> DateEndSamples.frame("H")
+        "197I" -> DateEndSamples.frame("I")
+        "197J" -> DateEndSamples.frame("J")
+        "198A" -> CancelSamples.frame("A")
+        "198B" -> CancelSamples.frame("B")
+        "198C" -> CancelSamples.frame("C")
+        "198D" -> CancelSamples.frame("D")
+        "198E" -> CancelSamples.frame("E")
+        "198F" -> CancelSamples.frame("F")
+        "198H" -> CancelSamples.frame("H")
+        "198I" -> CancelSamples.frame("I")
         else -> Text("Unknown state $state")
     }
 }

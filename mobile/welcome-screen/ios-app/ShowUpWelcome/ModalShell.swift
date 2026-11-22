@@ -18,6 +18,21 @@ let modalShellBlur: CGFloat = 8
 /// type cannot hold a static stored property; a `let` String, so nothing for concurrency to question.
 private let modalShellEnd = "modal.shell.end"
 
+private struct SheetScrollsToEndKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// EVIDENCE ONLY, false in the app: a sheet taller than its frame scrolls to the END of its content when it appears,
+    /// so a still picture of one (the Date 06 and Date 07 evidence at 375 x 667) shows what tells the frame apart, the
+    /// buttons and boxes below the fold. Only the sample frames and the evidence harness set it; no host passes it
+    /// down. Android's `LocalSheetScroll`.
+    var sheetScrollsToEnd: Bool {
+        get { self[SheetScrollsToEndKey.self] }
+        set { self[SheetScrollsToEndKey.self] = newValue }
+    }
+}
+
 /// The kit's `ModalShell` surface inside the app's one sheet behaviour: docked to the bottom, as tall as its
 /// content, at most 88 % of the frame and scrolling past it -- Android's `heightIn(max = cap)` + `verticalScroll`.
 struct ModalShell<Content: View>: View {
@@ -31,6 +46,8 @@ struct ModalShell<Content: View>: View {
     /// The content's padding: 24 all round for Search's like sheets, `20 24 24` for its sorry sheet.
     var contentPadding = EdgeInsets(top: 24, leading: 24, bottom: 24, trailing: 24)
     @ViewBuilder let content: () -> Content
+
+    @Environment(\.sheetScrollsToEnd) private var scrollsToEnd
 
     var body: some View {
         SheetScaffold(onDismiss: onDismiss) {
@@ -52,6 +69,15 @@ struct ModalShell<Content: View>: View {
                         ScrollViewReader { proxy in
                             ScrollView { surface }
                                 .scrollBounceBehavior(.basedOnSize)
+                                .onAppear {
+                                    guard scrollsToEnd else { return }
+                                    proxy.scrollTo(modalShellEnd, anchor: .bottom)
+                                    // Again once laid out: the first call can run before the content has its height.
+                                    Task { @MainActor in
+                                        try? await Task.sleep(nanoseconds: 120_000_000)
+                                        proxy.scrollTo(modalShellEnd, anchor: .bottom)
+                                    }
+                                }
                                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidShowNotification)) { _ in
                                     if endOnKeyboard { proxy.scrollTo(modalShellEnd, anchor: .bottom) }
                                 }
