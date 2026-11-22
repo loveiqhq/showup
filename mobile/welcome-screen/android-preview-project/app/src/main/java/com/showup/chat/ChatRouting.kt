@@ -61,6 +61,16 @@ fun partnerEndedRoute(outcome: EndedOutcome, photoUrl: String?): AppRoute.Partne
     )
 
 /**
+ * Where the person was when Date 08 opened, for `referrer_screen_id` (R7). [from] is the chat when the chat found
+ * the end. Otherwise it was a read of the Date screen: [heldDate] is what that screen was showing, and a read that
+ * finds an end leaves it as it was. None held means this read is the launch's first and nothing was on screen yet.
+ * `cameFrom` cannot say this: a launch sets the screen without a `goTo`, so it stays null all session, and a
+ * process-death restore brings back a non-null one on what is effectively a relaunch.
+ */
+fun partnerEndedReferrer(heldDate: ActiveDate?, from: ProfileScreen?): ProfileScreen? =
+    from ?: ProfileScreen.DateScreen.takeIf { heldDate != null }
+
+/**
  * The events the host reports for the chat's destinations: `screen_viewed` for the tutorial, the chat
  * (B and C to E are one screen, one view per open) and the outcome (G and H are one); the tutorial's
  * `chat_tutorial_shown` and `chat_tutorial_acknowledged`, the second carrying how long it was read.

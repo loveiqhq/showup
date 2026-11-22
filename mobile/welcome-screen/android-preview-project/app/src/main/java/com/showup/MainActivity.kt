@@ -143,6 +143,7 @@ import com.showup.chat.chatEntryFor
 import com.showup.chat.openChatFromArrivalCard
 import com.showup.chat.chatRoute
 import com.showup.chat.outcomeRoute
+import com.showup.chat.partnerEndedReferrer
 import com.showup.chat.partnerEndedRoute
 import androidx.navigation.toRoute
 import kotlinx.coroutines.awaitCancellation
@@ -1513,14 +1514,15 @@ class MainActivity : ComponentActivity() {
 
             /**
              * Every way an end reaches the person -- the Date screen's read, the chat's poll or 409 -- routes here.
-             * [from] is null on a launch (nothing led to the screen); G and H then read as from the Date screen.
+             * [from] is the chat when it found the end, null when the Date screen's read did; G and H then read as from
+             * the Date screen. Date 08's referrer is [partnerEndedReferrer]: none only when no date was held, the launch.
              */
             val partnerEndedOnce = remember { LandedOnce() }
             fun routeEnded(outcome: EndedOutcome, from: ProfileScreen?) {
                 when (endedRoute(outcome)) {
                     EndedRoute.DateEnded, EndedRoute.PartnerCancelled -> showOutcome(outcome, from ?: ProfileScreen.DateScreen)
                     // Once per ended date: the chat's poll and the Date screen's read can both see one end.
-                    EndedRoute.PartnerEnded -> if (partnerEndedOnce.first(outcome.dateId)) showPartnerEnded(outcome, from)
+                    EndedRoute.PartnerEnded -> if (partnerEndedOnce.first(outcome.dateId)) showPartnerEnded(outcome, partnerEndedReferrer(dateState.date, from))
                     EndedRoute.Land -> landAfterEnd(outcome)
                 }
             }
@@ -2761,8 +2763,9 @@ class MainActivity : ComponentActivity() {
                             val ended = dateState.ended
                             if (onTop && ended != null) {
                                 // Date 06's reasons land after the end (R1); the chat's and a cancel on you keep G and H.
-                                // No referrer on a launch: the Date screen is where the app opened, not where they were.
-                                routeEnded(ended, ProfileScreen.DateScreen.takeIf { cameFrom != null })
+                                // from stays null: whether this was a launch is decided from the held date in routeEnded,
+                                // not from cameFrom, which a launch never sets and a restore brings back.
+                                routeEnded(ended, null)
                             }
                         }
                         val heldDate = heldWhileLeaving(dateState, onTop)

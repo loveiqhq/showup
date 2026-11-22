@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import com.showup.AppRoute
 import com.showup.analytics.RecordingAnalytics
 import com.showup.chat.ChatHostEvents
+import com.showup.chat.partnerEndedReferrer
 import com.showup.chat.partnerEndedRoute
 import com.showup.date.ActiveDate
 import com.showup.date.DateMatch
@@ -157,6 +158,24 @@ class PartnerEndedRoutingTest {
     }
 
     // -- tracking ----------------------------------------------------------------------------
+
+    // The referrer is decided by what was on screen, not by whether a goTo happened: a launch sets the screen
+    // directly (cameFrom stays null all session), and a restored cameFrom says nothing about a relaunch.
+    @Test
+    fun `an end found while a date is held was found on the Date screen`() {
+        assertEquals(ProfileScreen.DateScreen, partnerEndedReferrer(heldDate = date(checkedIn = true), from = null))
+    }
+
+    @Test
+    fun `an end found by the launch's first read, with no date held, has no referrer`() {
+        assertNull(partnerEndedReferrer(heldDate = null, from = null))
+    }
+
+    @Test
+    fun `an end found from the chat is the chat's, held date or not`() {
+        assertEquals(ProfileScreen.DateChat, partnerEndedReferrer(heldDate = date(checkedIn = true), from = ProfileScreen.DateChat))
+        assertEquals(ProfileScreen.DateChat, partnerEndedReferrer(heldDate = null, from = ProfileScreen.DateChat))
+    }
 
     @Test
     fun `a cold start shows the payload's id with no referrer`() {
