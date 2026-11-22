@@ -171,6 +171,24 @@ let devStates: [DevState] = [
     DevState(id: "196L", ticket: "SHOWUP-196 Change time and place", label: "L · I agree failed"),
     DevState(id: "196M", ticket: "SHOWUP-196 Change time and place", label: "M · Places couldn't load"),
     DevState(id: "196N", ticket: "SHOWUP-196 Change time and place", label: "N · No place found"),
+    DevState(id: "197A", ticket: "SHOWUP-197 End date and report", label: "A · End Date bar"),
+    DevState(id: "197B", ticket: "SHOWUP-197 End date and report", label: "B · How did it go?"),
+    DevState(id: "197C", ticket: "SHOWUP-197 End date and report", label: "C · We met"),
+    DevState(id: "197D", ticket: "SHOWUP-197 End date and report", label: "D · Check in first (Date 03's gate)"),
+    DevState(id: "197E", ticket: "SHOWUP-197 End date and report", label: "E · Not here yet? — before meet time"),
+    DevState(id: "197F", ticket: "SHOWUP-197 End date and report", label: "F · Not here yet? — after meet time"),
+    DevState(id: "197G", ticket: "SHOWUP-197 End date and report", label: "G · Thanks for waiting"),
+    DevState(id: "197H", ticket: "SHOWUP-197 End date and report", label: "H · Report a problem"),
+    DevState(id: "197I", ticket: "SHOWUP-197 End date and report", label: "I · I don't feel comfortable"),
+    DevState(id: "197J", ticket: "SHOWUP-197 End date and report", label: "J · End didn't go through"),
+    DevState(id: "198A", ticket: "SHOWUP-198 Cancel this date", label: "A · The red link"),
+    DevState(id: "198B", ticket: "SHOWUP-198 Cancel this date", label: "B · Guard sheet — chat locked"),
+    DevState(id: "198C", ticket: "SHOWUP-198 Cancel this date", label: "C · Guard sheet — chat open"),
+    DevState(id: "198D", ticket: "SHOWUP-198 Cancel this date", label: "D · After a change request"),
+    DevState(id: "198E", ticket: "SHOWUP-198 Cancel this date", label: "E · Cancel didn't go through"),
+    DevState(id: "198F", ticket: "SHOWUP-198 Cancel this date", label: "F · After check-in — no link"),
+    DevState(id: "198H", ticket: "SHOWUP-198 Cancel this date", label: "H · What the match sees"),
+    DevState(id: "198I", ticket: "SHOWUP-198 Cancel this date", label: "I · Guard sheet — from meet − 0:30"),
 ]
 
 /// The tickets, in the order their frames are listed.
@@ -193,6 +211,8 @@ enum DevFrame: Equatable, CaseIterable {
     case chatLoadFailed, chatSendFailed, chatEndFailed
     case arrivalBar, arrivalGuard, arrivalNoFix, arrivalNotSaved, arrivalDone, arrivalAfterClose, arrivalChip, arrivalDateGate, arrivalCard
     case changeA, changeB, changeC, changeD, changeE, changeF, changeG, changeH, changeI, changeJ, changeK, changeL, changeM, changeN
+    case endA, endB, endC, endD, endE, endF, endG, endH, endI, endJ
+    case cancelA, cancelB, cancelC, cancelD, cancelE, cancelF, cancelH, cancelI
 
     static func of(_ id: String) -> DevFrame? {
         switch id {
@@ -263,6 +283,24 @@ enum DevFrame: Equatable, CaseIterable {
         case "196L": return .changeL
         case "196M": return .changeM
         case "196N": return .changeN
+        case "197A": return .endA
+        case "197B": return .endB
+        case "197C": return .endC
+        case "197D": return .endD
+        case "197E": return .endE
+        case "197F": return .endF
+        case "197G": return .endG
+        case "197H": return .endH
+        case "197I": return .endI
+        case "197J": return .endJ
+        case "198A": return .cancelA
+        case "198B": return .cancelB
+        case "198C": return .cancelC
+        case "198D": return .cancelD
+        case "198E": return .cancelE
+        case "198F": return .cancelF
+        case "198H": return .cancelH
+        case "198I": return .cancelI
         default: return nil
         }
     }
@@ -360,6 +398,10 @@ struct CheckInGalleryFrame: View {
             ArrivalGalleryFrame(state: state, leave: leave)
         case .changeA?, .changeB?, .changeC?, .changeD?, .changeE?, .changeF?, .changeG?, .changeH?, .changeI?, .changeJ?, .changeK?, .changeL?, .changeM?, .changeN?:
             ChangeSamples.frame(String(state.dropFirst(3)))
+        case .endA?, .endB?, .endC?, .endD?, .endE?, .endF?, .endG?, .endH?, .endI?, .endJ?:
+            DateEndSamples.frame(String(state.dropFirst(3)))
+        case .cancelA?, .cancelB?, .cancelC?, .cancelD?, .cancelE?, .cancelF?, .cancelH?, .cancelI?:
+            CancelSamples.frame(String(state.dropFirst(3)))
         case nil:
             // Loud, never a quiet fallback: a menu entry with no frame must be seen.
             Text("Unknown state \(state)")

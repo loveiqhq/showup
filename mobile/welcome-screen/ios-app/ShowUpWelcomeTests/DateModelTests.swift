@@ -183,17 +183,17 @@ final class DateModelTests: XCTestCase {
         let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
         m.arrived(referrer: nil)
         await settle()
-        await store.setRead(.success(.ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))))
+        await store.setRead(.success(.ended(EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false))))
         m.foreground()
         await settle()
-        XCTAssertEqual(m.state.ended, EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))
+        XCTAssertEqual(m.state.ended, EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false))
         XCTAssertFalse(m.state.left)
         XCTAssertEqual(m.state.date, date(), "the match's photo stays for the outcome screen")
     }
 
     func testOnceTheOutcomeHasBeenSeenNoDateIsHeld() async {
         let store = FakeDateStore()
-        await store.setRead(.success(.ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true))))
+        await store.setRead(.success(.ended(EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: true))))
         let m = model(store, RecordingAnalytics(), TestClock(meet.addingTimeInterval(-3 * 3600)))
         m.arrived(referrer: nil)
         await settle()

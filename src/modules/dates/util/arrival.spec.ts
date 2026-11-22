@@ -123,11 +123,12 @@ describe('arrival rules (Date 03)', () => {
       expect(ARRIVAL_UNDONE).toBe('arrival_undone');
       expect(Object.keys(e.properties).some((k) => banned.test(k))).toBe(false);
     });
-    it('names the three entries', () => {
+    it('names the four entries (Date 06 adds wrapup)', () => {
       expect(Object.values(ArrivalEntry)).toEqual([
         'date_screen',
         'chat_chip',
         'report',
+        'wrapup',
       ]);
     });
   });

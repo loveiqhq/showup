@@ -157,6 +157,8 @@ enum ProfileScreen: String {
     case dateChat = "date_chat"
     /// G and H, after a date ended in the chat: one screen id for both.
     case dateEndedInChat = "date_ended_in_chat"
+    /// Date 07 H: what the match of a red-link cancel sees (§11 row added 21 Nov 2026, registry 1.4.37).
+    case datePartnerCancelled = "date_partner_cancelled"
 
     var screenId: String { rawValue }
 
@@ -203,6 +205,7 @@ enum ProfileScreen: String {
         case .dateChatTutorial: return "Date - Chat tutorial"
         case .dateChat: return "Date - Coordinate chat"
         case .dateEndedInChat: return "Date - Ended in chat"
+        case .datePartnerCancelled: return "Date - Partner cancelled"
         }
     }
 }
@@ -372,6 +375,7 @@ enum Stamp {
     /// come from is worse than an unstamped one, because it looks checked.
     ///
     /// 1.4.38 (16 November 2026): §11 `date_location_gate` (Date 03); 1.4.35–1.4.37 add Date 05 / 06 / 07 value sets.
+    /// 1.4.39 (17 November 2026): §11 `date_partner_ended_*` rows (Date 08); the registry these apps ship with Date 06 / 07.
     ///
     /// 1.4.34 (10 November 2026): §41 `arrival_entry` (Date 03).
     ///
@@ -386,7 +390,7 @@ enum Stamp {
     ///
     /// 1.4.29 (21 October 2026) is the Date search registry (SHOWUP-184 to 186). No value an event
     /// here sends moved between 1.4.25 and 1.4.29 - the stamp follows the file the code reads.
-    static let fieldRegistryVersion = "1.4.38"
+    static let fieldRegistryVersion = "1.4.39"
 
     static func of(_ sensitivityClass: Int) -> [String: any Sendable] {
         ["sensitivity_class": sensitivityClass, "field_registry_version": fieldRegistryVersion]

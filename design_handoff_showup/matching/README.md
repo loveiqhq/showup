@@ -13,7 +13,7 @@ Rules: `matching-plan.md` (this folder, copied from the design project). Server-
 
 | # | Ticket | Status |
 |---|---|---|
-| 01 | Search ranking — filters, score, ordering rules, soft range | built 31 Oct 2026 (SHOWUP-190) |
+| 01 | Search ranking — filters, score, ordering rules, soft range | ticketed 27 Oct 2026 — not built |
 
 ## Backlog
 

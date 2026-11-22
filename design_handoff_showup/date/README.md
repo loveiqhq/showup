@@ -35,7 +35,7 @@ Kit source: `ui_kits/show-up/screens-date-chat.jsx`, `screens-date-change.jsx`, 
 | 05 | Change meet time and place | A time picker · B place picker · C sent · D yours waiting · E request, chat open · F answering · G agreed · H expired · I locked tiles · J request, chat locked · K suggest failed · L agree failed · M places failed · N no place found | ticketed — not built (10 Nov 2026) |
 | 06 | End date and report a problem | A End Date bar · B How did it go? · C we met · D check in first (consumed) · E/F not here yet, before / after meet time · G thanks for waiting · H report · I not comfortable · J end failed | ticketed — not built (10 Nov 2026) |
 | 07 | Cancel this date | A link · B guard, chat locked · C chat open · D after a change request · E cancel failed · F after check-in, no link · G canceller → flow 10 (consumed) · H match sees | ticketed — not built (16 Nov 2026) |
-| 08 | What the other side sees | you didn't show up · ended (uncomfortable) · ended (normally) | to write |
+| 08 | What the other side sees | you didn't show up (claim) · ended (uncomfortable) · ended (We met) · + flow 10 claim headline `rating-claimed-noshow` | written 17 Nov 2026 · `tickets/08-partner-end.md` |
 | 09 | Switch to flow 10 | logic only, no sheet | to write |
 | 10 | Match Mate | topics from both profiles · ice breakers · quick games · safety tips · if it's awkward — library + AI picks, always visible, mixed tone | to design |
 | 00 | Epic | — | written 2 Nov 2026 · `tickets/00-epic.md` |
@@ -107,7 +107,7 @@ Order: 01 → 02 → 03 and 05 in parallel → 06, 07, 08 → 09.
 - **The no-show end unlocks at the binding meet time** — before: disabled, `You can end the date from {time}`. The 10 minutes are guidance, not measured.
 - **One wait guidance** (`NoShowGuide` + `NoShowConfirm`) for both sheets. Copy: "Please give it at least 10 minutes" · `End date and review` · `Back`. "This is on them" removed — no verdict.
 - **Head out now ends the date** → this user to flow 10, the match to Date 08 `date-ended-discomfort`; What happens next gains the review line. **Stay for now** stores an internal flag.
-- **No-show end, match checked in** → the match sees the neutral `date-closed-positive`; flow 10 decides.
+- ~~**No-show end, match checked in** → the match sees the neutral `date-closed-positive`~~ — superseded 17 Nov 2026: every no-show end → `you-no-showed`.
 - **Parked:** *Something else* (with *I'm in danger*). **Deleted:** the End Date bar's "Date complete · Rate" variant.
 - Tracking: family N respecified — `wrapup_opened` · `date_ended` · `problem_stay_flagged` NEW; `wrapup_outcome_selected` · `problem_report_opened` · `problem_category_selected` respecified (`waited` → `partner_no_show`); `wrapup_prompted` · `wrapup_confirmed` · `grace_period_*` · `no_penalty_exit_granted` RETIRED; §43 `date_end_reason` · §44 `problem_category` · §45 `end_entry` NEW, §41 gains `wrapup` — registry 1.4.36 / taxonomy 1.4.29.
 - Kit: `End date · 1–7`, `Report a problem · 1–5` artboards. **Open:** the copy-consistency fixes (`End Date` vs `End date`, C's "chat menu" note) — not applied.

@@ -314,4 +314,41 @@ final class EvidenceShots: XCTestCase {
             }
         }
     }
+
+    /// SHOWUP-197's evidence: A, B, C and E to J at the three frames the acceptance criteria name -- 27 images, named
+    /// `<letter>-<name>.png` as Android's. D is Date 03's gate with the note, which that ticket's evidence holds. E, F and
+    /// I are taller than the 375 x 667 frame: the sheet scrolls inside its shell and the picture is taken at the end of
+    /// that scroll, where the end button's state, Head out now and Stay for now sit.
+    func testEndAndReportEvidence() throws {
+        let dir = try folder("197-end-report")
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        let names: [(String, String)] = [
+            ("A", "end-date-bar"), ("B", "how-did-it-go"), ("C", "we-met"), ("E", "not-here-before-meet"),
+            ("F", "not-here-after-meet"), ("G", "thanks-for-waiting"), ("H", "report-a-problem"),
+            ("I", "not-comfortable"), ("J", "end-failed"),
+        ]
+        for device in frames {
+            for (letter, name) in names {
+                try shoot(DateEndSamples.frame(letter, scrollToEnd: ["E", "F", "I"].contains(letter)),
+                          "\(letter)-\(name)", on: device, into: dir)
+            }
+        }
+    }
+
+    /// SHOWUP-198's evidence: A to F, H and I at the three frames -- 24 images (G is flow 10's). A and F come to rest at
+    /// the end of the Date screen's scroll, where the red link sits; the guard sheet (B to E, I) is taller than the
+    /// 375 x 667 frame and is taken at the end of its own scroll, where the solution box, cost box, choices and error sit.
+    func testCancelDateEvidence() throws {
+        let dir = try folder("198-cancel")
+        XCTAssertEqual(frames.count, 3, "the three ticket frames")
+        let names: [(String, String)] = [
+            ("A", "red-link"), ("B", "guard-chat-locked"), ("C", "guard-chat-open"), ("D", "after-change-request"),
+            ("E", "cancel-failed"), ("F", "after-check-in"), ("H", "match-cancelled"), ("I", "guard-from-meet-minus-30"),
+        ]
+        for device in frames {
+            for (letter, name) in names {
+                try shoot(CancelSamples.frame(letter, scrollToEnd: letter != "H"), "\(letter)-\(name)", on: device, into: dir)
+            }
+        }
+    }
 }

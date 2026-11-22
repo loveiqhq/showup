@@ -50,6 +50,25 @@ describe('message catalog (EN/DE rendering)', () => {
     });
   });
 
+  it('renders the Date 07 cancel push (temporary copy) in full, with and without a name', () => {
+    expect(renderMessage('date_cancelled', 'en', { name: 'Max' })).toEqual({
+      title: 'Max cancelled your date',
+      body: 'Open Show Up to see what happens next.',
+    });
+    expect(renderMessage('date_cancelled', 'en', { name: '' })).toEqual({
+      title: 'Your date was cancelled',
+      body: 'Open Show Up to see what happens next.',
+    });
+    expect(renderMessage('date_cancelled', 'de', { name: 'Max' })).toEqual({
+      title: 'Max hat euer Date abgesagt',
+      body: '\u00d6ffne Show Up, um zu sehen, wie es weitergeht.',
+    });
+    expect(renderMessage('date_cancelled', 'de', { name: '' })).toEqual({
+      title: 'Dein Date wurde abgesagt',
+      body: '\u00d6ffne Show Up, um zu sehen, wie es weitergeht.',
+    });
+  });
+
   it('renders the Date 05 change pushes in English and German (interim copy)', () => {
     expect(
       renderMessage('date_change_suggested', 'en', {

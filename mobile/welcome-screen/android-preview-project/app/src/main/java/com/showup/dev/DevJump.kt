@@ -1,6 +1,8 @@
 package com.showup.dev
 
 import com.showup.change.ChangeSamples
+import com.showup.date.cancel.CancelSamples
+import com.showup.date.end.DateEndSamples
 import com.showup.profile.LocationArrival
 import com.showup.welcome.FlowScreen
 
@@ -208,7 +210,7 @@ fun devJump(
  */
 data class DevState(val id: String, val ticket: String, val label: String)
 
-/** Every frame of SHOWUP-178 to 184's, 193's, 194's, 195's and 196's evidence, in ticket order -- plus the states between them. */
+/** Every frame of SHOWUP-178 to 184's and 193's to 198's evidence (198 has no G: it is flow 10's), in ticket order -- plus the states between them. */
 val DEV_STATES: List<DevState> = listOf(
     DevState("178A", "SHOWUP-178 Intro + gate", "A · Intro"),
     DevState("178B", "SHOWUP-178 Intro + gate", "B · Date search not available"),
@@ -283,6 +285,24 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("196L", "SHOWUP-196 Change time and place", "L · I agree failed"),
     DevState("196M", "SHOWUP-196 Change time and place", "M · Places couldn't load"),
     DevState("196N", "SHOWUP-196 Change time and place", "N · No place found"),
+    DevState("197A", "SHOWUP-197 End date and report", "A · End Date bar"),
+    DevState("197B", "SHOWUP-197 End date and report", "B · How did it go?"),
+    DevState("197C", "SHOWUP-197 End date and report", "C · We met"),
+    DevState("197D", "SHOWUP-197 End date and report", "D · Check in first (Date 03's gate)"),
+    DevState("197E", "SHOWUP-197 End date and report", "E · Not here yet? — before meet time"),
+    DevState("197F", "SHOWUP-197 End date and report", "F · Not here yet? — after meet time"),
+    DevState("197G", "SHOWUP-197 End date and report", "G · Thanks for waiting"),
+    DevState("197H", "SHOWUP-197 End date and report", "H · Report a problem"),
+    DevState("197I", "SHOWUP-197 End date and report", "I · I don't feel comfortable"),
+    DevState("197J", "SHOWUP-197 End date and report", "J · End didn't go through"),
+    DevState("198A", "SHOWUP-198 Cancel this date", "A · The red link"),
+    DevState("198B", "SHOWUP-198 Cancel this date", "B · Guard sheet — chat locked"),
+    DevState("198C", "SHOWUP-198 Cancel this date", "C · Guard sheet — chat open"),
+    DevState("198D", "SHOWUP-198 Cancel this date", "D · After a change request"),
+    DevState("198E", "SHOWUP-198 Cancel this date", "E · Cancel didn't go through"),
+    DevState("198F", "SHOWUP-198 Cancel this date", "F · After check-in — no link"),
+    DevState("198H", "SHOWUP-198 Cancel this date", "H · What the match sees"),
+    DevState("198I", "SHOWUP-198 Cancel this date", "I · Guard sheet — from meet − 0:30"),
 )
 
 /** The developer menu's Date actions (SHOWUP-193), each a dev-server route. */
@@ -314,6 +334,12 @@ sealed interface DevDateAction {
     /** Every open suggestion is past its deadline and expires now (SHOWUP-196 H). */
     data object ExpireSuggestions : DevDateAction
 
+    /** Leonie cancels this date from the red link (SHOWUP-198 H): this phone lands on the cancelled outcome. */
+    data object PartnerCancels : DevDateAction
+
+    /** Leonie ends the date with [reason] (SHOWUP-197, the Date 08 slot): the date is over for this phone. */
+    data class PartnerEnds(val reason: com.showup.date.EndReason) : DevDateAction
+
     /** Ends the test date: the screen leaves for the normal resume. */
     data object End : DevDateAction
 }
@@ -322,9 +348,14 @@ sealed interface DevDateAction {
 const val DEV_GALLERY_ACTIVITY = "com.showup.dev.CheckInGalleryActivity"
 
 /**
- * The frame letter a States row opens LIVE, or null for a picture. Date 05's frames are a flow -- pick, suggest,
+ * The frame id a States row opens LIVE, or null for a picture. Date 05's, 06's and 07's frames are a flow -- pick, suggest,
  * agree, check in -- and a still picture of one reads as a broken app, so they open on the in-memory date server
  * ([DevDateDemo]) with every tap working. The other tickets' frames stay pictures in the gallery.
  */
-fun devLiveFrame(state: DevState): String? =
-    state.id.takeIf { it.startsWith("196") }?.removePrefix("196")?.takeIf { it in ChangeSamples.LETTERS }
+fun devLiveFrame(state: DevState): String? = when {
+    // 196's frames are named by their letter alone; 197's and 198's keep the ticket number, which says which is which.
+    state.id.startsWith("196") -> state.id.removePrefix("196").takeIf { it in ChangeSamples.LETTERS }
+    state.id.startsWith("197") -> state.id.takeIf { it.removePrefix("197") in DateEndSamples.LETTERS }
+    state.id.startsWith("198") -> state.id.takeIf { it.removePrefix("198") in CancelSamples.LETTERS }
+    else -> null
+}

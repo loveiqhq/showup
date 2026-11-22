@@ -15,7 +15,7 @@ import com.showup.api.generated.model.ChatMessageDto
 import com.showup.api.generated.model.SendChatMessageDto
 import com.showup.api.outcome
 import com.showup.date.DateStore
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
 import kotlinx.coroutines.CancellationException
 import java.io.IOException
 import java.time.Instant
@@ -41,7 +41,7 @@ data class ChatMessage(
 
 /** What `End date` came back with. */
 sealed interface EndResult {
-    data class Ended(val outcome: EndedInChat) : EndResult
+    data class Ended(val outcome: EndedOutcome) : EndResult
 
     /** 409: the date had already ended -- the other person did it, or a second tap. The next date read says how. */
     data object AlreadyEnded : EndResult
@@ -104,7 +104,7 @@ class ApiChatStore(private val api: ShowUpApi) : ChatStore {
         val response = api.dates.endDateInChat(dateId)
         val body = response.body()
         when {
-            response.isSuccessful && body != null -> EndResult.Ended(EndedInChat(body.dateId, body.name, body.endedByYou))
+            response.isSuccessful && body != null -> EndResult.Ended(EndedOutcome(body.dateId, body.name, body.endedByYou))
             response.code() == 409 -> EndResult.AlreadyEnded
             else -> EndResult.Failed(CallFailure.Server)
         }

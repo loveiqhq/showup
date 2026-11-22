@@ -714,7 +714,9 @@ function SearchActionsCoach({ onDone }) {
   );
 }
 
-function ScreenSearchProfile({ profile = SEARCH_V2_PROFILE, viewer = SEARCH_VIEWER, tall = false, tallHeight = 4300, initialModal = null, instant = false, premium = false, likedYou = false, onBack, backLabel = 'All profiles', onAction, tab = 'search', coach = false }) {
+function ScreenSearchProfile({ profile = SEARCH_V2_PROFILE, viewer = SEARCH_VIEWER, tall = false, tallHeight = 4300, initialModal = null, instant = false, premium = false, likedYou = false, onBack, backLabel = 'All profiles', onAction, tab = 'search', coach = false , readOnly = false}) {
+  // readOnly (9 Nov 2026, Date 01): opened from the Date screen — no action bar,
+  // no filter / likes chip, TabBar locked, back pill 'Your date'.
   // tab: which TabBar tab owns this profile — 'search' (queue, grid) or
   // 'likes' (opened from Likes received, Search 03: Likes active, no filter).
   const p = profile;
@@ -742,7 +744,7 @@ function ScreenSearchProfile({ profile = SEARCH_V2_PROFILE, viewer = SEARCH_VIEW
 
   return (
     <Phone height={tall ? tallHeight : 844} scroll={!tall}>
-      <SearchTopBar instant={instant} premium={premium} filter={tab !== 'likes'} chip={tab !== 'likes'}/>
+      <SearchTopBar instant={instant} premium={premium} filter={tab !== 'likes' && !readOnly} chip={tab !== 'likes' && !readOnly}/>
       {onBack && (
         <div style={{ padding: '0 16px 10px' }}>
           <button onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, height: 36, padding: '0 14px 0 8px', borderRadius: 9999, border: '1px solid var(--liq-border)', background: '#fff', fontFamily: 'var(--liq-font-sans)', fontSize: 13, fontWeight: 700, color: 'var(--liq-fg)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -844,7 +846,7 @@ function ScreenSearchProfile({ profile = SEARCH_V2_PROFILE, viewer = SEARCH_VIEW
         <div style={{ height: 80 }}/>
       </div>
 
-      {!tall && (
+      {!tall && !readOnly && (
         <div style={{ position: 'sticky', bottom: 64, left: 0, right: 0, padding: '12px 16px', background: coaching ? 'transparent' : 'linear-gradient(180deg, rgba(255,251,247,0) 0%, rgba(255,251,247,0.95) 35%, rgba(255,251,247,1) 100%)', display: 'flex', flexDirection: 'column', gap: 14, zIndex: coaching ? 11 : 3 }}>
           {coaching && <SearchActionsCoach onDone={() => setCoaching(false)}/>}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'center' }}>
@@ -855,7 +857,9 @@ function ScreenSearchProfile({ profile = SEARCH_V2_PROFILE, viewer = SEARCH_VIEW
         </div>
       )}
       {coaching && <div onClick={() => setCoaching(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(29,17,41,0.62)', zIndex: 10 }}/>}
-      <TabBar active={instant ? 'instant' : tab} likes={window.LIKES_RECEIVED ? window.likesOpenCount(window.LIKES_RECEIVED) : 0}/>
+      {readOnly
+        ? <TabBar active={null} disabled={['search', 'likes', 'instant']} disabledHint="Available again once your date is finished."/>
+        : <TabBar active={instant ? 'instant' : tab} likes={window.LIKES_RECEIVED ? window.likesOpenCount(window.LIKES_RECEIVED) : 0}/>}
       {modal === 'confirm' && <LikeConfirmModal name={p.name} day={p.meetDay} instant={instant} mutual={likedYou} cta={likedYou ? 'Confirm date' : 'Continue'} onCancel={() => setModal(null)} onSend={likedYou ? () => { setModal(null); onAction && onAction('confirmed'); } : () => setModal('message')}/>}
       {modal === 'message' && <LikeMessageModal name={p.name} msg={msg} setMsg={setMsg} onCancel={() => setModal(null)} onSkip={() => { setModal(null); onAction && onAction('liked'); }} onSend={() => { setModal(null); onAction && onAction('liked'); }}/>}
     </Phone>

@@ -47,6 +47,6 @@ enum ArrivalCopy {
     static func arrivedBody(_ name: String) -> String { "\(name) has arrived at the meeting location." }
     static let openChat = "Open chat"
 
-    /// Built for Date 06's report flow, shown by no screen yet.
+    /// The gate's note for Date 06's two entries, `report` and `wrapup` (frame D).
     static let reportNote = "Check in first, so we can confirm you were there."
 }

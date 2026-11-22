@@ -160,5 +160,5 @@ Gender and the later "Share some details" steps (beyond consuming the shell), an
 - **The kit has no keypad-open frame.** The sheet shows the screen without a keyboard. A keypad-open artboard would make the 375 × 667 check reviewable by eye.
 - **"find the right matches" appears twice** — once in the sub copy and once in the note. The copy is final as drawn; flagging it for a copy pass.
 - **The toast can sit over the visibility band** (frame C). It disappears after 2600 ms and moves nothing, but while it shows it covers the privacy control. This pattern is shared by the whole group.
-- **Progress-bar count:** the shell uses 10 segments, while §2 step indices end at 9 and the kit's life screen uses 8. Owned by the group shell; this screen is `current={1}` either way.
+- **Progress-bar count:** resolved — the shell uses **10 segments** (Interests 8 · Life 9 · Future 10, decided 8 Oct 2026 with Profile 21; habits cut). Owned by the group shell; this screen is `current={1}` either way.
 - **Skip fires two events** (`profile_step_skipped` in D, `detail_skipped` in F) for one act. Both are in the registry with overlapping triggers. Fire both until the registry retires one.

@@ -71,7 +71,14 @@ sealed interface AppRoute {
      * a process death on it restores the same screen; [photoUrl] is the match's, for the avatar.
      */
     @Serializable
-    data class DateEnded(val dateId: String, val name: String, val endedByYou: Boolean, val photoUrl: String?) : AppRoute
+    data class DateEnded(
+        val dateId: String,
+        val name: String,
+        val endedByYou: Boolean,
+        val photoUrl: String?,
+        /** Date 07's H: the other person cancelled (the default variant of the same screen). */
+        val cancelled: Boolean = false,
+    ) : AppRoute
 
     /**
      * The time or place picker (SHOWUP-196, Date 05 A, B, K, M, N), pushed over whatever opened it: the Date

@@ -34,9 +34,17 @@ fun changeClock(at: Instant, zone: ZoneId): String = meetTime(at, zone)
  * place. A server before Date 05 sends no block: neither shows.
  */
 fun changeKindAvailable(change: DateChange?, kind: ChangeKind, now: Instant): Boolean {
-    if (change == null || !change.allowed || now >= change.cutoffAt) return false
-    return kind != ChangeKind.Time || change.slots.isNotEmpty()
+    if (!changeWindowOpen(change, now)) return false
+    return kind != ChangeKind.Time || change!!.slots.isNotEmpty()
 }
+
+/**
+ * The first half of [changeKindAvailable]: a new time or place can still be agreed at [now] -- the server says so
+ * (no committed check-in), and the cutoff has not passed. Date 07's cancel sheet reads this same function (R12),
+ * so its body line, its tiles and its `Message {name} instead` follow Date 05's gate and never a copy of it.
+ */
+fun changeWindowOpen(change: DateChange?, now: Instant): Boolean =
+    change != null && change.allowed && now < change.cutoffAt
 
 /** The locked card's tiles, in the chips' order. */
 fun changeTilesFor(change: DateChange?, now: Instant): List<ChatReason> = buildList {

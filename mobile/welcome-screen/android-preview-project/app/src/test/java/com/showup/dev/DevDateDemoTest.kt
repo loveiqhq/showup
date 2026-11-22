@@ -19,8 +19,15 @@ import com.showup.change.SuggestRequest
 import com.showup.change.SuggestResult
 import com.showup.chat.ChatReason
 import com.showup.date.ActiveDate
+import com.showup.date.CancelResult
+import com.showup.date.EndDateResult
+import com.showup.date.EndEntry
+import com.showup.date.EndReason
+import com.showup.date.OutcomeReason
 import com.showup.date.DateRead
 import com.showup.date.DateSamples
+import com.showup.date.cancel.CancelSamples
+import com.showup.date.end.DateEndSamples
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -57,8 +64,15 @@ class DevDateDemoTest {
     @Test
     fun `the States page opens every Date 05 frame live and every other ticket's frame as a picture`() {
         val live = DEV_STATES.mapNotNull { state -> devLiveFrame(state)?.let { state.id to it } }
-        assertEquals(ChangeSamples.LETTERS.map { "196$it" to it }, live)
+        // 196's frames are named by their letter, 197's and 198's keep the ticket number (the letters would collide).
+        assertEquals(
+            ChangeSamples.LETTERS.map { "196$it" to it } +
+                DateEndSamples.LETTERS.map { "197$it" to "197$it" } +
+                CancelSamples.LETTERS.map { "198$it" to "198$it" },
+            live,
+        )
         assertNull(devLiveFrame(DevState("195A", "SHOWUP-195", "A")))
+        assertNull(devLiveFrame(DevState("198G", "SHOWUP-198", "G")))
         assertNull(devLiveFrame(DevState("196Z", "SHOWUP-196", "Z")))
     }
 
@@ -304,5 +318,212 @@ class DevDateDemoTest {
         val request = demo.read().changeRequest!!
         assertEquals(ChangeKind.Place, request.kind)
         assertEquals("Bar Lenz", request.place!!.name)
+    }
+
+    // -- end and cancel (Date 06, 07): the server's refusals, then the outcome the next read reports --
+
+    private suspend fun DevDateDemo.commitCheckIn() {
+        checkIn("x", fix(), ArrivalEntry.DateScreen, "k1")
+        commit("x")
+    }
+
+    @Test
+    fun `an active date reads with the ends switch on and the stand-in servers penalty`() = runTest {
+        val date = demo("B").read()
+        assertTrue(date.endsEnabled)
+        assertTrue(date.cancelPenaltyPoints > 0)
+    }
+
+    @Test
+    fun `an end is refused before the meet time and without a committed check-in`() = runTest {
+        val demo = demo("B")
+        assertEquals(EndDateResult.Refused("before_meet"), demo.end("x", EndReason.PartnerNoShow, EndEntry.EndDateBar))
+        assertEquals(EndDateResult.Refused("not_checked_in"), demo.end("x", EndReason.Uncomfortable, EndEntry.Report))
+        assertTrue(demo.read().endsEnabled)
+    }
+
+    @Test
+    fun `met needs no check-in, and the next read reports the outcome until it is seen`() = runTest {
+        val demo = demo("B")
+        val result = demo.end("x", EndReason.Met, EndEntry.EndDateBar) as EndDateResult.Ended
+        assertEquals(OutcomeReason.Met, result.outcome.reason)
+        val read = (demo.active("UTC") as Outcome.Ok).value as DateRead.Ended
+        assertEquals(OutcomeReason.Met, read.outcome.reason)
+        assertEquals(EndDateResult.Refused("date_not_active"), demo.end("x", EndReason.Met, EndEntry.EndDateBar))
+        demo.markEndSeen("x")
+        assertEquals(DateRead.None, (demo.active("UTC") as Outcome.Ok).value)
+    }
+
+    @Test
+    fun `uncomfortable and a no-show end once checked in, a no-show only from the meet time`() = runTest {
+        val demo = demo("B")
+        demo.commitCheckIn()
+        val meetAt = demo.read().meetAt
+        assertEquals(EndDateResult.Refused("before_meet"), demo.end("x", EndReason.PartnerNoShow, EndEntry.CheckinBarLink))
+        now = meetAt
+        val ended = demo.end("x", EndReason.PartnerNoShow, EndEntry.CheckinBarLink) as EndDateResult.Ended
+        assertEquals(OutcomeReason.PartnerNoShow, ended.outcome.reason)
+
+        val other = demo("B")
+        other.commitCheckIn()
+        val uncomfortable = other.end("x", EndReason.Uncomfortable, EndEntry.Report) as EndDateResult.Ended
+        assertEquals(OutcomeReason.Uncomfortable, uncomfortable.outcome.reason)
+    }
+
+    @Test
+    fun `Stay for now succeeds and leaves the date active`() = runTest {
+        val demo = demo("B")
+        assertTrue(demo.flagDiscomfort("x").getOrThrow())
+        assertNotNull(demo.read())
+    }
+
+    @Test
+    fun `a cancel ends the date as cancelled, and is refused once checked in or once over`() = runTest {
+        val demo = demo("B")
+        val cancelled = demo.cancel("x") as CancelResult.Cancelled
+        assertEquals(OutcomeReason.Cancelled, cancelled.outcome.reason)
+        assertEquals(CancelResult.Refused("date_not_active"), demo.cancel("x"))
+        val read = (demo.active("UTC") as Outcome.Ok).value as DateRead.Ended
+        assertEquals(OutcomeReason.Cancelled, read.outcome.reason)
+
+        val checked = demo("B")
+        checked.commitCheckIn()
+        assertEquals(CancelResult.Refused("checked_in"), checked.cancel("x"))
+    }
+
+    @Test
+    fun `the dev menus End the date makes any later end or cancel date_not_active`() = runTest {
+        val demo = demo("B")
+        demo.endTestDate()
+        assertEquals(EndDateResult.Refused("date_not_active"), demo.end("x", EndReason.Met, EndEntry.EndDateBar))
+        assertEquals(CancelResult.Refused("date_not_active"), demo.cancel("x"))
+    }
+
+    // ── SHOWUP-197 and 198: each frame's seed, landing and once-failing call ────────────────
+
+    @Test
+    fun `every 197 and 198 frame can be launched, and only they`() {
+        for (id in DateEndSamples.LETTERS.map { "197$it" } + CancelSamples.LETTERS.map { "198$it" }) assertTrue(id, id in DEV_LIVE_FRAMES)
+        assertFalse("198G" in DEV_LIVE_FRAMES)
+        assertFalse("197K" in DEV_LIVE_FRAMES)
+    }
+
+    @Test
+    fun `the sheet frames open their sheet at their step, the rest land on the Date screen`() {
+        assertEquals(listOf(DemoStep.OpenWrap), demoSteps("197B"))
+        assertEquals(listOf(DemoStep.OpenWrap, DemoStep.PickMet), demoSteps("197C"))
+        for (f in listOf("197D", "197E", "197F")) assertEquals(f, listOf(DemoStep.OpenWrap, DemoStep.PickNoShow), demoSteps(f))
+        for (f in listOf("197G", "197J")) assertEquals(f, listOf(DemoStep.OpenWrap, DemoStep.PickNoShow, DemoStep.ConfirmWait), demoSteps(f))
+        assertEquals(listOf(DemoStep.OpenReport), demoSteps("197H"))
+        assertEquals(listOf(DemoStep.OpenReport, DemoStep.PickUncomfortable), demoSteps("197I"))
+        for (f in listOf("198B", "198C", "198E", "198I")) assertEquals(f, listOf(DemoStep.OpenCancel), demoSteps(f))
+        assertEquals(listOf(DemoStep.OpenCancel, DemoStep.CancelSent), demoSteps("198D"))
+        for (f in listOf("197A", "198A", "198F", "198H")) assertEquals(f, emptyList<DemoStep>(), demoSteps(f))
+        for (f in DEV_LIVE_FRAMES.filter { it.startsWith("19") }) assertEquals(f, DemoLanding.DateScreen, demoLanding(f))
+    }
+
+    @Test
+    fun `197 frames are checked in except D, and E and A are before the meet time while F G and J are ten minutes past it`() = runTest {
+        for (f in DateEndSamples.LETTERS.map { "197$it" }) assertEquals(f, f != "197D", demo(f).read().checkedIn)
+        for (f in listOf("197A", "197E")) assertEquals(f, Duration.ofMinutes(78), Duration.between(now, demo(f).read().meetAt))
+        for (f in listOf("197F", "197G", "197J")) {
+            val d = demo(f).read()
+            assertEquals(f, Duration.ofMinutes(-10), Duration.between(now, d.meetAt))
+            assertTrue(f, d.coordinateOpen)
+        }
+    }
+
+    @Test
+    fun `J fails its first end and then ends the date, E fails its first cancel and then cancels`() = runTest {
+        val j = demo("197J")
+        val id = j.read().id
+        assertTrue(j.end(id, EndReason.PartnerNoShow, EndEntry.EndDateBar) is EndDateResult.Failed)
+        val second = j.end(id, EndReason.PartnerNoShow, EndEntry.EndDateBar)
+        assertEquals(OutcomeReason.PartnerNoShow, (second as EndDateResult.Ended).outcome.reason)
+
+        val e = demo("198E")
+        assertTrue(e.cancel(e.read().id) is CancelResult.Failed)
+        assertEquals(OutcomeReason.Cancelled, (e.cancel(e.read().id) as CancelResult.Cancelled).outcome.reason)
+    }
+
+    @Test
+    fun `the end follows the server's rules, before_meet and not_checked_in refuse, We met needs no check-in`() = runTest {
+        val e = demo("197E")
+        val id = e.read().id
+        assertEquals(EndDateResult.Refused("before_meet"), e.end(id, EndReason.PartnerNoShow, EndEntry.EndDateBar))
+        assertTrue(e.end(id, EndReason.Uncomfortable, EndEntry.Report) is EndDateResult.Ended)
+
+        val d = demo("197D")
+        assertEquals(EndDateResult.Refused("not_checked_in"), d.end(d.read().id, EndReason.Uncomfortable, EndEntry.Report))
+        assertTrue(d.end(d.read().id, EndReason.Met, EndEntry.EndDateBar) is EndDateResult.Ended)
+    }
+
+    @Test
+    fun `198 frames open with the chat locked far out, open near, and the change window closed at I`() = runTest {
+        val b = demo("198B").read()
+        assertFalse(b.coordinateOpen)
+        assertTrue(Duration.between(now, b.meetAt) >= Duration.ofMinutes(91))
+        assertFalse(b.checkedIn)
+
+        val c = demo("198C").read()
+        assertTrue(c.coordinateOpen)
+        assertTrue(Duration.between(now, c.meetAt) <= Duration.ofMinutes(90))
+
+        val i = demo("198I").read()
+        assertTrue(i.coordinateOpen)
+        assertFalse(i.change!!.allowed)
+        assertEquals(Duration.ofMinutes(25), Duration.between(now, i.meetAt))
+
+        assertTrue(demo("198F").read().checkedIn)
+        assertFalse(demo("198A").read().checkedIn)
+    }
+
+    @Test
+    fun `D holds my time request on the server, and a checked-in cancel is refused`() = runTest {
+        val d = demo("198D").read()
+        assertEquals(listOf(ChangeKind.Time), d.change!!.pending.filter { it.byYou }.map { it.kind })
+        val f = demo("198F")
+        assertEquals(CancelResult.Refused("checked_in"), f.cancel(f.read().id))
+    }
+
+    @Test
+    fun `198H opens on the match having cancelled on this person`() = runTest {
+        val h = demo("198H")
+        val read = h.active("Europe/Berlin") as Outcome.Ok
+        val outcome = (read.value as DateRead.Ended).outcome
+        assertEquals(OutcomeReason.Cancelled, outcome.reason)
+        assertFalse(outcome.endedByYou)
+    }
+
+    @Test
+    fun `Leonie cancelling ends the date on her side, Leonie ending it reports her reason, and a second end finds it over`() = runTest {
+        val c = demo("198C")
+        assertTrue(c.partnerCancels().getOrThrow())
+        val out = ((c.active("Europe/Berlin") as Outcome.Ok).value as DateRead.Ended).outcome
+        assertEquals(OutcomeReason.Cancelled, out.reason)
+        assertFalse(out.endedByYou)
+        assertFalse(c.partnerCancels().getOrThrow())
+
+        for ((reason, expected) in listOf(
+            EndReason.Met to OutcomeReason.Met,
+            EndReason.PartnerNoShow to OutcomeReason.PartnerNoShow,
+            EndReason.Uncomfortable to OutcomeReason.Uncomfortable,
+        )) {
+            val d = demo("197A")
+            assertTrue(d.partnerEnds(reason).getOrThrow())
+            val o = ((d.active("Europe/Berlin") as Outcome.Ok).value as DateRead.Ended).outcome
+            assertEquals(expected, o.reason)
+            assertFalse(o.endedByYou)
+            assertFalse(d.partnerEnds(reason).getOrThrow())
+        }
+    }
+
+    @Test
+    fun `a test date made after Leonie ended the first one starts over`() = runTest {
+        val d = demo("198A")
+        d.partnerEnds(EndReason.PartnerNoShow)
+        d.createTestDate(60)
+        // A fresh test date forgets the old one: nothing of the ended date remains.
+        assertTrue(((d.active("Europe/Berlin") as Outcome.Ok).value) is DateRead.Active)
     }
 }

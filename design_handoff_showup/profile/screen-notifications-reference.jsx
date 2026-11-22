@@ -30,6 +30,11 @@
 // on this screen, and opting in is a commitment beat. Orange orb top-right,
 // violet orb bottom-left, 360-tall peach wash, full-width sunset button.
 //
+// ⚠ SUPERSEDED 25 Sep 2026: this screen NO LONGER RAISES THE OS SHEET. The CTA reads
+// "Continue" and only navigates to Stay reachable (10); 10's Save preferences
+// raises the sheet. The PERMISSION and SAVED FLOW POSITION notes below are
+// history — the skip guard (Android <= 12, already determined) still applies.
+//
 // PERMISSION — the part the file cannot show you. This screen is OUR
 // pre-permission surface; the sheet it raises is the OS's and is never drawn,
 // never sized and never styled. Profile creation runs once on a FRESH INSTALL,

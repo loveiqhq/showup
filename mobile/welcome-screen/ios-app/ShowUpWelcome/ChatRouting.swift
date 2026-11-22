@@ -22,7 +22,7 @@ func chatEntryFor(_ date: ActiveDate) -> ChatEntry {
 
 /// G or H, with everything they draw. The outcome's own photo first: at the next launch no date is held, and
 /// `photoURL` -- the held date's -- is nil, so H drew an initial (the SHOWUP-194 review).
-func outcomeRoute(_ outcome: EndedInChat, photoURL: URL?) -> AppRoute {
+func outcomeRoute(_ outcome: EndedOutcome, photoURL: URL?) -> AppRoute {
     .dateEnded(outcome, photoURL: outcome.photoUrl ?? photoURL)
 }
 
@@ -59,8 +59,8 @@ final class ChatHostEvents {
         analytics?.report(ProfileAnalytics.screenViewed(.dateChat, referrer: referrer))
     }
 
-    /// G or H is shown, from the chat or the Date screen.
-    func outcomeShown(referrer: ProfileScreen) {
-        analytics?.report(ProfileAnalytics.screenViewed(.dateEndedInChat, referrer: referrer))
+    /// G or H is shown, from the chat or the Date screen; `cancelled` is Date 07's H (`date_partner_cancelled`).
+    func outcomeShown(referrer: ProfileScreen, cancelled: Bool = false) {
+        analytics?.report(ProfileAnalytics.screenViewed(cancelled ? .datePartnerCancelled : .dateEndedInChat, referrer: referrer))
     }
 }

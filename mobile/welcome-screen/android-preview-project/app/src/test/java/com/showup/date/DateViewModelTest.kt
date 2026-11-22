@@ -162,17 +162,17 @@ class DateViewModelTest {
         val vm = vm()
         vm.arrived(referrer = null)
         advanceUntilIdle()
-        store.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = false)))
+        store.read = Outcome.Ok(DateRead.Ended(EndedOutcome("d1", "Leonie", endedByYou = false)))
         vm.foreground()
         advanceUntilIdle()
-        assertEquals(EndedInChat("d1", "Leonie", endedByYou = false), vm.state.value.ended)
+        assertEquals(EndedOutcome("d1", "Leonie", endedByYou = false), vm.state.value.ended)
         assertFalse(vm.state.value.left)
         assertEquals("the match's photo stays for the outcome screen", date(), vm.state.value.date)
     }
 
     @Test
     fun `once the outcome has been seen, no date is held and the tabs unlock`() = runTest(dispatcher) {
-        store.read = Outcome.Ok(DateRead.Ended(EndedInChat("d1", "Leonie", endedByYou = true)))
+        store.read = Outcome.Ok(DateRead.Ended(EndedOutcome("d1", "Leonie", endedByYou = true)))
         val vm = vm()
         vm.arrived(referrer = null)
         advanceUntilIdle()

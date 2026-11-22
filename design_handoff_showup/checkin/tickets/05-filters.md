@@ -89,6 +89,7 @@ Toast: `Pick at least one gender to date.`
 **Gender**
 - Multi-select. A tap toggles a chip. Any combination of the four is valid; zero is not.
 - Selected: `LifePill` selected state. No checkmark and no second indicator.
+  ⚠ **Superseded 26 Oct 2026 by Check-In 05b (Filters v2):** each option now carries a checkbox square (`GenderCheckPill`) and the label row says `Pick all that apply`.
 
 **Age range**
 - Two thumbs over 18–65 in 1-year steps. The thumbs may meet (one age) but never cross: dragging one past the other carries the other with it.
@@ -124,7 +125,7 @@ Toast: `Pick at least one gender to date.`
 - [ ] Renders from the Check-In 02 step shell with content props only. StepProgress is `steps={6} current={5}`
 - [ ] Headline Lora 700 / **30** / 1.15, one em on **you wish to date**
 - [ ] Three filters in the order above: Gender, Age range, How far away? **There is no Sexuality filter**
-- [ ] Gender chips are `LifePill` from Profile 22 with `multi`; no second chip component
+- [ ] Gender chips are `LifePill` from Profile 22 with `multi`; no second chip component — ⚠ **superseded 26 Oct 2026 by Check-In 05b:** `GenderCheckPill` replaces `LifePill` on this step
 - [ ] Gender is mandatory: with none selected Continue is dimmed, and a tap shows `Pick at least one gender to date.` for 2600 ms
 - [ ] Age range defaults to 18 → 65+ and reads `Any age`; 65 is stored as no upper limit; the thumbs can meet but never cross
 - [ ] Distance defaults to 10 km, 1–50 km in 1 km steps

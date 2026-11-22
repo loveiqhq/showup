@@ -70,8 +70,8 @@ final class ChatRepositoryTests: XCTestCase {
     }
 
     func testEndDateReadsTheOutcomeA409IsAlreadyEndedAndAnythingElseAFailure() async {
-        let ended = await repo(status: 200, body: #"{"dateId":"d1","name":"Leonie","endedByYou":true}"#).endInChat(dateId: "d1")
-        XCTAssertEqual(ended, .ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true)))
+        let ended = await repo(status: 200, body: #"{"dateId":"d1","name":"Leonie","endedByYou":true,"reason":"chat"}"#).endInChat(dateId: "d1")
+        XCTAssertEqual(ended, .ended(EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: true)))
         let again = await repo(status: 409, body: #"{"statusCode":409,"message":"This date has already ended"}"#).endInChat(dateId: "d1")
         XCTAssertEqual(again, .alreadyEnded)
         let broken = await repo(status: 500, body: #"{"statusCode":500}"#).endInChat(dateId: "d1")

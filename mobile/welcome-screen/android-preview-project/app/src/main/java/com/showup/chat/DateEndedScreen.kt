@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -43,7 +44,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.showup.date.EndedInChat
+import com.showup.date.EndedOutcome
+import com.showup.date.cancel.CancelCopy
+import com.showup.date.cancel.cancelledOnYou
+import com.showup.date.cancel.runsToText
 import com.showup.date.IconTile
 import com.showup.date.MatchPhoto
 import com.showup.designsystem.BorderSoft
@@ -54,6 +58,8 @@ import com.showup.designsystem.LilacWash
 import com.showup.designsystem.Manrope
 import com.showup.designsystem.Muted
 import com.showup.designsystem.Orange
+import com.showup.designsystem.Purple
+import com.showup.designsystem.Raised
 import com.showup.designsystem.PrimaryButton
 import com.showup.designsystem.ShadowMd
 import com.showup.designsystem.Success
@@ -70,6 +76,9 @@ import com.showup.welcome.WelcomeBackdrop
 private val HeroText = TextStyle(fontFamily = Manrope, fontSize = 14.sp, lineHeight = (14 * 1.55).sp, color = Muted, textAlign = TextAlign.Center)
 private val RowText = TextStyle(fontFamily = Manrope, fontSize = 13.sp, lineHeight = (13 * 1.42).sp, color = Fg)
 
+const val OUTCOME_ROW_TAG = "outcome:row"
+const val OUTCOME_TILE_TAG = "outcome:tile"
+
 /**
  * The hero atmosphere; pad 4 20 0. The lilac card (radius 28, pad 26 24 24, centred): the avatar 72
  * with the orange `x` badge 28 (white 3 ring, the md shadow) at its corner, the headline (Lora 700 26,
@@ -78,9 +87,12 @@ private val RowText = TextStyle(fontFamily = Manrope, fontSize = 13.sp, lineHeig
  * The flexible space, then `Find your next date` with `search` 18 / 2.4. It scrolls only when it must.
  */
 @Composable
-fun DateEndedScreen(outcome: EndedInChat, photoUrl: String?, onFindNext: () -> Unit) {
+fun DateEndedScreen(outcome: EndedOutcome, photoUrl: String?, onFindNext: () -> Unit) {
     val g = outcome.endedByYou
     val name = outcome.name
+    // Date 07's default variant (H of Cancel this date): the match of a red-link cancel. Same component, never a fork:
+    // the hero, the row anatomy and the pinned CTA are shared; the strings and the three rows are the variant's.
+    val cancelled = cancelledOnYou(outcome)
     Box(Modifier.fillMaxSize().background(Cream)) {
         WelcomeBackdrop(peachWash = false, placement = OrbPlacement.Atmosphere, orangeAlpha = 0.26f, violetAlpha = 0.22f)
         // The CTA is pinned, as the reference draws it at the foot once the flexible space has taken the rest;
@@ -115,7 +127,9 @@ fun DateEndedScreen(outcome: EndedInChat, photoUrl: String?, onFindNext: () -> U
                         }
                         Spacer(Modifier.height(16.dp))
                         WashHeadline(
-                            parts = if (g) {
+                            parts = if (cancelled) {
+                                listOf(CancelCopy.H_HEADLINE_LEAD.format(name) to false, CancelCopy.H_HEADLINE_ITALIC to true, CancelCopy.H_HEADLINE_REST to false)
+                            } else if (g) {
                                 listOf(ChatCopy.G_HEADLINE_LEAD to false, ChatCopy.G_HEADLINE_ITALIC to true, ChatCopy.G_HEADLINE_REST to false)
                             } else {
                                 listOf(ChatCopy.H_HEADLINE_LEAD.format(name) to false, ChatCopy.H_HEADLINE_ITALIC to true, ChatCopy.H_HEADLINE_REST to false)
@@ -127,28 +141,58 @@ fun DateEndedScreen(outcome: EndedInChat, photoUrl: String?, onFindNext: () -> U
                             textAlign = TextAlign.Center,
                         )
                         Spacer(Modifier.height(12.dp))
-                        val body = withBold(if (g) ChatCopy.G_BODY.format(name) else ChatCopy.H_BODY, ChatCopy.OUTCOME_BOLD)
+                        val body = if (cancelled) runsToText(CancelCopy.H_BODY) else withBold(if (g) ChatCopy.G_BODY.format(name) else ChatCopy.H_BODY, ChatCopy.OUTCOME_BOLD)
                         Text(body, modifier = Modifier.prettyWrap(body, HeroText, centered = true).cssLineBox(HeroText.lineHeight), style = HeroText)
                     }
                     Spacer(Modifier.height(14.dp))
                     val rowShape = RoundedCornerShape(14.dp)
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(Elevated, rowShape)
-                            .border(1.dp, BorderSoft, rowShape)
-                            // Pad 13 plus the 1 px border, which CSS counts in the box.
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        IconTile(34.dp, 11.dp, SolidColor(Success.copy(alpha = 0.12f)), BrandIcon.ShieldCheck, 17.dp, SuccessFg, 2f)
-                        Spacer(Modifier.width(12.dp))
-                        val row = withBold(if (g) ChatCopy.G_ROW.format(name) else ChatCopy.H_ROW, ChatCopy.OUTCOME_BOLD)
-                        Text(row, modifier = Modifier.weight(1f).prettyWrap(row, RowText).cssLineBox(RowText.lineHeight), style = RowText)
+                    // The variant's three rows, each its own tile; the chat's G and H keep their one.
+                    val rows: List<Triple<BrandIcon, Pair<Brush, Color>, androidx.compose.ui.text.AnnotatedString>> = if (cancelled) {
+                        val texts = CancelCopy.hRows(name).map(::runsToText)
+                        listOf(
+                            Triple(BrandIcon.ShieldCheck, SolidColor(Success.copy(alpha = 0.12f)) to SuccessFg, texts[0]),
+                            Triple(BrandIcon.Heart, SolidColor(Raised) to Purple, texts[1]),
+                            Triple(BrandIcon.UserX, SolidColor(Orange.copy(alpha = 0.12f)) to Orange, texts[2]),
+                        )
+                    } else {
+                        listOf(
+                            Triple(
+                                BrandIcon.ShieldCheck, SolidColor(Success.copy(alpha = 0.12f)) to SuccessFg,
+                                withBold(if (g) ChatCopy.G_ROW.format(name) else ChatCopy.H_ROW, ChatCopy.OUTCOME_BOLD),
+                            ),
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        rows.forEach { (icon, tile, row) ->
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .testTag(OUTCOME_ROW_TAG)
+                                    .background(Elevated, rowShape)
+                                    .border(1.dp, BorderSoft, rowShape)
+                                    // Pad 13 plus the 1 px border, which CSS counts in the box.
+                                    .padding(14.dp),
+                                // H's rows (the reference sets no `alignItems`): the tile tops the row and only the text is
+                                // centred on it. Date 02's one row keeps its centred tile.
+                                verticalAlignment = if (cancelled) Alignment.Top else Alignment.CenterVertically,
+                            ) {
+                                Box(Modifier.testTag(OUTCOME_TILE_TAG)) { IconTile(34.dp, 11.dp, tile.first, icon, 17.dp, tile.second, 2f) }
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    row,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .then(if (cancelled) Modifier.align(Alignment.CenterVertically) else Modifier)
+                                        .prettyWrap(row, RowText)
+                                        .cssLineBox(RowText.lineHeight),
+                                    style = RowText,
+                                )
+                            }
+                        }
                     }
             }
             PrimaryButton(
-                ChatCopy.FIND_NEXT,
+                if (cancelled) CancelCopy.H_CTA else ChatCopy.FIND_NEXT,
                 onFindNext,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 6.dp).testTag(CHAT_CTA_TAG),
                 leading = { Icon(BrandIcon.Search, 18.dp, tint = Color.White, strokeWidth = 2.4f) },

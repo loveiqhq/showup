@@ -30,13 +30,21 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [34], qualifiers = "w390dp-h844dp-xhdpi")
 class CheckInBarTest {
     @Test
-    fun `the bar shows its three strings and no End date link`() = runComposeUiTest {
+    fun `the bar shows its three strings and no End date link unless the host passes onEnd`() = runComposeUiTest {
         setContent { CheckInBar("Leonie", onCheckIn = {}) }
         onNodeWithText("Your date with Leonie").assertExists()
         onNodeWithText("Confirm you arrived at the meeting location, we will let your date know.").assertExists()
         onNodeWithText("Check-in").assertExists()
         onAllNodesWithText("End date").assertCountEquals(0)
-        assertFalse("the link switch is off (R15)", END_DATE_LINK_SHOWN)
+    }
+
+    @Test
+    fun `the End date link shows when the host passes onEnd and answers a tap`() = runComposeUiTest {
+        var taps = 0
+        setContent { CheckInBar("Leonie", onCheckIn = {}, onEnd = { taps++ }) }
+        onNodeWithTag(ARRIVAL_END_DATE_TAG).performClick()
+        assertTrue(taps == 1)
+        onNodeWithText("End date").assertExists()
     }
 
     @Test

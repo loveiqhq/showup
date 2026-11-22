@@ -17,7 +17,7 @@ actor FakeChatStore: ChatStoring {
     /// How long a send takes to answer: the message on its way.
     private(set) var sendDelay: Double = 0
     private(set) var clientIds: [String] = []
-    private(set) var end: EndResult = .ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true))
+    private(set) var end: EndResult = .ended(EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: true))
     /// How long End date takes to answer: the end on its way.
     private(set) var endDelay: Double = 0
     private(set) var calls: [String] = []
@@ -146,7 +146,7 @@ final class ChatModelTests: XCTestCase {
         model.onScreen(false)
         model.pick(.runningLate, surface: .dock)
         await store.setSendFails(.server)
-        let ended = EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false)
+        let ended = EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false)
         await dates.setRead(.success(.ended(ended)))
         model.send()
         await settle()
@@ -167,7 +167,7 @@ final class ChatModelTests: XCTestCase {
         model.keepDate()
         XCTAssertTrue(model.ui.endSheet, "the sheet stays while the end is on its way")
         await settle(0.4)
-        XCTAssertEqual(model.ui.outcome, EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true))
+        XCTAssertEqual(model.ui.outcome, EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: true))
         model.onScreen(false)
     }
 
@@ -535,7 +535,7 @@ final class ChatModelTests: XCTestCase {
         m.openEndSheet()
         m.endDate()
         await settle()
-        XCTAssertEqual(m.ui.outcome, EndedInChat(dateId: "d1", name: "Leonie", endedByYou: true))
+        XCTAssertEqual(m.ui.outcome, EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: true))
         XCTAssertFalse(m.ui.endSheet)
     }
 
@@ -546,9 +546,9 @@ final class ChatModelTests: XCTestCase {
         let m = await opened(store, dates, RecordingAnalytics())
         m.pick(.onMyWay, surface: .dock)
         m.openEndSheet()
-        await dates.setRead(.success(.ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))))
+        await dates.setRead(.success(.ended(EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false))))
         await settle(0.15)
-        XCTAssertEqual(m.ui.outcome, EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))
+        XCTAssertEqual(m.ui.outcome, EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false))
         XCTAssertFalse(m.ui.endSheet)
         XCTAssertEqual(m.ui.draft, "")
         XCTAssertNil(m.ui.selected)
@@ -561,10 +561,10 @@ final class ChatModelTests: XCTestCase {
         await store.setEnd(.alreadyEnded)
         let m = await opened(store, dates, RecordingAnalytics())
         m.openEndSheet()
-        await dates.setRead(.success(.ended(EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))))
+        await dates.setRead(.success(.ended(EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false))))
         m.endDate()
         await settle()
-        XCTAssertEqual(m.ui.outcome, EndedInChat(dateId: "d1", name: "Leonie", endedByYou: false))
+        XCTAssertEqual(m.ui.outcome, EndedOutcome(dateId: "d1", name: "Leonie", endedByYou: false))
     }
 
     func testAFailedEndDateKeepsTheSheetOpenAndSaysWhy() async {

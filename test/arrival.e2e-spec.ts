@@ -209,6 +209,13 @@ describe('Arrival check-in (e2e)', () => {
     expect(JSON.stringify(sent)).not.toMatch(/52\.5|accuracy/);
   });
 
+  it('stores a check-in from the End date sheet, entry wrapup (Date 06), and reports it with that entry', async () => {
+    await create('you', body({ entry: 'wrapup' })).expect(201);
+    expect(await rows()).toHaveLength(1);
+    const confirmed = named('arrival_confirmed');
+    expect(confirmed[confirmed.length - 1].properties?.entry).toBe('wrapup');
+  });
+
   it('undo deletes an uncommitted row once and reports it once', async () => {
     await create('you', body({ entry: 'report' })).expect(201);
     await undo('you').expect(204);

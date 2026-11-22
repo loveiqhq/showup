@@ -16,6 +16,9 @@ import { ArrivalEntry } from '../dates/util/arrival';
 import { ChangeSuggestionsService } from '../dates/change-suggestions.service';
 import { DateChangeService } from '../dates/date-change.service';
 import { DatesService } from '../dates/dates.service';
+import { DateCancelService } from '../dates/date-cancel.service';
+import { DateEndService } from '../dates/date-end.service';
+import { EndEntry, EndReason } from '../dates/util/date-end';
 import {
   ChangeEntry,
   ChangeKind,
@@ -71,6 +74,8 @@ export class DateDevService {
     private readonly arrivals: ArrivalCheckInsService,
     private readonly changes: ChangeSuggestionsService,
     private readonly changeSlots: DateChangeService,
+    private readonly ends: DateEndService,
+    private readonly cancels: DateCancelService,
     @Inject(PLACES_PROVIDER) private readonly places: PlacesProvider,
   ) {}
 
@@ -116,6 +121,20 @@ export class DateDevService {
   async endInChat(userId: string): Promise<void> {
     const { date, partnerId } = await this.testDate(userId);
     await this.dates.endInChat(date.id, partnerId);
+  }
+
+  /**
+   * The test match ends the caller's date from Date 06, through the real path, so the caller lands on
+   * the match's side of the outcome. A no-show or an uncomfortable end needs her check-in, so she
+   * arrives first; a no-show is still refused before the agreed time (409 `before_meet`).
+   */
+  async partnerEnds(userId: string, reason: EndReason): Promise<void> {
+    const { date, partnerId } = await this.testDate(userId);
+    if (reason !== EndReason.Met) await this.partnerArrives(userId);
+    await this.ends.end(date.id, partnerId, {
+      reason,
+      entry: EndEntry.EndDateBar,
+    });
   }
 
   /**
@@ -238,7 +257,12 @@ export class DateDevService {
     await this.changes.expireDue(now);
   }
 
-  /** Cancels the caller's confirmed dates with the test match -- the dev escape from the Date screen. */
+  /**
+   * Cancels the caller's confirmed dates with the test match -- the dev escape from the Date screen.
+   * A QUIET end: one status update, with no penalty, no pair block, no event and no push, and no
+   * outcome left to land on (`penalty_points` stays null, so `endedOutcomeOf` ignores the row). The
+   * real cancel is `partnerCancels`.
+   */
   async endDate(userId: string): Promise<void> {
     const partnerId = await this.testPartnerId();
     if (!partnerId) return;
@@ -256,6 +280,13 @@ export class DateDevService {
         { id: userId, partner: partnerId, status: DateStatus.Confirmed },
       )
       .execute();
+  }
+
+  /** The test match cancels the caller's date from the red link (Date 07), through the real path: the caller sees H. */
+  async partnerCancels(userId: string): Promise<void> {
+    // The real path: it writes a real pair block with the test match.
+    const { date, partnerId } = await this.testDate(userId);
+    await this.cancels.cancel(date.id, partnerId);
   }
 
   /** The caller's active date with the test match; 404 when their active date (if any) is a real one. */

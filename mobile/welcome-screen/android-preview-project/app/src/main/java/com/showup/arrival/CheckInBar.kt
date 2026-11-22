@@ -64,12 +64,6 @@ const val ARRIVAL_PIN_TAG = "arrival:pin"
 const val ARRIVAL_CHECK_IN_TAG = "arrival:check-in"
 const val ARRIVAL_END_DATE_TAG = "arrival:end-date"
 
-/**
- * R15: the `End date` link is built and switched off. It opens Date 06's wrap-up sheet, which does not
- * exist yet; the host passes `onEnd` only when this is on and that sheet ships.
- */
-const val END_DATE_LINK_SHOWN = false
-
 /** `rgba(29,17,41,.86)` over the cream, as one opaque colour. */
 private val BarFill = Fg.copy(alpha = 0.86f).compositeOver(Cream)
 

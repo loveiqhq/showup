@@ -40,7 +40,7 @@ Each story is one screen (or one logic job) with all its states, a spec sheet an
 | 05 | Change meet time and place | Change 1–9 | Both full-screen pickers, suggestion cards, I agree / Suggest another, Waiting / Agreed tags, binding note with the meet − 0:30 deadline, expiry, Google Places. Un-hides 01's tiles and 02's change chips | **ticketed — not built** (10 Nov 2026) |
 | 06 | End date and report a problem | `coord-wrap-*` · `coord-report-*` | End Date bar, "How did it go?", Report a problem (2 options), the shared "Not here yet?" guidance + "Thanks for waiting", "I don't feel comfortable" (Head out now ends the date · Stay for now flags), one check-in gate, end failed | **ticketed — not built** (10 Nov 2026) |
 | 07 | Cancel this date | `coord-cancel-2-confirm` · `coord-cancel-4-partner` | Penalty-guard sheet, the confirmed outcome, what the match sees | to write |
-| 08 | What the other side sees | `you-no-showed` · `date-ended-discomfort` · `date-closed-positive` | The three screens shown to B when A ends the date. Each leads into flow 10 | to write |
+| 08 | What the other side sees | `you-no-showed` · `date-ended-discomfort` · `date-closed-positive` | The three screens shown to B when A ends the date, picked by `end_reason` alone. Each leads into flow 10 | written 17 Nov 2026 |
 | 09 | Switch to flow 10 | — | Server/client logic, no spec sheet: every date still open at +2 h moves both users to flow 10 | to write |
 | 10 | Match Mate | — | Content and UI for the Match Mate slot. **Needs design first** | to design |
 

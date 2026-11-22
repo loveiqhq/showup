@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import type { EndedInChatDto } from '../date-screen/dto/active-date.dto';
+import type { EndedOutcomeDto } from '../date-screen/dto/active-date.dto';
 import { cantMakeItFrom } from './util/end-in-chat';
 import { firstName } from '../search/util/search-profile';
 import { Profile } from '../profiles/entities/profile.entity';
@@ -17,7 +17,6 @@ import { Between, In, IsNull, Not, Repository } from 'typeorm';
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
   coordinateUnlockedEvent,
-  dateCancelledEvent,
   dateCompletedEvent,
   dateConfirmedEvent,
   dateEndedInChatEvent,
@@ -177,34 +176,6 @@ export class DatesService {
       }
     }
     return [...locked];
-  }
-
-  /**
-   * SHOWUP-53 — cancel a date. Single cancellation type; it always records the canceller so the
-   * scoring work (Epic 8) can penalise them. Only a participant may cancel, and only from a state
-   * where cancelling is allowed.
-   */
-  async cancel(
-    dateId: string,
-    userId: string,
-    reason?: string,
-  ): Promise<DateEntity> {
-    const date = await this.participantDate(dateId, userId);
-    const error = transitionError(date.status, DateStatus.Cancelled);
-    if (error) throw new BadRequestException(error);
-
-    const from = date.status;
-    date.cancelledById = userId;
-    date.cancelReason = reason ?? null;
-    date.cancelledAt = new Date();
-    date.status = DateStatus.Cancelled;
-    await this.dates.save(date);
-    await this.logChange(date.id, from, DateStatus.Cancelled, userId);
-    void this.analytics.trackServerEvent({
-      userId,
-      ...dateCancelledEvent(date),
-    });
-    return date;
   }
 
   /**
@@ -438,7 +409,7 @@ export class DatesService {
     dateId: string,
     userId: string,
     now: Date = new Date(),
-  ): Promise<EndedInChatDto> {
+  ): Promise<EndedOutcomeDto> {
     const date = await this.participantDate(dateId, userId);
     if (date.status !== DateStatus.Confirmed) {
       throw new ConflictException('This date has already ended');
@@ -494,6 +465,7 @@ export class DatesService {
       dateId: date.id,
       name: firstName(profile?.displayName ?? null),
       endedByYou: true,
+      reason: 'chat',
     };
   }
 

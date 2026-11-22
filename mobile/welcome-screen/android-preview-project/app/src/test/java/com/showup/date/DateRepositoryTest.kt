@@ -53,7 +53,7 @@ class DateRepositoryTest {
          "motivations":{"you":"long_term","them":"long_term"},
          "sharedVibes":["coffee_chat","playful"],"sharedInterests":["reading"],
          "unread":{"count":2,"reason":"running_late","body":"Ten minutes late!","sentAt":"2026-11-03T17:10:00.000Z"},
-         "checkedIn":false,"arrival":{"checkedInAt":"2026-11-03T17:50:00.000Z"},"chatTutorialSeen":true},"ended":null}
+         "checkedIn":false,"arrival":{"checkedInAt":"2026-11-03T17:50:00.000Z"},"chatTutorialSeen":true,"endsEnabled":false,"cancelPenaltyPoints":10},"ended":null}
     """.trimIndent()
 
     @Test
@@ -92,7 +92,7 @@ class DateRepositoryTest {
                "unlockAt":"2026-11-03T16:30:00.000Z","coordinateOpen":true,"place":null,
                "match":{"userId":"u2","name":"Leonie","attendedCount":0},
                "motivations":{"you":null,"them":"casual"},"sharedVibes":[],"sharedInterests":[],
-               "unread":null,"checkedIn":false,"arrival":null,"chatTutorialSeen":false},"ended":null}""",
+               "unread":null,"checkedIn":false,"arrival":null,"chatTutorialSeen":false,"endsEnabled":false,"cancelPenaltyPoints":10},"ended":null}""",
         )
         val date = (((repo.active("UTC")) as Outcome.Ok<DateRead>).value as DateRead.Active).date
         assertNull(date.place)
@@ -114,13 +114,13 @@ class DateRepositoryTest {
 
     @Test
     fun `a date ended in the chat and not yet seen is Ended, with the other person's first name`() = runTest {
-        json("""{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false}}""")
-        assertEquals(Outcome.Ok(DateRead.Ended(EndedInChat("d9", "Leonie", endedByYou = false))), repo.active("UTC"))
+        json("""{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"reason":"chat"}}""")
+        assertEquals(Outcome.Ok(DateRead.Ended(EndedOutcome("d9", "Leonie", endedByYou = false))), repo.active("UTC"))
     }
 
     @Test
     fun `an ended outcome brings the match's photo as a loadable URL, for H at the next launch`() = runTest {
-        json("""{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"photoUrl":"/uploads/p9.jpg"}}""")
+        json("""{"date":null,"ended":{"dateId":"d9","name":"Leonie","endedByYou":false,"reason":"chat","photoUrl":"/uploads/p9.jpg"}}""")
         val read = repo.active("UTC")
         assertTrue("expected Ok, got $read", read is Outcome.Ok<*>)
         val outcome = ((read as Outcome.Ok<DateRead>).value as DateRead.Ended).outcome

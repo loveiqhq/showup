@@ -245,6 +245,12 @@ struct PrettyText: UIViewRepresentable {
     /// CSS `letter-spacing` in points (`-0.01em` of 26 is -0.26); 0 leaves the font's own kerning alone, which a
     /// zero `kern` attribute would switch off.
     var tracking: CGFloat = 0
+    /// Indexes of emphasised runs drawn bold in the body colour, not `emphasisColor`: the reference's `<b>` beside a
+    /// `<strong style="color: ink">` in one paragraph (Date 06's I body).
+    var quietEmphasis: Set<Int> = []
+    /// A run's own face and ink, by index, over `emphasisFont`: Date 07's red 800 `no-show` beside a `<strong>` in one
+    /// paragraph, and its `<em>` (the skew of the upright, `TypeMetrics.oblique`) in the paragraph's own ink.
+    var runFaces: [Int: (font: UIFont, color: Color)] = [:]
 
     /// This text clamped to `n` lines.
     func lines(_ n: Int) -> PrettyText {
@@ -299,12 +305,17 @@ struct PrettyText: UIViewRepresentable {
         para.lineHeightMultiple = lineHeight * typeScale / base.lineHeight
         para.alignment = centered ? .center : .natural
         let out = NSMutableAttributedString()
-        for (text, emphasised) in runs {
+        for (index, (text, emphasised)) in runs.enumerated() {
+            let inked = emphasised && !quietEmphasis.contains(index)
             var attributes: [NSAttributedString.Key: Any] = [
                 .font: emphasised ? (emphasis ?? base) : base,
-                .foregroundColor: UIColor(emphasised ? (emphasisColor ?? color) : color),
+                .foregroundColor: UIColor(inked ? (emphasisColor ?? color) : color),
                 .paragraphStyle: para,
             ]
+            if let face = runFaces[index] {
+                attributes[.font] = face.font.withSize(face.font.pointSize * typeScale)
+                attributes[.foregroundColor] = UIColor(face.color)
+            }
             if tracking != 0 { attributes[.kern] = tracking * typeScale }
             out.append(NSAttributedString(string: text, attributes: attributes))
         }

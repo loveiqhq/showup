@@ -34,7 +34,7 @@ All decided 8 Oct 2026. Every point below matches the kit as drawn.
 - **Typo fixed:** `Expat live` → `Expat life`. `Ethically non-monogamous` matches Life.
 - **Never shown on the profile.** No `ProfileVisibility` band; the public profile API never returns these fields. Same sub copy as Life.
 - **Continue is never disabled** (callout ⑬). Empty = Skip. **The label stays `Continue`** on the last step — no "Finish", no sunset gradient.
-- **Exit is the 48hrs Check-In intro** (callouts ⑬ ⑱), for Continue and Skip alike. The intro has no back control, so Future is never re-entered from it.
+- **Exit is the 48hrs Check-In intro** (callouts ⑬ ⑱), for Continue and Skip alike. The intro has no back control, so Future is never re-entered from it. ⚠ *Since 12 Oct 2026 (Check-In 01) the intro has a close ✕, which goes to the Search tab's "date search not available" state — never back here.*
 - **Partnership vision is Class 2.** Family and Living are Class 1.
 - **The answer region scrolls at 390 × 844** (callouts ⑧ ⑲, violet). Partnership wraps one pill per row (4 rows), so the content is ≈ 30 taller than the region. Added to the kit 8 Oct 2026 with this ticket; pills and gaps are never tightened to avoid it.
 
@@ -146,7 +146,7 @@ Rules that are easy to get wrong here:
 - **Anything per tap**, and nothing when an exclusive pick clears others.
 - **`life_question_answered`** — that is Profile 22.
 - **`detail_answered`, `detail_skipped`, `field_display_opted_out`**, `form_validation_failed`, anything per scroll.
-- **`checkin_started`** — that is the Check-In intro's own CTA, not this screen's Continue.
+- **`check_in_started`** — that is the Check-In intro's own CTA, not this screen's Continue. ⚠ *Renamed from `checkin_started` on 12 Oct 2026 by Check-In 01 (family H standardised on `check_in_*`, decision 26).*
 - **`profile_build_started`**, which fires once, on screen 01. No `profile_build_completed` or similar.
 
 **Screen-to-screen conversion.**

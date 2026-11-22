@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+import { EndEntry, EndReason } from '../util/date-end';
 import { DateStatus } from '../util/date-lifecycle';
 
 export { DateStatus };
@@ -89,6 +90,56 @@ export class DateEntity {
 
   @Column({ name: 'ended_at', type: 'timestamptz', nullable: true })
   endedAt: Date | null;
+
+  /** Date 06: how the date was ended and from where (registry e43 / e45); null unless `ended`. */
+  @Column({
+    name: 'end_reason',
+    type: 'enum',
+    enum: EndReason,
+    enumName: 'date_end_reason_enum',
+    nullable: true,
+  })
+  endReason: EndReason | null;
+
+  @Column({
+    name: 'end_entry',
+    type: 'enum',
+    enum: EndEntry,
+    enumName: 'end_entry_enum',
+    nullable: true,
+  })
+  endEntry: EndEntry | null;
+
+  /**
+   * Each person's COMMITTED check-in at the moment of an end or a cancel (Date 06 / 07). For a cancel
+   * the canceller is the "ender". Null on a date that has neither.
+   */
+  @Column({ name: 'ender_checked_in', type: 'boolean', nullable: true })
+  enderCheckedIn: boolean | null;
+
+  @Column({ name: 'partner_checked_in', type: 'boolean', nullable: true })
+  partnerCheckedIn: boolean | null;
+
+  /** Date 07: the canceller had a suggestion from the cancel sheet on this date. */
+  @Column({ name: 'cancel_change_requested', type: 'boolean', nullable: true })
+  cancelChangeRequested: boolean | null;
+
+  /** Date 07: hours from the cancel to the agreed time (negative after it), and the points it cost. */
+  @Column({
+    name: 'hours_notice',
+    type: 'numeric',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (v: number | null) => v,
+      from: (v: string | null) => (v === null ? null : Number(v)),
+    },
+  })
+  hoursNotice: number | null;
+
+  @Column({ name: 'penalty_points', type: 'int', nullable: true })
+  penaltyPoints: number | null;
 
   /** When each person tapped "Open the chat" on this date's tutorial (Date 02). */
   @Column({ name: 'a_chat_tutorial_at', type: 'timestamptz', nullable: true })

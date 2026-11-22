@@ -11,7 +11,9 @@ import com.showup.api.ShowUpApi
 import com.showup.api.callCatching
 import com.showup.api.generated.model.ActiveDateDto
 import com.showup.api.generated.model.CreateDevDateDto
+import com.showup.api.generated.model.DateEndReason as WireEndReason
 import com.showup.api.generated.model.DevDateChangeDto
+import com.showup.api.generated.model.DevDatePartnerEndsDto
 import com.showup.api.generated.model.DevDateMessageDto
 import com.showup.api.outcome
 import com.showup.change.ChangeKind
@@ -66,6 +68,18 @@ interface DateStore {
 
     /** Debug only (Date 05): every pending suggestion is past its deadline and the expiry runs once. */
     suspend fun expireSuggestions(): Result<Boolean>
+
+    /**
+     * Debug only (Date 07 H): the test match cancels the viewer's date from the red link; the viewer's next read is
+     * the cancelled outcome. A default that refuses, so only the real store and the demo carry it.
+     */
+    suspend fun partnerCancels(): Result<Boolean> = Result.failure(UnsupportedOperationException("partnerCancels"))
+
+    /**
+     * Debug only (Date 06, the Date 08 slot): the test match ends the viewer's date with [reason]. The server has her
+     * check in first for the two problem reasons.
+     */
+    suspend fun partnerEnds(reason: EndReason): Result<Boolean> = Result.failure(UnsupportedOperationException("partnerEnds"))
 }
 
 class DateRepository(private val api: ShowUpApi) : DateStore {
@@ -74,7 +88,7 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         val response = api.dates.getActiveDate(zone)
         response.body()?.takeIf { response.isSuccessful }?.let { body ->
             body.date?.let { DateRead.Active(it.toActiveDate()) }
-                ?: body.ended?.let { DateRead.Ended(EndedInChat(it.dateId, it.name, it.endedByYou, it.photoUrl?.let(api::absoluteUrl))) }
+                ?: body.ended?.let { DateRead.Ended(it.toOutcome(api)) }
                 ?: DateRead.None
         }
     }
@@ -124,6 +138,16 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         api.dev.expireDevDateChange().isSuccessful
     }
 
+    override suspend fun partnerCancels(): Result<Boolean> = callCatching {
+        api.dev.cancelDevDateAsPartner().isSuccessful
+    }
+
+    override suspend fun partnerEnds(reason: EndReason): Result<Boolean> = callCatching {
+        // By wire value, not constant name, as every dev call here.
+        val wire = WireEndReason.entries.first { it.value == reason.wire }
+        api.dev.endDevDateAsPartner(DevDatePartnerEndsDto(reason = wire)).isSuccessful
+    }
+
     private fun ActiveDateDto.toActiveDate() = ActiveDate(
         id = id,
         meetAt = meetAt.toInstant(),
@@ -150,5 +174,7 @@ class DateRepository(private val api: ShowUpApi) : DateStore {
         arrival = arrival?.let { DateArrival(it.checkedInAt.toInstant()) },
         change = change?.toChange(),
         changeRequest = changeRequest?.toSuggestion(),
+        endsEnabled = endsEnabled,
+        cancelPenaltyPoints = cancelPenaltyPoints,
     )
 }

@@ -1,6 +1,9 @@
 {
-  "registry_version": "1.4.38",
+  "registry_version": "1.4.39",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_39": [
+    "§11 date_partner_ended_no_show · date_partner_ended_uncomfortable · date_partner_ended_met — NEW rows, Date 08 (17 Nov 2026). Carried by screen_viewed. No new events: Proceed to review fires nothing — flow 10's screen_viewed with referrer_screen_id measures it."
+  ],
   "changed_in_1_4_38": [
     "§11 date_location_gate / Date - Location gate — NEW row, Date 03 (16 Nov 2026). The location gate in context=date; carried by location_gate_shown.screen_id and permission_settings_opened.screen_id."
   ],
@@ -1302,6 +1305,30 @@
               "ticket": "Date 07",
               "status": "ticketed — not built",
               "notes": "Shown to the person whose match cancelled with the red link (ScreenPartnerCancelled, default variant). Rate untouched, no review. Exit: Find someone who shows up → Search. The chat-end variant is date_ended_in_chat (Date 02). Added 16 Nov 2026 (registry 1.4.37)."
+            },
+            {
+              "screen_id": "date_partner_ended_no_show",
+              "screen_name": "Date - Partner ended no-show",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 08",
+              "status": "ticketed — not built",
+              "notes": "Shown to the person whose match ended the date with My date isn't showing up (end_reason partner_no_show) — whether or not this person had checked in. A claim, not a verdict (ScreenNoShowClosed). Only exit: Proceed to review → flow 10 with the claim headline. Added 17 Nov 2026 (registry 1.4.39)."
+            },
+            {
+              "screen_id": "date_partner_ended_uncomfortable",
+              "screen_name": "Date - Partner ended uncomfortable",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 08",
+              "status": "ticketed — not built",
+              "notes": "Shown to the person whose match ended the date with I don't feel comfortable → Head out now (end_reason uncomfortable). No verdict (ScreenDateEndedDiscomfort). Only exit: Proceed to review → flow 10. Added 17 Nov 2026 (registry 1.4.39)."
+            },
+            {
+              "screen_id": "date_partner_ended_met",
+              "screen_name": "Date - Partner ended met",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 08",
+              "status": "ticketed — not built",
+              "notes": "Shown to the person whose match ended the date with We met (end_reason met) (ScreenDateClosed). Only exit: Proceed to review → flow 10. Added 17 Nov 2026 (registry 1.4.39)."
             }
           ]
         }

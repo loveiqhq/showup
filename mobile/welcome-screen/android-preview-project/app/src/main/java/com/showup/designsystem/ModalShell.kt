@@ -62,6 +62,13 @@ fun Modifier.blurBehindModalShell(fraction: Float): Modifier =
 private val SheetLift = listOf(CssShadow(ShadowInk.copy(alpha = 0.18f), offsetY = (-8).dp, blur = 32.dp))
 
 /**
+ * A scroll the shell uses instead of its own, so a still picture of a sheet taller than its frame can be taken at the
+ * END of that scroll (the Date 06 and Date 07 evidence at 375 x 667). Null in the app: only the sample frames and the
+ * evidence harness provide one, and no host passes it down, so no signature carries it.
+ */
+val LocalSheetScroll = androidx.compose.runtime.compositionLocalOf<androidx.compose.foundation.ScrollState?> { null }
+
+/**
  * The kit's `ModalShell` surface inside the app's one sheet behaviour: cream, top corners 28, the
  * grabber 36 x 4, at most 88% of the frame and scrolling past it.
  *
@@ -81,7 +88,7 @@ fun ModalShell(
     contentPadding: PaddingValues = PaddingValues(24.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val scroll = rememberScrollState()
+    val scroll = LocalSheetScroll.current ?: rememberScrollState()
     val keyboard = endOnKeyboard && WindowInsets.isImeVisible
     LaunchedEffect(keyboard) {
         if (keyboard) snapshotFlow { scroll.maxValue }.collect { scroll.scrollTo(it) }

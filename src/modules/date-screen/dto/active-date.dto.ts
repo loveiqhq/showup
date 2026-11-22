@@ -3,6 +3,24 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ChangePendingDto, ChangeStateDto } from '../../dates/dto/change.dto';
 import { ChatReason } from '../../dates/util/pre-date-chat';
 
+/** Why a date is over, as the viewer's ended outcome reports it (R3). `cancelled` is Date 07's. */
+export const ENDED_REASONS = [
+  'chat',
+  'cancelled',
+  'met',
+  'partner_no_show',
+  'uncomfortable',
+] as const;
+export type EndedReason = (typeof ENDED_REASONS)[number];
+
+/** The Date 08 screen the match of a Date 06 end lands on (from `end_reason` alone). */
+export const PARTNER_SCREENS = [
+  'date_closed_positive',
+  'you_no_showed',
+  'date_ended_discomfort',
+] as const;
+export type PartnerScreenName = (typeof PARTNER_SCREENS)[number];
+
 /** The agreed meeting place. `address` is absent for a venue stored without one. */
 export class DatePlaceDto {
   @ApiProperty({ example: 'Cafe Krone' })
@@ -164,6 +182,19 @@ export class ActiveDateDto {
   })
   change?: ChangeStateDto;
 
+  @ApiProperty({
+    description:
+      'Date 06 / 07: the end and cancel routes are on (DATE_ENDS_ENABLED). Off, the app renders no End date, Cancel or Report entry.',
+  })
+  endsEnabled: boolean;
+
+  @ApiProperty({
+    type: 'integer',
+    description:
+      'Date 07: the Show-up Rate points a cancel costs, from the rate config (a placeholder until the Show-up Rate screens)',
+  })
+  cancelPenaltyPoints: number;
+
   @ApiPropertyOptional({
     type: ChangePendingDto,
     nullable: true,
@@ -174,10 +205,12 @@ export class ActiveDateDto {
 }
 
 /**
- * A date that ended in the chat, still to be shown to the viewer (Date 02): G "You ended the date"
- * when `endedByYou`, otherwise H "{name} had to cancel the date". Until that person marks it seen.
+ * A date that is over, still to be shown to the viewer, until they mark it seen. `reason` says how:
+ * `chat` is Date 02's G "You ended the date" when `endedByYou`, otherwise H "{name} had to cancel the
+ * date"; `met`, `partner_no_show` and `uncomfortable` are Date 06 ends, and `partnerScreen` names the
+ * Date 08 screen for the match of one; `cancelled` is Date 07's.
  */
-export class EndedInChatDto {
+export class EndedOutcomeDto {
   @ApiProperty()
   dateId: string;
 
@@ -186,6 +219,17 @@ export class EndedInChatDto {
 
   @ApiProperty()
   endedByYou: boolean;
+
+  @ApiProperty({ enum: ENDED_REASONS, enumName: 'EndedReason' })
+  reason: EndedReason;
+
+  @ApiPropertyOptional({
+    enum: PARTNER_SCREENS,
+    enumName: 'PartnerScreen',
+    description:
+      "Set only for the match of a Date 06 end: Date 08's screen, picked from `end_reason` alone",
+  })
+  partnerScreen?: PartnerScreenName;
 
   @ApiPropertyOptional({
     description:
@@ -204,10 +248,10 @@ export class ActiveDateResponseDto {
   date: ActiveDateDto | null;
 
   @ApiProperty({
-    type: EndedInChatDto,
+    type: EndedOutcomeDto,
     nullable: true,
     description:
-      'With no active date: an ended-in-chat outcome the viewer has not yet seen (Date 02)',
+      'With no active date: an ended outcome the viewer has not yet seen (any reason, R3)',
   })
-  ended: EndedInChatDto | null;
+  ended: EndedOutcomeDto | null;
 }
