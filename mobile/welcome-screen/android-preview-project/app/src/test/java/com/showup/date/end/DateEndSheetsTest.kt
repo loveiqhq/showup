@@ -83,8 +83,8 @@ class DateEndSheetsTest {
     fun `A shows its three strings with End Date as the button and answers a tap`() = runComposeUiTest {
         var taps = 0
         setContent { EndDateBar("Leonie", onEnd = { taps++ }) }
-        assertText("Your date with Leonie", "Tap End Date - when your date is finished.")
-        onNodeWithText("End Date").assertExists()
+        assertText("Your date with Leonie", "Tap End date - when your date is finished.")
+        onNodeWithText("End date").assertExists()
         onNodeWithTag(END_BAR_BUTTON_TAG).performClick()
         assertEquals(1, taps)
         assertTargets()
@@ -130,9 +130,9 @@ class DateEndSheetsTest {
             "You are wonderful for showing up to Leonie.\nWe hope you had a great time together.",
             "What happens next".uppercase(),
             "Please review your date now.", "Search for new dates resumes after the review.",
-            "This is only for dates that happened. Need to call it off before meeting? Use Cancel date in the chat menu. " +
+            "This is only for dates that happened. Need to call it off before meeting? Use Cancel this date at the bottom of the Date screen. " +
                 "Ending a date you didn’t attend counts as a no-show and lowers your Show-up Rate.",
-            "End Date → Review", "Cancel",
+            "End date → Review", "Cancel",
         )
         assertTargets()
     }
@@ -316,7 +316,7 @@ class DateEndSheetsTest {
     fun `J on G puts the box above the CTA and leaves the buttons unchanged`() = runComposeUiTest { assertJ(EndStep.NoShow, "End date and review") }
 
     @Test
-    fun `J on C puts the box above the CTA and leaves the buttons unchanged`() = runComposeUiTest { assertJ(EndStep.Met, "End Date → Review") }
+    fun `J on C puts the box above the CTA and leaves the buttons unchanged`() = runComposeUiTest { assertJ(EndStep.Met, "End date → Review") }
 
     @Test
     fun `J on I puts the box above the CTA and leaves the buttons unchanged`() = runComposeUiTest { assertJ(EndStep.Uncomfortable, "Head out now") }

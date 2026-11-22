@@ -147,6 +147,27 @@ strings = [q for q in dict.fromkeys(quoted) if not HOLE.fullmatch(q)]
 # Nothing is exempt silently: a string the ticket backticks that is not a string of the app, with why.
 EXEMPT = {}
 strings = [s for s in strings if s not in EXEMPT]
+
+# Decided after the ticket, so the apps say something else on purpose: ticket string -> (what the apps say, a run of
+# the old wording that must be gone, who decided). Checked both ways, so neither a revert nor a half-edit passes.
+OPEN_ITEM_2 = "ticket Open item 2, decided by Esma 22 Nov 2026"
+DECIDED = {
+    "Tap End Date - when your date is finished.": (
+        "Tap End date - when your date is finished.", "Tap End Date", OPEN_ITEM_2 + ": End date, small d"),
+    "End Date": ("End date", "End Date", OPEN_ITEM_2 + ": End date, small d"),
+    "End Date → Review": ("End date → Review", "End Date →", OPEN_ITEM_2 + ": End date, small d"),
+    "This is only for dates that happened. Need to call it off before meeting? Use Cancel date in the chat menu. "
+    "Ending a date you didn’t attend counts as a no-show and lowers your Show-up Rate.": (
+        "This is only for dates that happened. Need to call it off before meeting? Use Cancel this date at the bottom "
+        "of the Date screen. Ending a date you didn’t attend counts as a no-show and lowers your Show-up Rate.",
+        "in the chat menu", OPEN_ITEM_2 + ": the chat menu has no Cancel date; point to the Date screen's link"),
+}
+for old, (new, gone, why) in DECIDED.items():
+    check("the ticket still spells %r (else drop the decision)" % old, old in strings)
+    check("both apps say %r (%s)" % (new, why),
+          not missing_from([new], kt_copy, "Android") and not missing_from([new], sw_copy, "iOS"))
+    check("neither app still says %r" % gone, gone not in kt_copy and gone not in sw_copy)
+strings = [s for s in strings if s not in DECIDED]
 check("the ticket's copy section was read (%d strings)" % len(strings), len(strings) >= 40)
 for want in ("Couldn't end the date. Check your connection and try again.", "Head out now", "Stay for now",
              "Check in first, so we can confirm you were there."):

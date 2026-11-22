@@ -213,8 +213,9 @@ blocked deletion · final push copy · Date 05's pickers (consumed with `entry: 
 ## 7. Owed by others
 
 - **Philipp:**
-  - Date 06 Open item 2, the copy consistency (`End Date → Review` vs `End date and review`, `Cancel date in the
-    chat menu`, `End Date` vs `End date`), kept as written until he decides;
   - push copy;
   - final rate values.
 - **Devices:** the two-phone recordings both tickets ask for.
+- **Decided, Esma 22 Nov 2026 (Date 06 Open item 2):** `End date` with a small d everywhere (the bar's button and
+  line, C's `End date → Review`; G keeps `End date and review`), and C's note points to `Cancel this date` at the
+  bottom of the Date screen, since the chat menu has no Cancel date. `verify-end.py` holds these as `DECIDED`.
