@@ -140,6 +140,18 @@ internal fun wordsOf(text: AnnotatedString): List<AnnotatedString> {
     return words
 }
 
+/**
+ * The word of [text] that holds [start, end) -- an em run with whatever touches it, `met.` with its
+ * full stop -- cut as [wordsOf] cuts: how wide the run is to the line breaker.
+ */
+internal fun wordAround(text: AnnotatedString, start: Int, end: Int): AnnotatedString {
+    var from = start
+    var to = end
+    while (from > 0 && text[from - 1] !in WORD_BREAKS) from--
+    while (to < text.length && text[to] !in WORD_BREAKS) to++
+    return text.subSequence(from, to)
+}
+
 private val WORD_BREAKS = charArrayOf(' ', '\n', '\u200B')
 
 /** The least [fitWordsOf] shrinks a word to at the user's type size: 60 %, or the default size. */

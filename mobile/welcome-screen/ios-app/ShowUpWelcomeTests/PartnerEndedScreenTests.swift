@@ -186,13 +186,55 @@ final class PartnerEndedScreenTests: XCTestCase {
     /// the line breaker splits the run rather than overflow (22 Nov 2026). The column is the phone less the screen's
     /// 20 a side and B's hero padding; the width is the one `WashHost` lays the label out at.
     func testBsHeadlineNeverSplitsAWordAt375390And430() {
-        let text = washHeadlineText(partnerEndedHeadline(.dateEndedDiscomfort, name: "Leonie"))
-        let host = WashHost()
-        host.label.attributedText = text
-        host.balance = true
         for phone in [375, 390, 430] as [CGFloat] {
-            let column = phone - 2 * 20 - 2 * partnerEndedPayload(.dateEndedDiscomfort).heroPadH
-            XCTAssertEqual(wordSplits(text, width: host.lineWidth(within: column)), [], "at \(phone)")
+            let laid = laidOut(phone: phone)
+            XCTAssertEqual(wordSplits(laid.text, width: laid.width), [], "at \(phone)")
+        }
+    }
+
+    private let bParts = partnerEndedHeadline(.dateEndedDiscomfort, name: "Leonie")
+
+    /// B's headline as `WashHost` lays it out in B's column on `phone` at `size` points: the text it chose -- the run
+    /// joined, or loose where the run is wider than the column -- and the width it breaks at. The column is the phone
+    /// less the screen's 20 a side and B's hero padding.
+    private func laidOut(phone: CGFloat, size: CGFloat = 27) -> (text: NSAttributedString, width: CGFloat) {
+        let host = balancedWashHost(bParts, size: size)
+        let column = phone - 2 * 20 - 2 * partnerEndedPayload(.dateEndedDiscomfort).heroPadH
+        host.useText(within: column)
+        let width = host.lineWidth(within: column)
+        return (host.label.attributedText ?? NSAttributedString(), width)
+    }
+
+    /// Where the washed run is wider than the column itself -- 320 at 27, 390 at 54 -- no width keeps it whole, and
+    /// the line breaker split a word inside it (ruling R-e, 22 Nov 2026: no word may ever break inside). It wraps
+    /// between its own words instead. Android's `B's headline never splits a word where its run is wider than the
+    /// column`.
+    func testBsHeadlineNeverSplitsAWordWhereItsRunIsWiderThanTheColumn() {
+        for (phone, size) in [(320, 27), (390, 54)] as [(CGFloat, CGFloat)] {
+            let laid = laidOut(phone: phone, size: size)
+            XCTAssertEqual(wordSplits(laid.text, width: laid.width), [], "at \(phone), \(size) pt")
+        }
+    }
+
+    /// The wash covers every line of a run that wraps: one band a line, each holding that line's words of the run.
+    func testTheWashCoversEveryFragmentOfARunThatWraps() {
+        for (phone, size) in [(320, 27), (390, 54)] as [(CGFloat, CGFloat)] {
+            let laid = laidOut(phone: phone, size: size)
+            let bands = washBands(laid.text, width: laid.width, run: washRunRange(bParts))
+            XCTAssertGreaterThanOrEqual(bands.count, 2, "the run did not wrap at \(phone), \(size) pt: \(bands)")
+            XCTAssertEqual(bands.joined(separator: " "), "didn't feel comfortable", "at \(phone), \(size) pt")
+        }
+    }
+
+    /// Where the run fits, it keeps its no-break spaces and its one line -- one band, the whole run: nothing moves on
+    /// those headlines.
+    func testBsRunStaysJoinedOnOneLineWhereItFits() {
+        let run = washRunRange(bParts)
+        for phone in [375, 390, 430] as [CGFloat] {
+            let laid = laidOut(phone: phone)
+            XCTAssertTrue((laid.text.string as NSString).substring(with: run).contains("\u{00A0}"), "at \(phone)")
+            XCTAssertEqual(washBands(laid.text, width: laid.width, run: run),
+                           [(laid.text.string as NSString).substring(with: run)], "at \(phone)")
         }
     }
 

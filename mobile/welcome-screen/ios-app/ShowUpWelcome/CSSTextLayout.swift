@@ -141,25 +141,39 @@ enum CSSTextLayout {
     /// rounded floor moved three by a pixel (the 22 Nov 2026 fit sweep).
     static func widestUnbreakable(_ text: NSAttributedString) -> CGFloat {
         let whole = text.string as NSString
-        let breaks: Set<unichar> = [0x20, 0x0A, 0x0D, 0x09, 0x200B]
         var widest: CGFloat = 0
         var start = 0
         for i in 0...whole.length {
-            if i < whole.length && !breaks.contains(whole.character(at: i)) { continue }
-            if i > start {
-                let piece = NSMutableAttributedString(
-                    attributedString: text.attributedSubstring(from: NSRange(location: start, length: i - start)))
-                // One line's width: alignment and line height do not change it, and a truncating mode a
-                // label wrote into the paragraph would only get in the way.
-                piece.removeAttribute(.paragraphStyle, range: NSRange(location: 0, length: piece.length))
-                let box = piece.boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude,
-                                                          height: CGFloat.greatestFiniteMagnitude),
-                                             options: [.usesLineFragmentOrigin], context: nil)
-                widest = max(widest, box.width)
-            }
+            if i < whole.length && !breakingSpaces.contains(whole.character(at: i)) { continue }
+            if i > start { widest = max(widest, width(of: text, NSRange(location: start, length: i - start))) }
             start = i + 1
         }
         return widest
+    }
+
+    /// The width of the unbreakable piece of `text` that holds `range` -- the em run with whatever touches it, `met.`
+    /// with its full stop -- at its own fonts: how wide the run is to the line breaker. `WashHost` lets the run's
+    /// own spaces break where this is wider than the box.
+    static func pieceWidth(_ text: NSAttributedString, around range: NSRange) -> CGFloat {
+        let whole = text.string as NSString
+        var start = range.location
+        var end = NSMaxRange(range)
+        while start > 0 && !breakingSpaces.contains(whole.character(at: start - 1)) { start -= 1 }
+        while end < whole.length && !breakingSpaces.contains(whole.character(at: end)) { end += 1 }
+        return width(of: text, NSRange(location: start, length: end - start))
+    }
+
+    /// The characters a line may break at. A no-break space is not one.
+    private static let breakingSpaces: Set<unichar> = [0x20, 0x0A, 0x0D, 0x09, 0x200B]
+
+    /// `range` of `text` set on one line, unrounded.
+    private static func width(of text: NSAttributedString, _ range: NSRange) -> CGFloat {
+        let piece = NSMutableAttributedString(attributedString: text.attributedSubstring(from: range))
+        // One line's width: alignment and line height do not change it, and a truncating mode a label
+        // wrote into the paragraph would only get in the way.
+        piece.removeAttribute(.paragraphStyle, range: NSRange(location: 0, length: piece.length))
+        return piece.boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude),
+                                  options: [.usesLineFragmentOrigin], context: nil).width
     }
 
     /// The width at which `text` wraps as CSS `text-wrap: balance` would inside `full`: the narrowest

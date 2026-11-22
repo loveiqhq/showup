@@ -204,22 +204,60 @@ final class CSSTextLayoutTests: XCTestCase {
     }
 }
 
-/// `parts` as `WashHeadline.updateUIView` builds them at Date 08's type: Lora 700 27 / 1.15, -0.01em, centred, the
-/// italic run in Lora 500 italic with its spaces no-break. Rebuilt here because the headline builds it inline.
+/// `parts` as `WashHeadline.updateUIView` builds them at Date 08's type: Lora 700 `size` (27) / 1.15, -0.01em,
+/// centred, the italic run in Lora 500 italic with its spaces no-break -- or ordinary, `joinRun` false, the loose text
+/// `WashHost` swaps in for a run wider than its box. Rebuilt here because the headline builds it inline.
 @MainActor
-func washHeadlineText(_ parts: [(String, Bool)]) -> NSAttributedString {
-    let regular = TypeMetrics.uiFont(PS.loraBold, 27, fallback: .systemFont(ofSize: 27, weight: .bold))
-    let italic = TypeMetrics.uiFont(PS.loraMediumItalic, 27, fallback: TypeMetrics.italicSystem(27))
+func washHeadlineText(_ parts: [(String, Bool)], size: CGFloat = 27, joinRun: Bool = true) -> NSAttributedString {
+    let regular = TypeMetrics.uiFont(PS.loraBold, size, fallback: .systemFont(ofSize: size, weight: .bold))
+    let italic = TypeMetrics.uiFont(PS.loraMediumItalic, size, fallback: TypeMetrics.italicSystem(size))
     let para = NSMutableParagraphStyle()
-    para.lineHeightMultiple = (27 * 1.15) / regular.lineHeight
+    para.lineHeightMultiple = (size * 1.15) / regular.lineHeight
     para.alignment = .center
     let out = NSMutableAttributedString()
     for (text, isItalic) in parts {
         out.append(NSAttributedString(
-            string: isItalic ? text.replacingOccurrences(of: " ", with: "\u{00A0}") : text,
-            attributes: [.font: isItalic ? italic : regular, .kern: -0.01 * 27, .paragraphStyle: para]))
+            string: isItalic && joinRun ? text.replacingOccurrences(of: " ", with: "\u{00A0}") : text,
+            attributes: [.font: isItalic ? italic : regular, .kern: -0.01 * size, .paragraphStyle: para]))
     }
     return out
+}
+
+/// The italic run's range in `parts` joined, as `WashHeadline` records it.
+func washRunRange(_ parts: [(String, Bool)]) -> NSRange {
+    var location = 0
+    for (text, isItalic) in parts {
+        let length = (text as NSString).length
+        if isItalic { return NSRange(location: location, length: length) }
+        location += length
+    }
+    return NSRange(location: NSNotFound, length: 0)
+}
+
+/// A balanced `WashHost` holding `parts` as `updateUIView` hands them over: the run joined, the loose text beside it.
+@MainActor
+func balancedWashHost(_ parts: [(String, Bool)], size: CGFloat = 27) -> WashHost {
+    let host = WashHost()
+    host.balance = true
+    host.setText(washHeadlineText(parts, size: size), loose: washHeadlineText(parts, size: size, joinRun: false),
+                 run: washRunRange(parts))
+    return host
+}
+
+/// The text under each band of wash `WashLabel` paints for `run` when `text` is laid out at `width`.
+@MainActor
+func washBands(_ text: NSAttributedString, width: CGFloat, run: NSRange) -> [String] {
+    let storage = NSTextStorage(attributedString: text)
+    let manager = NSLayoutManager()
+    let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
+    container.lineFragmentPadding = 0
+    storage.addLayoutManager(manager)
+    manager.addTextContainer(container)
+    manager.ensureLayout(for: container)
+    let whole = text.string as NSString
+    let glyphs = manager.glyphRange(forCharacterRange: run, actualCharacterRange: nil)
+    return WashLabel.washSegments(manager, run: glyphs, in: whole)
+        .map { whole.substring(with: manager.characterRange(forGlyphRange: $0, actualGlyphRange: nil)) }
 }
 
 /// Every line of `text` at `width` but the last that ends without a breaking space before the break: a split word.

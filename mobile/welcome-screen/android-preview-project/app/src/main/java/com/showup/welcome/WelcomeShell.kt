@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.showup.designsystem.balancedWidthPx
+import com.showup.designsystem.wordAround
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -53,6 +54,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
@@ -67,6 +69,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -380,6 +383,24 @@ fun Wordmark(size: TextUnit = 26.sp, modifier: Modifier = Modifier, gapEm: Float
  */
 internal const val NBSP = '\u00A0'
 
+/**
+ * Where the wash under the run [start, end) is painted: one segment a line it lies on ([lineEnds] is
+ * where each line ends), each without the space the line broke at. A run on one line is one segment,
+ * [start, end) itself -- so a run that never wraps is painted exactly as it always was.
+ */
+internal fun washSegments(text: CharSequence, lineEnds: List<Int>, start: Int, end: Int): List<Pair<Int, Int>> {
+    val segments = mutableListOf<Pair<Int, Int>>()
+    var lineStart = 0
+    for (lineEnd in lineEnds) {
+        val from = maxOf(start, lineStart)
+        var to = minOf(end, lineEnd)
+        if (to == lineEnd && to < end) while (to > from && text[to - 1] == ' ') to--
+        if (to > from) segments += from to to
+        lineStart = lineEnd
+    }
+    return segments
+}
+
 /** Lora's descent in ems -- `hhea` -274 / 1000, identical in the bundled cut and Google Fonts'. */
 private const val LORA_DESCENT_EM = 0.274f
 
@@ -472,25 +493,29 @@ fun WashHeadline(
     // across two lines and the wash paints under two disconnected fragments.
     val safe = parts.map { (t, italic) -> (if (italic) t.replace(' ', NBSP) else t) to italic }
 
-    val text = buildAnnotatedString {
-        safe.forEach { (t, italic) ->
-            if (italic) {
-                // Weight 500, as the token file specifies — the bundled family now carries a real
-                // Medium Italic cut. See fonts/README-medium-italic.md. A plain `<em>` (no wash)
-                // keeps the run's own weight, as a browser draws it.
-                val emWeight = if (wash) FontWeight.Medium else fontWeight
-                withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = emWeight)) { append(t) }
-            } else {
-                append(t)
+    val TRAIL = "trail"
+    // The run joined (`safe`) and, for a run wider than the box itself, loose (`parts`): see the box below.
+    fun annotate(runs: List<Pair<String, Boolean>>): AnnotatedString {
+        val text = buildAnnotatedString {
+            runs.forEach { (t, italic) ->
+                if (italic) {
+                    // Weight 500, as the token file specifies — the bundled family now carries a real
+                    // Medium Italic cut. See fonts/README-medium-italic.md. A plain `<em>` (no wash)
+                    // keeps the run's own weight, as a browser draws it.
+                    val emWeight = if (wash) FontWeight.Medium else fontWeight
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic, fontWeight = emWeight)) { append(t) }
+                } else {
+                    append(t)
+                }
             }
         }
+        return if (trailing == null) text else buildAnnotatedString {
+            append(text)
+            // U+FFFC OBJECT REPLACEMENT CHARACTER -- the placeholder Compose lays the icon into.
+            appendInlineContent(TRAIL, "\uFFFC")
+        }
     }
-    val TRAIL = "trail"
-    val textWithIcon = if (trailing == null) text else buildAnnotatedString {
-        append(text)
-        // U+FFFC OBJECT REPLACEMENT CHARACTER -- the placeholder Compose lays the icon into.
-        appendInlineContent(TRAIL, "\uFFFC")
-    }
+    val textWithIcon = annotate(safe)
 
     // The gap is inside the placeholder rather than a padding on the icon, so the line breaker
     // accounts for it: the icon can never be pulled to a line that has no room for the space
@@ -524,62 +549,67 @@ fun WashHeadline(
     val density = LocalDensity.current
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
 
-    val headline: @Composable (Modifier) -> Unit = { outer ->
+    val headline: @Composable (Modifier, AnnotatedString) -> Unit = { outer, shown ->
     Text(
-        text = textWithIcon,
+        text = shown,
         modifier = outer
             .then(if (cssLineBox) Modifier.cssLineBox(lineHeight) else Modifier)
             .drawBehind {
             val lr = layout ?: return@drawBehind
             if (!wash || start < 0 || end <= start) return@drawBehind
-            val bounds = lr.getPathForRange(start, end).getBounds()
-            if (bounds.width <= 0f) return@drawBehind
-
             val em = fontSize.toPx()
-            val left = bounds.left - 2.dp.toPx()
-            val right = bounds.right + 2.dp.toPx()
-            // bottom: -0.08em -- from the bottom of the em's CONTENT BOX, which in CSS is the font's
-            // descent below the baseline whatever the line height. The selection path's bottom is
-            // the line's bottom instead, which moves with the line height: 3pt too high on a Lora
-            // 34 / 1.1 headline, 1.5pt too low on the 17 / 1.45 closing line, both measured against
-            // the sheets. Under the CSS line box the CSS anchor is used; elsewhere the old one stays
-            // until those screens are reviewed with it.
-            val bottom = if (cssLineBox) {
-                lr.getLineBaseline(lr.getLineForOffset(end - 1)) + em * (LORA_DESCENT_EM + 0.08f)
-            } else {
-                bounds.bottom + em * 0.08f
-            }
-            val h = em * 0.32f                            // height: 0.32em
-            val w = right - left
-            val rx = w / 2f
+            // One band a line: a run wider than the box wraps between its words (the box below) and is
+            // painted under each of its lines. A run on one line is one segment, painted exactly as before.
+            val lineEnds = (0 until lr.lineCount).map { lr.getLineEnd(it) }
+            for ((from, to) in washSegments(lr.layoutInput.text, lineEnds, start, end)) {
+                val bounds = lr.getPathForRange(from, to).getBounds()
+                if (bounds.width <= 0f) continue
 
-            // Clipped to the band, which the CSS gets for free and this did not.
-            //
-            // The gradient is an ellipse centred on the BOTTOM edge with a vertical radius of h,
-            // so it spans h above that edge and h below it. In CSS the ::after box is only the h
-            // above, and everything past it is clipped away -- which is what makes the wash read
-            // as a band with an edge. Unclipped, the lower half bled down into the line below and
-            // the whole thing looked like a smudge rather than an underline.
-            clipRect(left = left, top = bottom - h, right = right, bottom = bottom) {
-                withTransform({
-                    translate(left, bottom - h)
-                    // ellipse at 50% 100%: horizontal radius w/2, vertical radius h
-                    scale(scaleX = 1f, scaleY = h / rx, pivot = Offset(rx, h))
-                }) {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            // Transparent at 1.0, not at 0.7. The stop is a fraction of the
-                            // radius, and the radius is half the phrase -- so stopping at 0.7 put
-                            // the last visible ink at 70% of the way out, and because alpha falls
-                            // off the whole way the eye lost it around 56%. Measured against the
-                            // design's own render, which reaches about 78%: the wash sat under the
-                            // middle of "free to date" instead of under all of it.
-                            0.0f to Orange.copy(alpha = 0.55f),
-                            1.0f to Color.Transparent,
-                            center = Offset(rx, h), radius = rx,
-                        ),
-                        radius = rx, center = Offset(rx, h),
-                    )
+                val left = bounds.left - 2.dp.toPx()
+                val right = bounds.right + 2.dp.toPx()
+                // bottom: -0.08em -- from the bottom of the em's CONTENT BOX, which in CSS is the font's
+                // descent below the baseline whatever the line height. The selection path's bottom is
+                // the line's bottom instead, which moves with the line height: 3pt too high on a Lora
+                // 34 / 1.1 headline, 1.5pt too low on the 17 / 1.45 closing line, both measured against
+                // the sheets. Under the CSS line box the CSS anchor is used; elsewhere the old one stays
+                // until those screens are reviewed with it.
+                val bottom = if (cssLineBox) {
+                    lr.getLineBaseline(lr.getLineForOffset(to - 1)) + em * (LORA_DESCENT_EM + 0.08f)
+                } else {
+                    bounds.bottom + em * 0.08f
+                }
+                val h = em * 0.32f                            // height: 0.32em
+                val w = right - left
+                val rx = w / 2f
+
+                // Clipped to the band, which the CSS gets for free and this did not.
+                //
+                // The gradient is an ellipse centred on the BOTTOM edge with a vertical radius of h,
+                // so it spans h above that edge and h below it. In CSS the ::after box is only the h
+                // above, and everything past it is clipped away -- which is what makes the wash read
+                // as a band with an edge. Unclipped, the lower half bled down into the line below and
+                // the whole thing looked like a smudge rather than an underline.
+                clipRect(left = left, top = bottom - h, right = right, bottom = bottom) {
+                    withTransform({
+                        translate(left, bottom - h)
+                        // ellipse at 50% 100%: horizontal radius w/2, vertical radius h
+                        scale(scaleX = 1f, scaleY = h / rx, pivot = Offset(rx, h))
+                    }) {
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                // Transparent at 1.0, not at 0.7. The stop is a fraction of the
+                                // radius, and the radius is half the phrase -- so stopping at 0.7 put
+                                // the last visible ink at 70% of the way out, and because alpha falls
+                                // off the whole way the eye lost it around 56%. Measured against the
+                                // design's own render, which reaches about 78%: the wash sat under the
+                                // middle of "free to date" instead of under all of it.
+                                0.0f to Orange.copy(alpha = 0.55f),
+                                1.0f to Color.Transparent,
+                                center = Offset(rx, h), radius = rx,
+                            ),
+                            radius = rx, center = Offset(rx, h),
+                        )
+                    }
                 }
             }
         },
@@ -603,7 +633,7 @@ fun WashHeadline(
     } else Modifier
 
     if (!balance && !pretty) {
-        headline(modifier.then(fitting))
+        headline(modifier.then(fitting), textWithIcon)
         return
     }
 
@@ -620,21 +650,31 @@ fun WashHeadline(
     // pretty headline (CheckInSemanticsTest).
     BoxWithConstraints(modifier.then(fitting).semantics(mergeDescendants = true) {}) {
         val available = maxWidth
-        val narrowest = remember(textWithIcon, available, fontSize, lineHeight, letterSpacing, balance) {
+        val (shown, narrowest) = remember(textWithIcon, available, fontSize, lineHeight, letterSpacing, balance) {
             with(density) {
                 val full = available.roundToPx()
-                if (full <= 0) return@with available
+                if (full <= 0) return@with textWithIcon to available
+                // `white-space: nowrap` holds the run in one piece -- until the run is wider than the box
+                // itself. Then no width keeps it whole and the line breaker split a word inside it (Date 08
+                // B at 320: `didn't feel comforta` / `ble ...`), and no word may ever break inside
+                // (SHOWUP-199 ruling R-e, 22 Nov 2026): the run wraps between its own words instead, the
+                // wash under each line of it. A run that fits keeps its join, so nothing else moves. Only
+                // here, where the width is known before the text is laid out; the plain path keeps the join.
+                val runWhole = start < 0 || measurer.measure(
+                    wordAround(textWithIcon, start, end), style, constraints = Constraints(maxWidth = full),
+                ).lineCount == 1
+                val laid = if (runWhole) textWithIcon else annotate(parts)
                 // Both rules live in designsystem/PrettyWrap.kt, shared with body copy. Either returns
                 // the full width for one line, which keeps the exact width the box was given.
                 val w = if (balance) {
-                    balancedWidthPx(measurer, textWithIcon, style, full)
+                    balancedWidthPx(measurer, laid, style, full)
                 } else {
-                    prettyWidthPx(measurer, textWithIcon, style, full)
+                    prettyWidthPx(measurer, laid, style, full)
                 }
-                if (w == full) available else w.toDp()
+                laid to (if (w == full) available else w.toDp())
             }
         }
-        headline(Modifier.width(narrowest))
+        headline(Modifier.width(narrowest), shown)
     }
 }
 
