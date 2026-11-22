@@ -14,7 +14,7 @@ export const validationSchema = Joi.object({
   PORT: Joi.number().port().default(3000),
   APP_NAME: Joi.string().default('showup-backend'),
   CORS_ORIGINS: Joi.string().default('*'),
-  // Date 06's end routes (R1). Unset = on except NODE_ENV=production.
+  // Date 06's end routes and Date 07's cancel (R1). Unset = on everywhere; false hides them.
   DATE_ENDS_ENABLED: Joi.string()
     .valid('true', 'false')
     .insensitive()

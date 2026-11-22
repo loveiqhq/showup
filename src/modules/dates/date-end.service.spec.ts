@@ -198,14 +198,6 @@ describe('DateEndService.end', () => {
       build({ flag: 'false' }).service.end('d1', ME, body(EndReason.Met), NOW),
     ).rejects.toBeInstanceOf(NotFoundException);
     await expect(
-      build({ nodeEnv: 'production' }).service.end(
-        'd1',
-        ME,
-        body(EndReason.Met),
-        NOW,
-      ),
-    ).rejects.toBeInstanceOf(NotFoundException);
-    await expect(
       build().service.end(
         'd1',
         '00000000-0000-4000-8000-000000000009',
