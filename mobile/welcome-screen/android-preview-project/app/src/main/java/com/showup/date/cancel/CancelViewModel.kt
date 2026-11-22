@@ -147,6 +147,15 @@ class CancelViewModel(
         if (u.open && (!date.endsEnabled || date.checkedIn)) change(::closed)
     }
 
+    /**
+     * The other person ended this date (Date 08): the guard closes and its saved state goes with it, so it cannot
+     * restore after a process death. Not a dismissal: `cancel_abandoned_at_guard` is for the person's own exit.
+     */
+    fun discardForPartnerEnd() {
+        if (!_ui.value.open) return
+        change(::closed)
+    }
+
     /** The red link: B or C (the sheet reads the chat from the date). */
     fun open() {
         val u = _ui.value

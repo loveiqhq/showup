@@ -194,6 +194,10 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "198F" -> CancelSamples.frame("F")
         "198H" -> CancelSamples.frame("H")
         "198I" -> CancelSamples.frame("I")
+        // 199's rows open live on the demo date; the picture is the fallback the gallery draws if one is opened here.
+        "199A", "199A-chat" -> com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.YouNoShowed)
+        "199B" -> com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.DateEndedDiscomfort)
+        "199C" -> com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.DateClosedPositive)
         else -> Text("Unknown state $state")
     }
 }

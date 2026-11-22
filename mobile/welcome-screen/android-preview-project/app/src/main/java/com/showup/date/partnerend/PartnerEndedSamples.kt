@@ -5,10 +5,13 @@
  */
 package com.showup.date.partnerend
 
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import com.showup.date.PartnerScreen
 
 object PartnerEndedSamples {
     @Composable
-    fun frame(screen: PartnerScreen) = PartnerEndedScreen(screen, "Leonie", null) {}
+    fun frame(screen: PartnerScreen, scroll: ScrollState? = null) =
+        PartnerEndedScreen(screen, "Leonie", null, scroll ?: rememberScrollState()) {}
 }

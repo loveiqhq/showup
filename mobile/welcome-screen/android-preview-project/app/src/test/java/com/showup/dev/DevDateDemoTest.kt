@@ -24,6 +24,7 @@ import com.showup.date.EndDateResult
 import com.showup.date.EndEntry
 import com.showup.date.EndReason
 import com.showup.date.OutcomeReason
+import com.showup.date.PartnerScreen
 import com.showup.date.DateRead
 import com.showup.date.DateSamples
 import com.showup.date.cancel.CancelSamples
@@ -68,7 +69,8 @@ class DevDateDemoTest {
         assertEquals(
             ChangeSamples.LETTERS.map { "196$it" to it } +
                 DateEndSamples.LETTERS.map { "197$it" to "197$it" } +
-                CancelSamples.LETTERS.map { "198$it" to "198$it" },
+                CancelSamples.LETTERS.map { "198$it" to "198$it" } +
+                listOf("199A", "199B", "199C", "199A-chat").map { it to it },
             live,
         )
         assertNull(devLiveFrame(DevState("195A", "SHOWUP-195", "A")))
@@ -419,7 +421,36 @@ class DevDateDemoTest {
         for (f in listOf("198B", "198C", "198E", "198I")) assertEquals(f, listOf(DemoStep.OpenCancel), demoSteps(f))
         assertEquals(listOf(DemoStep.OpenCancel, DemoStep.CancelSent), demoSteps("198D"))
         for (f in listOf("197A", "198A", "198F", "198H")) assertEquals(f, emptyList<DemoStep>(), demoSteps(f))
-        for (f in DEV_LIVE_FRAMES.filter { it.startsWith("19") }) assertEquals(f, DemoLanding.DateScreen, demoLanding(f))
+        for (f in DEV_LIVE_FRAMES.filter { it.startsWith("19") && !it.startsWith("199") }) assertEquals(f, DemoLanding.DateScreen, demoLanding(f))
+        // 199's frames do no sheet step: Leonie's end is the step, and the chat frame waits in the chat for it.
+        for (f in PARTNER_END_FRAMES) assertEquals(f, emptyList<DemoStep>(), demoSteps(f))
+        for (f in listOf("199A", "199B", "199C")) assertEquals(f, DemoLanding.DateScreen, demoLanding(f))
+        assertEquals(DemoLanding.Chat, demoLanding("199A-chat"))
+    }
+
+    @Test
+    fun `199 frames have Leonie end the date with their reason, the chat frame three seconds in`() {
+        assertEquals(EndReason.PartnerNoShow, demoPartnerEnd("199A")!!.reason)
+        assertEquals(EndReason.Uncomfortable, demoPartnerEnd("199B")!!.reason)
+        assertEquals(EndReason.Met, demoPartnerEnd("199C")!!.reason)
+        assertEquals(0L, demoPartnerEnd("199A")!!.afterMs)
+        assertEquals(EndReason.PartnerNoShow, demoPartnerEnd("199A-chat")!!.reason)
+        assertEquals(3_000L, demoPartnerEnd("199A-chat")!!.afterMs)
+        assertNull(demoPartnerEnd("197A"))
+    }
+
+    @Test
+    fun `the demo's Date 06 end carries the screen the real server sends the match`() = runTest {
+        for ((reason, screen) in listOf(
+            EndReason.Met to PartnerScreen.DateClosedPositive,
+            EndReason.PartnerNoShow to PartnerScreen.YouNoShowed,
+            EndReason.Uncomfortable to PartnerScreen.DateEndedDiscomfort,
+        )) {
+            val d = demo("199C")
+            d.partnerEnds(reason)
+            val o = ((d.active("Europe/Berlin") as Outcome.Ok).value as DateRead.Ended).outcome
+            assertEquals(screen, o.partnerScreen)
+        }
     }
 
     @Test

@@ -1394,4 +1394,32 @@ class EvidenceScreenshots {
         assertEquals("eight frames at the three sizes", 24, images.size)
         images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
     }
+
+    /**
+     * SHOWUP-199's evidence: Date 08's three payloads at the three frames the ticket names -- 9 images -- and A and B,
+     * whose rows run past a 375 x 667 phone, again scrolled to the end, where the CTA is the last item (2 more). C is
+     * short enough that the CTA is on screen already.
+     */
+    @Test
+    fun `SHOWUP-199 what the other side sees, A B and C`() {
+        val payloads = listOf(
+            Triple("A-no-show", com.showup.date.PartnerScreen.YouNoShowed, true),
+            Triple("B-uncomfortable", com.showup.date.PartnerScreen.DateEndedDiscomfort, true),
+            Triple("C-met", com.showup.date.PartnerScreen.DateClosedPositive, false),
+        )
+        val tight = DEVICES.filter { it.width == 375 && it.height == 667 }
+        val before = written.size
+        for ((name, screen, scrollsOnTight) in payloads) {
+            shoot("SHOWUP-199", name) { com.showup.date.partnerend.PartnerEndedSamples.frame(screen) }
+            if (scrollsOnTight) {
+                val end = ScrollState(0)
+                shoot("SHOWUP-199", "$name-scrolled-end", devices = tight, scrolled = end) {
+                    com.showup.date.partnerend.PartnerEndedSamples.frame(screen, scroll = end)
+                }
+            }
+        }
+        val images = written.drop(before)
+        assertEquals("three payloads at the three sizes, two scrolled to the end", 11, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+    }
 }

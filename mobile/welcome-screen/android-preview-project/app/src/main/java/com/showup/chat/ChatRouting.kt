@@ -13,7 +13,9 @@ import com.showup.AppRoute
 import com.showup.analytics.AnalyticsTracker
 import com.showup.date.ActiveDate
 import com.showup.date.EndedOutcome
+import com.showup.date.PartnerScreen
 import com.showup.date.cancel.cancelledOnYou
+import com.showup.date.partnerend.partnerEndedScreenId
 import com.showup.profile.ProfileAnalytics
 import com.showup.profile.ProfileScreen
 import com.showup.profile.report
@@ -50,6 +52,14 @@ fun outcomeRoute(outcome: EndedOutcome, photoUrl: String?): AppRoute.DateEnded =
     // date's -- is null, so H drew an initial (the SHOWUP-194 review).
     AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, outcome.photoUrl ?: photoUrl, cancelled = cancelledOnYou(outcome))
 
+/** Date 08, for the match of a Date 06 end. Only called for an outcome that has a `partnerScreen` ([endedRoute]). */
+fun partnerEndedRoute(outcome: EndedOutcome, photoUrl: String?): AppRoute.PartnerEnded =
+    AppRoute.PartnerEnded(
+        outcome.dateId, outcome.name, checkNotNull(outcome.partnerScreen).wire,
+        // The outcome's own photo first, as H does: at the next launch no date is held.
+        outcome.photoUrl ?: photoUrl,
+    )
+
 /**
  * The events the host reports for the chat's destinations: `screen_viewed` for the tutorial, the chat
  * (B and C to E are one screen, one view per open) and the outcome (G and H are one); the tutorial's
@@ -84,5 +94,13 @@ class ChatHostEvents(
     fun outcomeShown(referrer: ProfileScreen, cancelled: Boolean = false) {
         val screen = if (cancelled) ProfileScreen.DatePartnerCancelled else ProfileScreen.DateEndedInChat
         analytics?.report(ProfileAnalytics.screenViewed(screen, referrer))
+    }
+
+    /**
+     * Date 08 is shown, one view per showing. [referrer] is where the person was; null on a launch, when nothing led
+     * there. Proceed to review reports nothing, and `date_ended` is the server's, never the match's phone.
+     */
+    fun partnerEndedShown(screen: PartnerScreen, referrer: ProfileScreen?) {
+        analytics?.report(ProfileAnalytics.screenViewed(partnerEndedScreenId(screen), referrer))
     }
 }

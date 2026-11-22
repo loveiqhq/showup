@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.showup.date.PartnerScreen
 import com.showup.date.cancel.Run
+import com.showup.profile.ProfileScreen
 import com.showup.welcome.BrandIcon
 
 enum class HeroTone { Blush, Lilac }
@@ -45,6 +46,13 @@ data class PartnerEndedPayload(
     val rows: List<List<Run>>,
     val accent: RowAccent,
 )
+
+/** The §11 screen each payload reports its `screen_viewed` as. */
+fun partnerEndedScreenId(screen: PartnerScreen): ProfileScreen = when (screen) {
+    PartnerScreen.YouNoShowed -> ProfileScreen.DatePartnerEndedNoShow
+    PartnerScreen.DateEndedDiscomfort -> ProfileScreen.DatePartnerEndedUncomfortable
+    PartnerScreen.DateClosedPositive -> ProfileScreen.DatePartnerEndedMet
+}
 
 fun partnerEndedPayload(screen: PartnerScreen): PartnerEndedPayload = when (screen) {
     PartnerScreen.YouNoShowed -> PartnerEndedPayload(

@@ -10,6 +10,7 @@
  */
 package com.showup.date.partnerend
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -90,7 +91,14 @@ private val RowText = TextStyle(fontFamily = Manrope, fontSize = 13.5.sp, lineHe
  * a short one, or the largest type, reaches it as the last item by scrolling.
  */
 @Composable
-fun PartnerEndedScreen(screen: PartnerScreen, name: String, photoUrl: String?, onProceed: () -> Unit) {
+fun PartnerEndedScreen(
+    screen: PartnerScreen,
+    name: String,
+    photoUrl: String?,
+    /** Hoisted only so the evidence harness can drive the column to its end; the screen owns it otherwise. */
+    scroll: ScrollState = rememberScrollState(),
+    onProceed: () -> Unit,
+) {
     val payload = partnerEndedPayload(screen)
     Box(Modifier.fillMaxSize().background(Cream)) {
         WelcomeBackdrop(peachWash = false, placement = OrbPlacement.Atmosphere, orangeAlpha = 0.26f, violetAlpha = 0.22f)
@@ -98,7 +106,7 @@ fun PartnerEndedScreen(screen: PartnerScreen, name: String, photoUrl: String?, o
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scroll)
                     .heightIn(min = maxHeight)
                     .padding(start = 20.dp, end = 20.dp, top = 8.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
