@@ -408,7 +408,8 @@ struct WashHeadline: UIViewRepresentable {
     /// HOW. Balance is "the narrowest width that still fits in the same number of lines". The
     /// UILabel this wraps already reports its height at a given width, so the search is over that:
     /// measure at the full width to learn the line count, then binary-search downward for the
-    /// narrowest width whose height is unchanged. Eight measurements, not three hundred.
+    /// narrowest width whose height is unchanged -- never below the widest word, the em run counting
+    /// as one, or the run splits (`WashHost.balancedWidth`). Eight measurements, not three hundred.
     ///
     /// OFF BY DEFAULT: it moves where existing headlines break.
     var balance: Bool = false
@@ -618,9 +619,19 @@ final class WashHost: UIView {
     /// Searched over HEIGHT rather than line count, because the label reports height and height is
     /// a faithful proxy: one more line is one more line's worth of points, and nothing else here
     /// changes it. Binary search over whole points, so eight probes settle a 400-point range.
+    ///
+    /// NEVER BELOW THE WIDEST UNBREAKABLE PIECE -- a word, or the em run whose spaces are no-break:
+    /// CSS's min-content width, which Chrome never balances below. Under it the label breaks INSIDE
+    /// the piece, by character, often at the same height, so a search from 1 settled there and split
+    /// it -- Android's Date 08 B drew `didn't feel comforta` / `ble in the situation.` (SHOWUP-199,
+    /// 22 Nov 2026), and this is the same search. `full` where the piece is wider than it.
     private func balancedWidth(within full: CGFloat) -> CGFloat {
+        let minContent = label.attributedText.map(CSSTextLayout.widestUnbreakable) ?? 0
+        if minContent >= full { return full }
         let tallest = label.sizeThatFits(CGSize(width: full, height: .greatestFiniteMagnitude)).height
-        var low: CGFloat = 1
+        // `low` is the last width known NOT to be the answer: the whole point under the floor rounded
+        // up, so every probe is a whole point at or above the floor.
+        var low: CGFloat = max(1, minContent.rounded(.up) - 1)
         var high = full
         while high - low > 1 {
             let mid = ((low + high) / 2).rounded()

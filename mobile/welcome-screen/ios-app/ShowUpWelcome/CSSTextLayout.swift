@@ -130,14 +130,55 @@ enum CSSTextLayout {
         lineHeight / 2 + (font.ascender + font.descender) / 2
     }
 
+    /// The width of `text`'s widest unbreakable piece at its own fonts and tracking: CSS's min-content
+    /// width, the floor under both balance searches (this file's and `WashHost`'s). A piece ends only at
+    /// a breaking space -- a no-break space joins, so an em run whose spaces are no-break is one piece,
+    /// as the line breaker sees it. Not `widestWordWidth`, which splits at every `isWhitespace`, no-break
+    /// spaces included, and measures in one font. Android's `minContentPx`.
+    ///
+    /// UNROUNDED: each search rounds it up to its own grid, half points or whole ones. Rounded here
+    /// first, a floor a point over the piece would move a headline that split nothing -- Android's
+    /// rounded floor moved three by a pixel (the 22 Nov 2026 fit sweep).
+    static func widestUnbreakable(_ text: NSAttributedString) -> CGFloat {
+        let whole = text.string as NSString
+        let breaks: Set<unichar> = [0x20, 0x0A, 0x0D, 0x09, 0x200B]
+        var widest: CGFloat = 0
+        var start = 0
+        for i in 0...whole.length {
+            if i < whole.length && !breaks.contains(whole.character(at: i)) { continue }
+            if i > start {
+                let piece = NSMutableAttributedString(
+                    attributedString: text.attributedSubstring(from: NSRange(location: start, length: i - start)))
+                // One line's width: alignment and line height do not change it, and a truncating mode a
+                // label wrote into the paragraph would only get in the way.
+                piece.removeAttribute(.paragraphStyle, range: NSRange(location: 0, length: piece.length))
+                let box = piece.boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude,
+                                                          height: CGFloat.greatestFiniteMagnitude),
+                                             options: [.usesLineFragmentOrigin], context: nil)
+                widest = max(widest, box.width)
+            }
+            start = i + 1
+        }
+        return widest
+    }
+
     /// The width at which `text` wraps as CSS `text-wrap: balance` would inside `full`: the narrowest
-    /// width that keeps the greedy line count, so the lines come out even. `full` for one line.
+    /// width that keeps the greedy line count, so the lines come out even -- and never narrower than
+    /// `widestUnbreakable`. `full` for one line, and where that piece is already wider than `full`.
     /// Android's `balancedWidthPx`; in half points, as `prettyWidth` searches.
+    ///
+    /// THE FLOOR IS CSS'S MIN-CONTENT WIDTH. Chrome never balances a block below its widest unbreakable
+    /// piece: it would overflow rather than break inside a word. TextKit breaks inside it instead, by
+    /// character, often at the same line count, so a search from the bottom settled below the piece
+    /// and split it -- Android's Date 08 B drew `didn't feel comforta` / `ble in the situation.`
+    /// (SHOWUP-199, 22 Nov 2026), and this search is the same one. Above the floor nothing moves.
     static func balancedWidth(_ text: NSAttributedString, within full: CGFloat) -> CGFloat {
         guard full > 1 else { return full }
         let target = lines(text, width: full).count
         guard target > 1 else { return full }
-        var lo = 2
+        let floorHalves = Int((widestUnbreakable(text) * 2).rounded(.up))
+        if floorHalves >= Int(full * 2) { return full }
+        var lo = max(2, floorHalves)
         var hi = Int(full * 2)
         while lo < hi {
             let mid = (lo + hi) / 2

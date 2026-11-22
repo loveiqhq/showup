@@ -20,6 +20,8 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.runComposeUiTest
 import com.showup.date.PartnerScreen
+import com.showup.fit.DEVICES
+import com.showup.fit.measureFit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -124,6 +126,26 @@ class PartnerEndedScreenTest {
         onNodeWithTag(PARTNER_ENDED_CTA_TAG, useUnmergedTree = true).performClick()
         waitForIdle()
         assertEquals(1, taps)
+    }
+
+    /**
+     * The balanced headline breaks only at a space on the three phones the ticket names. It drew `didn't feel comforta`
+     * / `ble in the situation.` on all three: the balance search went below the washed run's width, where the line
+     * breaker splits the run rather than overflow (22 Nov 2026).
+     */
+    @Test
+    fun `B's headline never splits a word at 375 390 and 430`() {
+        for ((w, h) in listOf(375 to 667, 390 to 844, 430 to 932)) {
+            val phone = DEVICES.first { it.width == w && it.height == h }
+            var breaks: Pair<String, List<Int>>? = null
+            measureFit(phone, "PartnerEnded/B headline", 1f, 0, extra = { f ->
+                breaks = f.lineBreaks().firstOrNull { it.first.replace('\u00A0', ' ') == b.texts[0] }
+                emptyList()
+            }) { PartnerEndedScreen(b.screen, "Leonie", null) {} }
+            val (text, ends) = checkNotNull(breaks) { "B's headline not laid out at $w" }
+            val lines = (listOf(0) + ends).zip(ends + text.length) { from, to -> text.substring(from, to) }
+            assertTrue("B's headline at $w splits a word: $lines", ends.all { text[it - 1] == ' ' })
+        }
     }
 
     @Test

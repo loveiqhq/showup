@@ -125,4 +125,119 @@ final class CSSTextLayoutTests: XCTestCase {
     func testANarrowedClampedPreviewDrawsBothLines() {
         assertDrawsEveryLine(styled(preview, font, lineHeight: 14 * 1.4), clampedTo: 2, "the message preview")
     }
+
+    // MARK: - `text-wrap: balance` never splits a word
+
+    // Below a word's width -- or an em run's, its spaces no-break -- TextKit breaks INSIDE it by character, often at
+    // the same line count, so a search for "the narrowest width that keeps the line count" settled there: Android's
+    // Date 08 B drew `didn't feel comforta` / `ble in the situation.` on every phone (SHOWUP-199, 22 Nov 2026), and
+    // both searches here were the same one. Android's `BalancedWidthTest.kt`, case for case.
+
+    private let bParts: [(String, Bool)] = [("Leonie ended the date, saying they ", false),
+                                            ("didn't feel comfortable", true), (" in the situation.", false)]
+
+    /// The search as it was, from 2 half points: the control the sweep compares against.
+    private func unfloored(_ text: NSAttributedString, within full: CGFloat) -> CGFloat {
+        let target = CSSTextLayout.lines(text, width: full).count
+        guard target > 1 else { return full }
+        var lo = 2
+        var hi = Int(full * 2)
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if CSSTextLayout.lines(text, width: CGFloat(mid) / 2).count <= target { hi = mid } else { lo = mid + 1 }
+        }
+        return CGFloat(lo) / 2
+    }
+
+    /// Sweeps `full` up from the widest piece: never narrower than it, no word split, and wherever the old search
+    /// stayed above the piece the answer is unchanged -- with at least one width where it did not, or this proves
+    /// nothing.
+    private func assertNeverSplits(_ text: NSAttributedString, _ name: String) {
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        var wouldSplit = 0
+        // From the first half point past the piece: at or under it the answer is `full` itself, by design.
+        for halves in stride(from: Int((piece * 2).rounded(.down)) + 1, through: Int(piece * 6), by: 3) {
+            let full = CGFloat(halves) / 2
+            let got = CSSTextLayout.balancedWidth(text, within: full)
+            let old = unfloored(text, within: full)
+            if old < piece { wouldSplit += 1 }
+            XCTAssertGreaterThanOrEqual(got, piece, "\(name) at \(full)")
+            XCTAssertEqual(wordSplits(text, width: got), [], "\(name) at \(full)")
+            if old >= piece { XCTAssertEqual(got, old, "\(name) at \(full) moved a width that split nothing") }
+        }
+        XCTAssertGreaterThan(wouldSplit, 0, "\(name): the old search never went below the piece, so this proves nothing")
+    }
+
+    func testARunJoinedByNoBreakSpacesCountsAsOnePiece() {
+        let run = washHeadlineText([("didn't feel comfortable", true)])
+        let word = washHeadlineText([("comfortable", true)])
+        XCTAssertEqual(CSSTextLayout.widestUnbreakable(washHeadlineText(bParts)), CSSTextLayout.widestUnbreakable(run))
+        XCTAssertGreaterThan(CSSTextLayout.widestUnbreakable(run), CSSTextLayout.widestUnbreakable(word))
+    }
+
+    func testARunJoinedByNoBreakSpacesIsNeverSplit() {
+        assertNeverSplits(washHeadlineText(bParts), "B's headline")
+    }
+
+    func testASingleLongWordIsNeverSplit() {
+        assertNeverSplits(washHeadlineText([("Incomprehensibilities is a word", false)]), "the long word")
+    }
+
+    func testAWidthNarrowerThanTheWidestPieceIsKeptWhole() {
+        let text = washHeadlineText([("Incomprehensibilities is a word", false)])
+        let full = CSSTextLayout.widestUnbreakable(text) - 5
+        XCTAssertEqual(CSSTextLayout.balancedWidth(text, within: full), full)
+    }
+
+    /// The headline's own path: `WashHost` searches the label's height, not TextKit's line count.
+    func testAWashHostNeverNarrowsBelowTheWidestPiece() {
+        let text = washHeadlineText(bParts)
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        let host = WashHost()
+        host.label.attributedText = text
+        host.balance = true
+        for full in stride(from: piece.rounded(.down) + 1, through: piece * 3, by: 1.5) {
+            let got = host.lineWidth(within: full)
+            XCTAssertGreaterThanOrEqual(got, piece, "at \(full)")
+            XCTAssertEqual(wordSplits(text, width: got), [], "at \(full)")
+        }
+    }
+}
+
+/// `parts` as `WashHeadline.updateUIView` builds them at Date 08's type: Lora 700 27 / 1.15, -0.01em, centred, the
+/// italic run in Lora 500 italic with its spaces no-break. Rebuilt here because the headline builds it inline.
+@MainActor
+func washHeadlineText(_ parts: [(String, Bool)]) -> NSAttributedString {
+    let regular = TypeMetrics.uiFont(PS.loraBold, 27, fallback: .systemFont(ofSize: 27, weight: .bold))
+    let italic = TypeMetrics.uiFont(PS.loraMediumItalic, 27, fallback: TypeMetrics.italicSystem(27))
+    let para = NSMutableParagraphStyle()
+    para.lineHeightMultiple = (27 * 1.15) / regular.lineHeight
+    para.alignment = .center
+    let out = NSMutableAttributedString()
+    for (text, isItalic) in parts {
+        out.append(NSAttributedString(
+            string: isItalic ? text.replacingOccurrences(of: " ", with: "\u{00A0}") : text,
+            attributes: [.font: isItalic ? italic : regular, .kern: -0.01 * 27, .paragraphStyle: para]))
+    }
+    return out
+}
+
+/// Every line of `text` at `width` but the last that ends without a breaking space before the break: a split word.
+@MainActor
+func wordSplits(_ text: NSAttributedString, width: CGFloat) -> [String] {
+    let storage = NSTextStorage(attributedString: text)
+    let manager = NSLayoutManager()
+    let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
+    container.lineFragmentPadding = 0
+    storage.addLayoutManager(manager)
+    manager.addTextContainer(container)
+    manager.ensureLayout(for: container)
+    var ranges: [NSRange] = []
+    manager.enumerateLineFragments(forGlyphRange: NSRange(location: 0, length: manager.numberOfGlyphs)) { _, _, _, glyphs, _ in
+        ranges.append(manager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil))
+    }
+    let whole = text.string as NSString
+    return ranges.dropLast()
+        .filter { $0.length > 0 && whole.character(at: NSMaxRange($0) - 1) != 0x20 }
+        .map { whole.substring(with: $0) }
 }

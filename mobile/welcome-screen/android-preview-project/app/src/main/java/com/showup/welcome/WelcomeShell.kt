@@ -414,7 +414,8 @@ fun WashHeadline(
      *
      * HOW. Balance is "the narrowest width that still fits in the same number of lines". Lay the
      * text out once at the full width to learn that number, then binary-search downward for the
-     * narrowest width that still produces it. Eight measurements rather than a scan's three
+     * narrowest width that still produces it -- never below the widest word, the em run counting as
+     * one, or the run splits (`balancedWidthPx`). Eight measurements rather than a scan's three
      * hundred, because a headline re-measures on every recomposition.
      *
      * OFF BY DEFAULT: it moves where existing headlines break, so the two screens that ask for it

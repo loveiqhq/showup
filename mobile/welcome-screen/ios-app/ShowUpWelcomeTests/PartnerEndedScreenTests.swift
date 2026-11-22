@@ -181,6 +181,21 @@ final class PartnerEndedScreenTests: XCTestCase {
         XCTAssertEqual(taps, 1, "laying the screen out taps nothing")
     }
 
+    /// B's balanced headline breaks only at a space on the three phones the ticket names. Android drew `didn't feel
+    /// comforta` / `ble in the situation.` on all three: the balance search went below the washed run's width, where
+    /// the line breaker splits the run rather than overflow (22 Nov 2026). The column is the phone less the screen's
+    /// 20 a side and B's hero padding; the width is the one `WashHost` lays the label out at.
+    func testBsHeadlineNeverSplitsAWordAt375390And430() {
+        let text = washHeadlineText(partnerEndedHeadline(.dateEndedDiscomfort, name: "Leonie"))
+        let host = WashHost()
+        host.label.attributedText = text
+        host.balance = true
+        for phone in [375, 390, 430] as [CGFloat] {
+            let column = phone - 2 * 20 - 2 * partnerEndedPayload(.dateEndedDiscomfort).heroPadH
+            XCTAssertEqual(wordSplits(text, width: host.lineWidth(within: column)), [], "at \(phone)")
+        }
+    }
+
     func testRowCountFollowsThePayload() {
         let met = shot(.dateClosedPositive).frames
         XCTAssertNotNil(met[FitAnchorID.partnerEndedRow(1)])
