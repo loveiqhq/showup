@@ -10,10 +10,13 @@ import Foundation
 
 enum DateEndCopy {
 
+    // Ticket Open item 2, decided by Esma 22 Nov 2026: End date with a small d everywhere, and the note points to the
+    // Date screen's Cancel this date link -- the chat menu has no Cancel date (its call-off is I can't make it today).
+
     // A: the End Date bar
     static func barTitle(_ name: String) -> String { "Your date with \(name)" }
-    static let barLine = "Tap End Date - when your date is finished."
-    static let barButton = "End Date"
+    static let barLine = "Tap End date - when your date is finished."
+    static let barButton = "End date"
 
     // B: How did it go?
     static func wrapTitle(_ name: String) -> String { "How did it go with \(name)?" }
@@ -32,9 +35,9 @@ enum DateEndCopy {
     static let cNote1 = "This is only for dates that happened. Need to call it off "
     static let cNoteBold1 = "before"
     static let cNote2 = " meeting? Use "
-    static let cNoteBold2 = "Cancel date"
-    static let cNote3 = " in the chat menu. Ending a date you didn’t attend counts as a no-show and lowers your Show-up Rate."
-    static let cCta = "End Date → Review"
+    static let cNoteBold2 = "Cancel this date"
+    static let cNote3 = " at the bottom of the Date screen. Ending a date you didn’t attend counts as a no-show and lowers your Show-up Rate."
+    static let cCta = "End date → Review"
 
     // What happens next
     static let whatNext = "What happens next"

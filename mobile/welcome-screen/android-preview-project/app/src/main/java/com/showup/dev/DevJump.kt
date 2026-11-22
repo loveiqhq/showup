@@ -285,7 +285,7 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("196L", "SHOWUP-196 Change time and place", "L · I agree failed"),
     DevState("196M", "SHOWUP-196 Change time and place", "M · Places couldn't load"),
     DevState("196N", "SHOWUP-196 Change time and place", "N · No place found"),
-    DevState("197A", "SHOWUP-197 End date and report", "A · End Date bar"),
+    DevState("197A", "SHOWUP-197 End date and report", "A · End date bar"),
     DevState("197B", "SHOWUP-197 End date and report", "B · How did it go?"),
     DevState("197C", "SHOWUP-197 End date and report", "C · We met"),
     DevState("197D", "SHOWUP-197 End date and report", "D · Check in first (Date 03's gate)"),

@@ -171,7 +171,7 @@ let devStates: [DevState] = [
     DevState(id: "196L", ticket: "SHOWUP-196 Change time and place", label: "L · I agree failed"),
     DevState(id: "196M", ticket: "SHOWUP-196 Change time and place", label: "M · Places couldn't load"),
     DevState(id: "196N", ticket: "SHOWUP-196 Change time and place", label: "N · No place found"),
-    DevState(id: "197A", ticket: "SHOWUP-197 End date and report", label: "A · End Date bar"),
+    DevState(id: "197A", ticket: "SHOWUP-197 End date and report", label: "A · End date bar"),
     DevState(id: "197B", ticket: "SHOWUP-197 End date and report", label: "B · How did it go?"),
     DevState(id: "197C", ticket: "SHOWUP-197 End date and report", label: "C · We met"),
     DevState(id: "197D", ticket: "SHOWUP-197 End date and report", label: "D · Check in first (Date 03's gate)"),
