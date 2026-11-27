@@ -76,8 +76,7 @@ struct DateEndDraft: Codable, Equatable, Sendable {
     var dateId: String
 
     var encoded: String {
-        guard let data = try? JSONEncoder().encode(self) else { return "" }
-        return String(decoding: data, as: UTF8.self)
+        DraftEncoding.string(self)
     }
 
     /// Anything that does not decode is no draft: a value from another build is a shape this one never saw.

@@ -531,4 +531,12 @@ final class ChangePickerModelTests: XCTestCase {
         XCTAssertFalse(m.ui.closed)
         XCTAssertTrue(analytics.entries.filter { $0.event == "change_picker_dismissed" }.isEmpty)
     }
+
+    /// One draft must encode to one string however many times it is encoded.
+    func testADraftEncodesToOneStringEveryTime() {
+        let place = PlaceOption(placeId: "p1", name: "Cafe", type: .cafe, address: "1 Main St", distanceMeters: 120)
+        let draft = ChangePickerDraft(dateId: "d1", kind: "place", slot: 1_800_000_000, place: place, query: "cof",
+                                      fromSearch: true, attemptValue: "v", attemptId: "a1")
+        XCTAssertEqual(Set((0..<50).map { _ in draft.encoded }).count, 1)
+    }
 }

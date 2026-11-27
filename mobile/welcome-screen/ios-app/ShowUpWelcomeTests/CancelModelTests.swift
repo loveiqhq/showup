@@ -524,4 +524,10 @@ final class CancelModelTests: XCTestCase {
             XCTAssertTrue(Set(entry.properties.keys).isDisjoint(with: ["initiator", "reason", "match_id", "user_id"]))
         }
     }
+
+    /// The dedupe compares strings, so one draft must encode to one string however many times it is encoded.
+    func testADraftEncodesToOneStringEveryTime() {
+        let draft = CancelDraft(sentKind: "time", sentLabel: "Fri 19:00", changeRequested: true, dateId: "d1")
+        XCTAssertEqual(Set((0..<50).map { _ in draft.encoded }).count, 1)
+    }
 }
