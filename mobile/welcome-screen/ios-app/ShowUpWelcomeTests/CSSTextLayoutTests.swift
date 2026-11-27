@@ -150,9 +150,11 @@ final class CSSTextLayoutTests: XCTestCase {
     }
 
     /// Sweeps `full` up from the widest piece: never narrower than it, no word split, and wherever the old search
-    /// stayed above the piece the answer is unchanged -- with at least one width where it did not, or this proves
-    /// nothing.
-    private func assertNeverSplits(_ text: NSAttributedString, _ name: String) {
+    /// stayed above the piece the answer is unchanged. `mustBite` asks for at least one width where the old search
+    /// went below the piece: only a text whose old search did so on this platform can say the floor is what holds, and
+    /// iOS's old search split the long word but never Date 08 B's headline (CI, 22 Nov 2026), so B asserts the
+    /// invariant alone.
+    private func assertNeverSplits(_ text: NSAttributedString, _ name: String, mustBite: Bool = false) {
         let piece = CSSTextLayout.widestUnbreakable(text)
         var wouldSplit = 0
         // From the first half point past the piece: at or under it the answer is `full` itself, by design.
@@ -165,8 +167,31 @@ final class CSSTextLayoutTests: XCTestCase {
             XCTAssertEqual(wordSplits(text, width: got), [], "\(name) at \(full)")
             if old >= piece { XCTAssertEqual(got, old, "\(name) at \(full) moved a width that split nothing") }
         }
-        XCTAssertGreaterThan(wouldSplit, 0, "\(name): the old search never went below the piece, so this proves nothing")
+        if mustBite {
+            XCTAssertGreaterThan(wouldSplit, 0, "\(name): the old search never went below the piece, so this proves nothing")
+        }
     }
+
+    /// The text columns the phones give the headline, 320 to 440 pt wide: no line ends inside a word, and the balanced
+    /// width is never below the widest piece. A column narrower than the piece is kept whole by design, so it is the
+    /// only case with nothing to assert.
+    private func assertNeverSplitsAcrossColumns(_ parts: [(String, Bool)], size: CGFloat, _ name: String) {
+        let text = washHeadlineText(parts, size: size)
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        for halves in stride(from: 640, through: 880, by: 2) {
+            let full = CGFloat(halves) / 2
+            let got = CSSTextLayout.balancedWidth(text, within: full)
+            if full <= piece {
+                XCTAssertEqual(got, full, "\(name) at \(full)")
+                continue
+            }
+            XCTAssertGreaterThanOrEqual(got, piece, "\(name) at \(full)")
+            XCTAssertLessThanOrEqual(got, full, "\(name) at \(full)")
+            XCTAssertEqual(wordSplits(text, width: got), [], "\(name) at \(full)")
+        }
+    }
+
+    private let aParts: [(String, Bool)] = [("Leonie ended the date, stating you ", false), ("didn't show up.", true)]
 
     func testARunJoinedByNoBreakSpacesCountsAsOnePiece() {
         let run = washHeadlineText([("didn't feel comfortable", true)])
@@ -177,10 +202,18 @@ final class CSSTextLayoutTests: XCTestCase {
 
     func testARunJoinedByNoBreakSpacesIsNeverSplit() {
         assertNeverSplits(washHeadlineText(bParts), "B's headline")
+        assertNeverSplitsAcrossColumns(bParts, size: 27, "B's headline")
+        assertNeverSplitsAcrossColumns(bParts, size: 34, "B's headline at a larger size")
+    }
+
+    func testADateEightAHeadlineIsNeverSplit() {
+        assertNeverSplits(washHeadlineText(aParts), "A's headline")
+        assertNeverSplitsAcrossColumns(aParts, size: 27, "A's headline")
+        assertNeverSplitsAcrossColumns(aParts, size: 34, "A's headline at a larger size")
     }
 
     func testASingleLongWordIsNeverSplit() {
-        assertNeverSplits(washHeadlineText([("Incomprehensibilities is a word", false)]), "the long word")
+        assertNeverSplits(washHeadlineText([("Incomprehensibilities is a word", false)]), "the long word", mustBite: true)
     }
 
     func testAWidthNarrowerThanTheWidestPieceIsKeptWhole() {
