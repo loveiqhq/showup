@@ -1,3 +1,5 @@
+import { ConflictException } from '@nestjs/common';
+
 import { ArrivalCheckInsService } from './arrival-check-ins.service';
 import { DateStatus } from './util/date-lifecycle';
 
@@ -14,6 +16,7 @@ describe('ArrivalCheckInsService.commit opens the chat', () => {
   function setup(opts: {
     minutes: number;
     committedRows?: number;
+    status?: DateStatus;
     stampFails?: boolean;
     alreadyStamped?: boolean;
   }) {
@@ -23,7 +26,7 @@ describe('ArrivalCheckInsService.commit opens the chat', () => {
       id: 'd1',
       userAId: 'a',
       userBId: 'b',
-      status: DateStatus.Confirmed,
+      status: opts.status ?? DateStatus.Confirmed,
       scheduledAt,
     };
     const stampable =
@@ -74,14 +77,33 @@ describe('ArrivalCheckInsService.commit opens the chat', () => {
         return Promise.resolve();
       }),
     };
+    const locks: unknown[] = [];
+    const em = {
+      findOne: jest.fn((_: unknown, o: { lock?: unknown }) => {
+        locks.push(o.lock);
+        return Promise.resolve(date);
+      }),
+      query,
+    };
+    const transaction = jest.fn((cb: (e: unknown) => unknown) => cb(em));
     const service = new ArrivalCheckInsService(
       rows as never,
       dates as never,
       profiles as never,
       analytics as never,
       dispatch as never,
+      { transaction } as never,
     );
-    return { service, calls, tracked, query };
+    return {
+      service,
+      calls,
+      tracked,
+      query,
+      dispatch,
+      locks,
+      transaction,
+      rows,
+    };
   }
 
   it('stamps and fires arrival_check_in for both people BEFORE the push, at meet − 3 h', async () => {
@@ -134,3 +156,121 @@ describe('ArrivalCheckInsService.commit opens the chat', () => {
     expect(calls).toEqual(['stamp', 'push']);
   });
 });
+
+describe('the arrival guards against a timed-out date (SHOWUP-200)', () => {
+  const NOW = new Date('2026-11-28T20:00:00Z');
+  const refused = async (p: Promise<unknown>) => {
+    try {
+      await p;
+    } catch (e) {
+      return (e as ConflictException).getResponse() as {
+        statusCode: number;
+        code: string;
+      };
+    }
+    throw new Error('expected a refusal');
+  };
+
+  it('commit re-checks the status under a FOR SHARE lock inside its transaction', async () => {
+    const { service, locks, transaction } = setupGuard({});
+    await service.commit('d1', 'a', NOW);
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(locks).toEqual([{ mode: 'pessimistic_read' }]);
+  });
+
+  it('commit on a date that is no longer confirmed is 409 date_not_active, with no push and no chat open', async () => {
+    const t = setupGuard({ status: DateStatus.TimedOut });
+    const body = await refused(t.service.commit('d1', 'a', NOW));
+    expect(body).toMatchObject({ statusCode: 409, code: 'date_not_active' });
+    expect(t.dispatch.sendPush).not.toHaveBeenCalled();
+    expect(t.query).not.toHaveBeenCalled();
+  });
+
+  it('commit that finds the row already committed is still a no-op, and a missing row 404s', async () => {
+    const noop = setupGuard({ committedRows: 0, exists: true });
+    await expect(noop.service.commit('d1', 'a', NOW)).resolves.toBeUndefined();
+    expect(noop.dispatch.sendPush).not.toHaveBeenCalled();
+    const missing = setupGuard({ committedRows: 0, exists: false });
+    await expect(missing.service.commit('d1', 'a', NOW)).rejects.toThrow(
+      'No check-in to commit',
+    );
+  });
+
+  it('create on a non-confirmed date is 409 date_not_active', async () => {
+    const t = setupGuard({ status: DateStatus.TimedOut });
+    const body = await refused(
+      t.service.create(
+        'd1',
+        'a',
+        {
+          latitude: 1,
+          longitude: 2,
+          entry: 'date_screen',
+          clientId: 'c',
+        } as never,
+        NOW,
+      ),
+    );
+    expect(body).toMatchObject({ statusCode: 409, code: 'date_not_active' });
+    expect(t.query).not.toHaveBeenCalled();
+  });
+
+  it('undo on a non-confirmed date is 409 date_not_active and deletes nothing', async () => {
+    const t = setupGuard({ status: DateStatus.TimedOut });
+    const body = await refused(t.service.undo('d1', 'a', NOW));
+    expect(body).toMatchObject({ statusCode: 409, code: 'date_not_active' });
+    expect(t.query).not.toHaveBeenCalled();
+  });
+
+  it('undo on a confirmed date still deletes', async () => {
+    const t = setupGuard({});
+    await t.service.undo('d1', 'a', NOW);
+    expect(t.query).toHaveBeenCalledTimes(1);
+  });
+});
+
+function setupGuard(opts: {
+  status?: DateStatus;
+  committedRows?: number;
+  exists?: boolean;
+}) {
+  const date = {
+    id: 'd1',
+    userAId: 'a',
+    userBId: 'b',
+    status: opts.status ?? DateStatus.Confirmed,
+    scheduledAt: new Date('2026-11-28T18:00:00Z'),
+  };
+  const query = jest.fn((sql: string) => {
+    if (sql.includes('UPDATE date_arrival_check_ins')) {
+      return Promise.resolve(
+        Array.from({ length: opts.committedRows ?? 1 }, () => ({ id: 'r' })),
+      );
+    }
+    if (sql.includes('DELETE'))
+      return Promise.resolve([[{ entry: 'date_screen', at: new Date() }], 1]);
+    return Promise.resolve([[], 0]);
+  });
+  const locks: unknown[] = [];
+  const em = {
+    findOne: jest.fn((_: unknown, o: { lock?: unknown }) => {
+      locks.push(o.lock);
+      return Promise.resolve(date);
+    }),
+    query,
+  };
+  const transaction = jest.fn((cb: (e: unknown) => unknown) => cb(em));
+  const dispatch = { sendPush: jest.fn().mockResolvedValue(undefined) };
+  const service = new ArrivalCheckInsService(
+    {
+      query,
+      exists: jest.fn().mockResolvedValue(opts.exists ?? true),
+    } as never,
+    { findOne: jest.fn().mockResolvedValue(date), query } as never,
+    { findOne: jest.fn().mockResolvedValue(null) } as never,
+    { trackServerEvent: jest.fn() } as never,
+    dispatch as never,
+    { transaction } as never,
+  );
+  return { service, query, dispatch, locks, transaction };
+}

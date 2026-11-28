@@ -5,8 +5,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
@@ -17,6 +17,7 @@ import {
 import { NotificationDispatchService } from '../notifications/services/notification-dispatch.service';
 import { Profile } from '../profiles/entities/profile.entity';
 import { firstName } from '../search/util/search-profile';
+import { REFUSAL_TEXT, refusalException } from './date-end.service';
 import { CreateArrivalCheckInDto } from './dto/arrival.dto';
 import { DateArrivalCheckIn } from './entities/date-arrival-check-in.entity';
 import { DateEntity } from './entities/date.entity';
@@ -46,6 +47,7 @@ export class ArrivalCheckInsService {
     private readonly profiles: Repository<Profile>,
     private readonly analytics: AnalyticsService,
     private readonly dispatch: NotificationDispatchService,
+    @InjectDataSource() private readonly db: DataSource,
   ) {}
 
   /**
@@ -60,7 +62,7 @@ export class ArrivalCheckInsService {
   ): Promise<DateArrivalCheckIn> {
     const date = await this.participantDate(dateId, userId);
     if (date.status !== DateStatus.Confirmed) {
-      throw new ConflictException('This date is no longer active');
+      throw refusalException('date_not_active', REFUSAL_TEXT.date_not_active);
     }
     const partnerId = date.userAId === userId ? date.userBId : date.userAId;
     const partnerHasRow = await this.rows.exists({
@@ -118,7 +120,11 @@ export class ArrivalCheckInsService {
     userId: string,
     now: Date = new Date(),
   ): Promise<void> {
-    await this.participantDate(dateId, userId);
+    const date = await this.participantDate(dateId, userId);
+    // A date the +2 h switch (or an end) closed keeps its check-ins as they were: nothing to take back.
+    if (date.status !== DateStatus.Confirmed) {
+      throw refusalException('date_not_active', REFUSAL_TEXT.date_not_active);
+    }
     const removed: Array<{ entry: DateArrivalCheckIn['entry']; at: Date }> =
       normalise(
         await this.rows.query(
@@ -154,19 +160,27 @@ export class ArrivalCheckInsService {
     now: Date = new Date(),
   ): Promise<void> {
     const date = await this.participantDate(dateId, userId);
-    // A date cancelled, ended in the chat or marked no-show while the check-in waited must not
-    // tell the person who ended it that the match "has arrived".
-    if (date.status !== DateStatus.Confirmed) {
-      throw new ConflictException('This date is no longer active');
-    }
-    const committed = normalise(
-      await this.rows.query(
-        `UPDATE ${TABLE} SET committed_at = $3
-          WHERE date_id = $1 AND user_id = $2 AND committed_at IS NULL
-      RETURNING id`,
-        [dateId, userId, now],
-      ),
-    );
+    // The status is re-read under a FOR SHARE lock, in the transaction that commits: the +2 h switch
+    // (FOR UPDATE on the same row) waits for this commit or goes first and this one is refused, so a
+    // check-in is never committed, and the match never told, after the date was closed. A date
+    // cancelled, ended in the chat or marked no-show while the check-in waited is refused alike.
+    const committed = await this.db.transaction(async (em) => {
+      const locked = await em.findOne(DateEntity, {
+        where: { id: dateId },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (!locked || locked.status !== DateStatus.Confirmed) {
+        throw refusalException('date_not_active', REFUSAL_TEXT.date_not_active);
+      }
+      return normalise<{ id: string }>(
+        await em.query(
+          `UPDATE ${TABLE} SET committed_at = $3
+            WHERE date_id = $1 AND user_id = $2 AND committed_at IS NULL
+        RETURNING id`,
+          [dateId, userId, now],
+        ),
+      );
+    });
     if (committed.length > 0) {
       // Before the push: the match's re-read on that push must already see the chat open.
       await this.openChat(date, now);
