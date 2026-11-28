@@ -274,6 +274,49 @@ final class CSSTextLayoutTests: XCTestCase {
         XCTAssertGreaterThan(wouldSplit, 0, "the old height search never went below the long word, so this proves nothing")
     }
 
+    // MARK: - `text-wrap: pretty` never splits a word either
+
+    /// `CSSTextLayout.prettyWidth` as it was, with no floor: the control.
+    private func unflooredPretty(_ text: NSAttributedString, within full: CGFloat) -> CGFloat {
+        let greedy = CSSTextLayout.lines(text, width: full)
+        guard greedy.count > 1 else { return full }
+        if greedy.lastText.contains(" ") || greedy.lastWidth >= full / 3 { return full }
+        func moved(_ halves: Int) -> Bool {
+            let r = CSSTextLayout.lines(text, width: CGFloat(halves) / 2)
+            return r.count > greedy.count || r.lastStart < greedy.lastStart
+        }
+        var lo = 2
+        var hi = Int(full * 2)
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if moved(mid) { lo = mid } else { hi = mid - 1 }
+        }
+        for halves in [lo - 1, lo] where halves >= 2 {
+            let pulled = CSSTextLayout.lines(text, width: CGFloat(halves) / 2)
+            if pulled.count == greedy.count && pulled.lastStart < greedy.lastStart { return CGFloat(halves) / 2 }
+        }
+        return full
+    }
+
+    /// Where the line above an orphan holds one piece wider than everything after it, the only width that pulls a
+    /// word down is under that piece: TextKit splits it and its fragment is what lands on the last line
+    /// (`Incomprehensibiliti` / `es word`). Floored, there is no pretty width there and the paragraph keeps its own;
+    /// every width the old search kept whole is unchanged. Android's `PrettyWidthTest`.
+    func testAPrettyReWrapNeverSplitsALongWord() {
+        let text = washHeadlineText([("Incomprehensibilities word", false)], size: 30)
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        var wouldSplit = 0
+        for halves in stride(from: Int((piece * 2).rounded(.down)) + 1, through: Int(piece * 3), by: 2) {
+            let full = CGFloat(halves) / 2
+            let got = CSSTextLayout.prettyWidth(text, within: full)
+            let old = unflooredPretty(text, within: full)
+            if old < piece { wouldSplit += 1 }
+            XCTAssertGreaterThanOrEqual(got, piece, "at \(full)")
+            XCTAssertEqual(wordSplits(text, width: got), [], "at \(full)")
+            if old >= piece { XCTAssertEqual(got, old, "at \(full) moved a width that split nothing") }
+        }
+        XCTAssertGreaterThan(wouldSplit, 0, "the old pretty search never went below the long word, so this proves nothing")
+    }
 }
 
 /// The widest line `label` draws at `width`, from its own layout rather than TextKit's: under the widest unbreakable

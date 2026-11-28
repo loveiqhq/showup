@@ -35,7 +35,8 @@ import androidx.compose.ui.unit.Constraints
 
 /**
  * The width, in px, at which [text] in [style] wraps as CSS `text-wrap: pretty` would inside
- * [maxPx]: [maxPx] itself unless the greedy wrap ends on an orphan.
+ * [maxPx]: [maxPx] itself unless the greedy wrap ends on an orphan -- and never a width under
+ * [minContentPx], where a word would break inside to move, as [balancedWidthPx] never goes either.
  */
 fun prettyWidthPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyle, maxPx: Int): Int {
     if (maxPx <= 0) return maxPx
@@ -63,7 +64,13 @@ fun prettyWidthPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyl
     }
     val pulled = measurer.measure(text, style, constraints = Constraints(maxWidth = lo))
     // Only a word pulled down at the SAME line count is Chrome's re-wrap.
-    return if (pulled.lineCount == lines && pulled.getLineStart(last) < lastStart) lo else maxPx
+    if (pulled.lineCount != lines || pulled.getLineStart(last) >= lastStart) return maxPx
+    // And never under the widest unbreakable piece. Where the line above the orphan holds one piece
+    // wider than the rest, the only width that pulls anything down is under it: the line breaker
+    // splits the piece and its fragment is what moves (`Incomprehensibiliti` / `es word`; the review
+    // of SHOWUP-199, 27 Nov 2026). The search found the WIDEST width that moves, so nothing at or
+    // above the floor does: there is no pretty width, and the paragraph keeps its own.
+    return if (lo >= minContentPx(measurer, text, style)) lo else maxPx
 }
 
 /**

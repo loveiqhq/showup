@@ -93,7 +93,8 @@ enum CSSTextLayout {
     }
 
     /// The width at which `text` wraps as CSS `text-wrap: pretty` would inside `full`: `full`
-    /// itself unless the greedy wrap ends on an orphan. Android's `prettyWidthPx`.
+    /// itself unless the greedy wrap ends on an orphan -- and never a width under `widestUnbreakable`,
+    /// where a word would break inside to move. Android's `prettyWidthPx`.
     static func prettyWidth(_ text: NSAttributedString, within full: CGFloat) -> CGFloat {
         guard full > 1 else { return full }
         let greedy = lines(text, width: full)
@@ -114,8 +115,13 @@ enum CSSTextLayout {
             if moved(mid) { lo = mid } else { hi = mid - 1 }
         }
         // Half a point inside the edge where the word comes back, so a label whose own arithmetic
-        // differs from TextKit's in the last decimal still breaks where this did.
-        for halves in [lo - 1, lo] where halves >= 2 {
+        // differs from TextKit's in the last decimal still breaks where this did -- and never under
+        // the widest unbreakable piece. Where the line above the orphan holds one piece wider than
+        // the rest, the only width that pulls anything down is under it: TextKit splits the piece
+        // and its fragment is what moves (`Incomprehensibiliti` / `es word`; the review of
+        // SHOWUP-199, 27 Nov 2026). Then there is no pretty width, and the paragraph keeps `full`.
+        let minContent = widestUnbreakable(text)
+        for halves in [lo - 1, lo] where halves >= 2 && CGFloat(halves) / 2 >= minContent {
             let pulled = lines(text, width: CGFloat(halves) / 2)
             // Only a word pulled down at the SAME line count is Chrome's re-wrap.
             if pulled.count == greedy.count && pulled.lastStart < greedy.lastStart {
