@@ -244,6 +244,7 @@ describe('Date 06 end and report (e2e)', () => {
           date_id: dateId,
           end_reason: 'met',
           entry: 'end_date_bar',
+          checked_in_count: 0,
           ender_checked_in: false,
           partner_checked_in: false,
           minutes_vs_start: 30,
@@ -451,6 +452,9 @@ describe('Date 06 end and report (e2e)', () => {
       .send({ reason: 'met', entry: 'end_date_bar' })
       .expect(403);
     await end('you', 'left_early').expect(400);
+    // The system values are never a client's to post (SHOWUP-200).
+    await end('you', 'timed_out').expect(400);
+    await end('you', 'met', 'auto_switch').expect(400);
     await request(server)
       .post(`/dates/${dateId}/end`)
       .set('Authorization', as('you'))

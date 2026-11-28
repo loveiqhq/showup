@@ -5,6 +5,8 @@ export enum EndReason {
   Met = 'met',
   PartnerNoShow = 'partner_no_show',
   Uncomfortable = 'uncomfortable',
+  /** Set by the +2 h switch (Date 09), never by a client. */
+  TimedOut = 'timed_out',
 }
 
 /** Where an end started (registry §45 `end_entry`). */
@@ -12,13 +14,28 @@ export enum EndEntry {
   EndDateBar = 'end_date_bar',
   CheckinBarLink = 'checkin_bar_link',
   Report = 'report',
+  /** Set by the +2 h switch (Date 09), never by a client. */
+  AutoSwitch = 'auto_switch',
 }
+
+/** What a client may post to `POST /dates/:id/end`: the three Date 06 values, never the system's. */
+export const CLIENT_END_REASONS = [
+  EndReason.Met,
+  EndReason.PartnerNoShow,
+  EndReason.Uncomfortable,
+] as const;
+export const CLIENT_END_ENTRIES = [
+  EndEntry.EndDateBar,
+  EndEntry.CheckinBarLink,
+  EndEntry.Report,
+] as const;
 
 /** The Date 08 screen the match lands on after a Date 06 end. */
 export type PartnerScreen =
   | 'date_closed_positive'
   | 'you_no_showed'
-  | 'date_ended_discomfort';
+  | 'date_ended_discomfort'
+  | 'date_timed_out';
 
 /** Why an end is refused; each is answered as a 409 with this body `code`. */
 export type RefusalCode =
@@ -55,6 +72,8 @@ export function partnerScreenFor(reason: EndReason): PartnerScreen {
       return 'you_no_showed';
     case EndReason.Uncomfortable:
       return 'date_ended_discomfort';
+    case EndReason.TimedOut:
+      return 'date_timed_out';
   }
 }
 

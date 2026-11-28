@@ -15,6 +15,8 @@ export enum DateStatus {
   EndedInChat = 'ended_in_chat',
   /** Ended by one person from Date 06's end or report: both are released, a review follows (flow 10). */
   Ended = 'ended',
+  /** Nobody ended it: the +2 h switch closed a confirmed date two hours after its meet time (Date 09). */
+  TimedOut = 'timed_out',
 }
 
 /**
@@ -34,6 +36,7 @@ const ALLOWED_TRANSITIONS: Record<DateStatus, DateStatus[]> = {
     DateStatus.NoShowReported,
     DateStatus.EndedInChat,
     DateStatus.Ended,
+    DateStatus.TimedOut,
   ],
   [DateStatus.NoShowReported]: [DateStatus.Disputed, DateStatus.Completed],
   [DateStatus.Disputed]: [DateStatus.Completed, DateStatus.Cancelled],
@@ -41,6 +44,7 @@ const ALLOWED_TRANSITIONS: Record<DateStatus, DateStatus[]> = {
   [DateStatus.Completed]: [],
   [DateStatus.EndedInChat]: [],
   [DateStatus.Ended]: [],
+  [DateStatus.TimedOut]: [],
 };
 
 /** Whether a date may move from `from` to `to`. */

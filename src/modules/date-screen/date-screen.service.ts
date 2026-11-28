@@ -24,6 +24,7 @@ const ENDED_STATUSES = [
   DateStatus.EndedInChat,
   DateStatus.Ended,
   DateStatus.Cancelled,
+  DateStatus.TimedOut,
 ];
 
 /**

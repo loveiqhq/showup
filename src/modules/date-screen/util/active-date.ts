@@ -62,6 +62,8 @@ export interface EndedRow {
   userAId: string;
   userBId: string;
   endedById: string | null;
+  /** The latest agreed meet time: every outcome carries it as `meetAt`. */
+  scheduledAt: Date;
   /** Date 06: set when `status` is `ended`. */
   endReason?: EndReason | null;
   /** Date 07: who cancelled, and the points it cost (null on a cancel from before Date 07). */
@@ -94,15 +96,22 @@ export function endedOutcomeOf(
       name: partnerName,
       endedByYou: row.cancelledById === viewerId,
       reason: 'cancelled',
+      meetAt: row.scheduledAt.toISOString(),
     };
   }
   if (
     row.status !== DateStatus.EndedInChat &&
-    row.status !== DateStatus.Ended
+    row.status !== DateStatus.Ended &&
+    row.status !== DateStatus.TimedOut
   ) {
     return null;
   }
-  if (row.status === DateStatus.Ended && !row.endReason) return null;
+  if (
+    (row.status === DateStatus.Ended || row.status === DateStatus.TimedOut) &&
+    !row.endReason
+  ) {
+    return null;
+  }
   const seen = row.userAId === viewerId ? row.aEndSeenAt : row.bEndSeenAt;
   if (seen) return null;
   const endedByYou = row.endedById === viewerId;
@@ -111,8 +120,13 @@ export function endedOutcomeOf(
     name: partnerName,
     endedByYou,
     reason: row.status === DateStatus.EndedInChat ? 'chat' : row.endReason!,
+    meetAt: row.scheduledAt.toISOString(),
   };
-  if (row.status === DateStatus.Ended && !endedByYou) {
+  // Date 06: only the match of an end gets Date 08. Date 09: nobody ended it, so both get it.
+  if (
+    (row.status === DateStatus.Ended && !endedByYou) ||
+    row.status === DateStatus.TimedOut
+  ) {
     out.partnerScreen = partnerScreenFor(row.endReason!);
   }
   return out;
