@@ -82,8 +82,10 @@ switch, and a last message.
   - **Arrival `create` / `commit` / `undo`** answer `409` with `code: date_not_active` (the shared refusal shape) once the
     date is not confirmed.
     - `undo` gains that check (Jira: "Undo is no longer possible").
-    - `commit` runs in a transaction that holds the date row `FOR SHARE` and re-checks confirmed. That serialises it with
-      the sweep, so no `date_partner_arrived` push can follow the switch.
+    - `create`, `commit` and `undo` each run in a transaction that holds the date row `FOR SHARE` and re-checks
+      confirmed. That serialises them with the sweep: a check-in committed after the switch is refused and pushes
+      nothing. A commit that won the race still pushes, sent after its transaction, so it can arrive milliseconds
+      after the switch for a check-in made before it. Nothing is pushed inside a lock.
     - An uncommitted check-in (Yes tapped, done sheet open) stays stored. That row is evidence for flow 10.
 - **R7 — `checked_in_count` on every `date_ended`.** It counts committed arrival check-ins at the moment of the end
   (0 / 1 / 2, the registry's definition).
