@@ -84,6 +84,26 @@ final class PartnerEndedRoutingTests: XCTestCase {
         XCTAssertTrue(once.first("d2"))
     }
 
+    // An end a Settings read stored before the Date screen's view existed is routed when the view appears
+    // (`onChange(initial: true)`); the later changes that see the same end route nothing more.
+    func testAnEndAlreadyStoredOnAppearShowsOnceAndLaterCallsShowNothing() {
+        var once = LandedOnce()
+        let stored = ended(.met, byYou: false, screen: .dateClosedPositive)
+        XCTAssertEqual(partnerEndedToShow(stored, once: &once), .dateClosedPositive) // on appear
+        XCTAssertNil(partnerEndedToShow(stored, once: &once))                         // the 15 s poll's same value
+        XCTAssertNil(partnerEndedToShow(stored, once: &once))                         // the view appearing again
+        XCTAssertEqual(partnerEndedToShow(ended(.met, byYou: false, screen: .youNoShowed, id: "d2"), once: &once), .youNoShowed)
+    }
+
+    func testTheOnAppearGateLeavesGAndHAndTheLandingToTheirOwnGuards() {
+        var once = LandedOnce()
+        XCTAssertNil(partnerEndedToShow(ended(.chat, byYou: false), once: &once))      // G
+        XCTAssertNil(partnerEndedToShow(ended(.cancelled, byYou: false), once: &once)) // H
+        XCTAssertNil(partnerEndedToShow(ended(.met, byYou: true), once: &once))        // landing
+        // ...and did not use up Date 08's slot for that date.
+        XCTAssertEqual(partnerEndedToShow(ended(.met, byYou: false, screen: .dateClosedPositive), once: &once), .dateClosedPositive)
+    }
+
     // MARK: tracking
 
     // The referrer is decided by what was on screen, not by whether a navigation happened: a launch sets the screen
