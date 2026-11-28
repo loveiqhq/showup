@@ -20,6 +20,12 @@ export const validationSchema = Joi.object({
     .insensitive()
     .optional(),
 
+  // Date 09's +2 h switch (SHOWUP-200). Unset = off; true turns the sweep on (after flow 10 exists).
+  DATE_TIMEOUT_ENABLED: Joi.string()
+    .valid('true', 'false')
+    .insensitive()
+    .optional(),
+
   // Database (required)
   DB_HOST: Joi.string().required(),
   DB_PORT: Joi.number().port().default(5432),

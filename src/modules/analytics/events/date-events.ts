@@ -211,28 +211,34 @@ export const PROBLEM_STAY_FLAGGED = 'problem_stay_flagged';
 
 /**
  * `date_ended` (Date 06, registry 1.4.36, server). Once, on a successful end only: how it ended (§43),
- * where it started (§45), each person's committed check-in at that moment, and whole minutes from the
+ * where it started (§45), how many of the two had a committed check-in (`checked_in_count`, every end, 1.4.40), each person's
+ * own flag (a Date 06 end only), and whole minutes from the
  * latest agreed meet time (negative before it). Never a coordinate, a place or free text.
  */
 export function dateEndedEvent(p: {
   dateId: string;
   endReason: string;
   entry: string;
-  enderCheckedIn: boolean;
-  partnerCheckedIn: boolean;
+  checkedInCount: number;
+  enderCheckedIn?: boolean;
+  partnerCheckedIn?: boolean;
   minutesVsStart: number;
 }): AnalyticsEventSpec {
-  return {
-    eventName: DATE_ENDED,
-    properties: {
-      date_id: p.dateId,
-      end_reason: p.endReason,
-      entry: p.entry,
-      ender_checked_in: p.enderCheckedIn,
-      partner_checked_in: p.partnerCheckedIn,
-      minutes_vs_start: p.minutesVsStart,
-    },
+  const properties: Record<string, unknown> = {
+    date_id: p.dateId,
+    end_reason: p.endReason,
+    entry: p.entry,
+    checked_in_count: p.checkedInCount,
   };
+  // The per-person flags exist only for a person's own end (Date 06); the +2 h switch has no ender.
+  if (p.enderCheckedIn !== undefined) {
+    properties.ender_checked_in = p.enderCheckedIn;
+  }
+  if (p.partnerCheckedIn !== undefined) {
+    properties.partner_checked_in = p.partnerCheckedIn;
+  }
+  properties.minutes_vs_start = p.minutesVsStart;
+  return { eventName: DATE_ENDED, properties };
 }
 
 /** `problem_stay_flagged` (Date 06, server): one per "Stay for now" tap, each stored as a flag row. */

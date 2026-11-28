@@ -13,6 +13,7 @@ import com.showup.AppRoute
 import com.showup.analytics.AnalyticsTracker
 import com.showup.date.ActiveDate
 import com.showup.date.EndedOutcome
+import com.showup.date.OutcomeReason
 import com.showup.date.PartnerScreen
 import com.showup.date.cancel.cancelledOnYou
 import com.showup.date.partnerend.partnerEndedScreenId
@@ -52,13 +53,21 @@ fun outcomeRoute(outcome: EndedOutcome, photoUrl: String?): AppRoute.DateEnded =
     // date's -- is null, so H drew an initial (the SHOWUP-194 review).
     AppRoute.DateEnded(outcome.dateId, outcome.name, outcome.endedByYou, outcome.photoUrl ?: photoUrl, cancelled = cancelledOnYou(outcome))
 
-/** Date 08, for the match of a Date 06 end. Only called for an outcome that has a `partnerScreen` ([endedRoute]). */
-fun partnerEndedRoute(outcome: EndedOutcome, photoUrl: String?): AppRoute.PartnerEnded =
-    AppRoute.PartnerEnded(
-        outcome.dateId, outcome.name, checkNotNull(outcome.partnerScreen).wire,
+/**
+ * Date 08's screen: for the match of a Date 06 end (which has a `partnerScreen`, [endedRoute]) and, with Date 09, for both
+ * people of a timed-out date. A timed-out outcome may carry no `partnerScreen` (an older server, or the one that sends it
+ * to one person only), so Date 09's is derived from the reason. [meetAt] rides the route as an ISO string so a restored
+ * route keeps Date 09's `{time}`: the outcome's own, else the held date's.
+ */
+fun partnerEndedRoute(outcome: EndedOutcome, photoUrl: String?, heldDate: ActiveDate? = null): AppRoute.PartnerEnded {
+    val screen = outcome.partnerScreen ?: PartnerScreen.DateTimedOut.takeIf { outcome.reason == OutcomeReason.TimedOut }
+    return AppRoute.PartnerEnded(
+        outcome.dateId, outcome.name, checkNotNull(screen).wire,
         // The outcome's own photo first, as H does: at the next launch no date is held.
         outcome.photoUrl ?: photoUrl,
+        (outcome.meetAt ?: heldDate?.meetAt)?.toString(),
     )
+}
 
 /**
  * Where the person was when Date 08 opened, for `referrer_screen_id` (R7). [from] is the chat when the chat found

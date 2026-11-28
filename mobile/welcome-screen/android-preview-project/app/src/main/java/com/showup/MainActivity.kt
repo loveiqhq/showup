@@ -92,6 +92,7 @@ import com.showup.date.EndEntry
 import com.showup.date.EndedOutcome
 import com.showup.date.PartnerScreen
 import com.showup.date.partnerend.PartnerEndedRoute
+import com.showup.date.partnerend.meetClockOf
 import com.showup.date.partnerend.showPartnerEnded
 import com.showup.date.OutcomeReason
 import com.showup.date.ApiCancelStore
@@ -981,6 +982,7 @@ class MainActivity : ComponentActivity() {
                                 clock = java.time.Instant::now,
                                 newId = { java.util.UUID.randomUUID().toString() },
                                 work = (application as ShowUpApplication).appScope,
+                                reread = date::foreground,
                             )
                         }
                     },
@@ -1416,7 +1418,7 @@ class MainActivity : ComponentActivity() {
                 demoPartnerEnd(frame)?.let { end ->
                     if (demoLanding(frame) == DemoLanding.Chat) openChat()
                     delay(end.afterMs)
-                    dateDemo?.partnerEnds(end.reason)
+                    if (end.reason == null) dateDemo?.timesOut() else dateDemo?.partnerEnds(end.reason)
                     date.foreground()
                     return@LaunchedEffect
                 }
@@ -1463,16 +1465,20 @@ class MainActivity : ComponentActivity() {
             }
 
             /**
-             * Date 08 over whatever is up. The Date 06 sheet and Date 07's guard are closed here (and their saved
-             * state with them) because they live in models, not in the screens the pop removes: left open they would
-             * be drawn again on the next Date screen, or restored after a process death. Date 05's pickers and the chat
-             * are destinations, which the pop removes with their saved state.
+             * Date 08 -- and Date 09 (SHOWUP-200) -- over whatever is up. The Date 06 sheet and Date 07's guard are closed
+             * here (and their saved state with them) because they live in models, not in the screens the pop removes: left
+             * open they would be drawn again on the next Date screen, or restored after a process death. So are the arrival
+             * gate's done sheet and the chat's draft, and for the same reason: popping the stack hides the sheet but leaves
+             * the model on it, and a Close from there would tell a match who no longer has a date. Nothing is sent. Date 05's
+             * pickers and the chat are destinations, which the pop removes with their saved state.
              */
             fun showPartnerEnded(outcome: EndedOutcome, from: ProfileScreen?) {
                 partnerEndedFrom = from
                 dateEnd.discardForPartnerEnd()
                 dateCancel.discardForPartnerEnd()
-                navController.showPartnerEnded(partnerEndedRoute(outcome, dateState.date?.match?.photoUrl))
+                arrivalGate?.discardForPartnerEnd()
+                chat?.discardForPartnerEnd()
+                navController.showPartnerEnded(partnerEndedRoute(outcome, dateState.date?.match?.photoUrl, dateState.date))
             }
 
             /** `Find your next date`: the date is over, so Search, Likes and Instant open, and Search shows. */
@@ -3272,6 +3278,9 @@ class MainActivity : ComponentActivity() {
                     screen = screen,
                     name = route.name,
                     photoUrl = route.photoUrl,
+                    meetTime = meetClockOf(
+                        route.meetAt, ZoneId.systemDefault(), android.text.format.DateFormat.is24HourFormat(LocalContext.current),
+                    ),
                     onShown = { chatEvents.partnerEndedShown(screen, partnerEndedFrom) },
                     onProceed = { startReview(EndedOutcome(route.dateId, route.name, endedByYou = false, partnerScreen = screen)) },
                 )
@@ -3526,6 +3535,7 @@ class MainActivity : ComponentActivity() {
                                     DevDateAction.ExpireSuggestions -> dateStore.expireSuggestions()
                                     DevDateAction.PartnerCancels -> dateStore.partnerCancels()
                                     is DevDateAction.PartnerEnds -> dateStore.partnerEnds(action.reason)
+                                    DevDateAction.TimesOut -> dateStore.timesOut()
                                     DevDateAction.End -> dateStore.endTestDate()
                                 }
                                 // The Date screen's own read shows the result: a new date or message

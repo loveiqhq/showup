@@ -19,6 +19,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import retrofit2.Response
 import java.io.IOException
+import java.time.Instant
 import com.showup.api.generated.model.DateEndReason as WireReason
 import com.showup.api.generated.model.EndEntry as WireEntry
 
@@ -75,6 +76,8 @@ internal fun EndedOutcomeDto.toOutcome(api: ShowUpApi) = EndedOutcome(
     photoUrl = photoUrl?.let(api::absoluteUrl),
     reason = OutcomeReason.fromWire(reason.value),
     partnerScreen = PartnerScreen.fromWire(partnerScreen?.value),
+    // A time the server sent that does not parse is the same as none: the screen drops it rather than show a guess.
+    meetAt = meetAt?.let { runCatching { Instant.parse(it) }.getOrNull() },
 )
 
 /** The refusal code of a 404 or 409, from the body's `code` (the `error` field carries the same). */

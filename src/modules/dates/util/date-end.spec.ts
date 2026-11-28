@@ -1,5 +1,8 @@
 import { DateStatus } from './date-lifecycle';
 import {
+  CLIENT_END_ENTRIES,
+  CLIENT_END_REASONS,
+  EndEntry,
   EndReason,
   dateEndsEnabled,
   endRefusal,
@@ -34,6 +37,26 @@ describe('partnerScreenFor (end_reason alone, 17 Nov)', () => {
     expect(partnerScreenFor(EndReason.Uncomfortable)).toBe(
       'date_ended_discomfort',
     );
+  });
+});
+
+describe('Date 09 (timed out)', () => {
+  it('maps a timed-out end to the Date 09 screen', () => {
+    expect(partnerScreenFor(EndReason.TimedOut)).toBe('date_timed_out');
+    expect(EndReason.TimedOut).toBe('timed_out');
+    expect(EndEntry.AutoSwitch).toBe('auto_switch');
+  });
+  it('keeps the system values out of what a client may post', () => {
+    expect([...CLIENT_END_REASONS]).toEqual([
+      'met',
+      'partner_no_show',
+      'uncomfortable',
+    ]);
+    expect([...CLIENT_END_ENTRIES]).toEqual([
+      'end_date_bar',
+      'checkin_bar_link',
+      'report',
+    ]);
   });
 });
 

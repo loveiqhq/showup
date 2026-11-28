@@ -240,6 +240,7 @@ private fun ScreensPage(
                 DevTextButton("Leonie ends the date: We met (SHOWUP-199)") { onDateAction(DevDateAction.PartnerEnds(com.showup.date.EndReason.Met)) }
                 DevTextButton("Leonie ends the date: didn't show (SHOWUP-199)") { onDateAction(DevDateAction.PartnerEnds(com.showup.date.EndReason.PartnerNoShow)) }
                 DevTextButton("Leonie ends the date: uncomfortable (SHOWUP-199)") { onDateAction(DevDateAction.PartnerEnds(com.showup.date.EndReason.Uncomfortable)) }
+                DevTextButton("The date times out (SHOWUP-200, local server)") { onDateAction(DevDateAction.TimesOut) }
                 DevTextButton("End test date") { onDateAction(DevDateAction.End) }
             }
         }

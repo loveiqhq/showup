@@ -126,7 +126,7 @@ describe('DateEndService.end', () => {
     );
   });
 
-  it('fires date_ended once, with the six fields', async () => {
+  it('fires date_ended once, with the six fields and checked_in_count', async () => {
     const { service, analytics } = build({ committed: [ME, THEM] });
     await service.end('d1', ME, body(EndReason.PartnerNoShow), NOW);
     expect(analytics.trackServerEvent).toHaveBeenCalledTimes(1);
@@ -137,6 +137,7 @@ describe('DateEndService.end', () => {
         date_id: 'd1',
         end_reason: 'partner_no_show',
         entry: 'end_date_bar',
+        checked_in_count: 2,
         ender_checked_in: true,
         partner_checked_in: true,
         minutes_vs_start: 30,

@@ -49,6 +49,17 @@ import com.showup.date.end.DateEndViewModel
 import com.showup.date.end.EndRoute
 import com.showup.date.end.FakeEndStore
 import com.showup.date.end.LandedOnce
+import com.showup.date.EndDateResult
+import com.showup.date.end.EndOption
+import com.showup.date.CancelResult
+import com.showup.arrival.ArrivalEntry
+import com.showup.arrival.ArrivalGateViewModel
+import com.showup.arrival.CheckInResult
+import com.showup.arrival.FakeArrivalStore
+import com.showup.arrival.GatePhase
+import com.showup.arrival.LocationFix
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import com.showup.profile.ProfileScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -364,5 +375,155 @@ class PartnerEndedRoutingTest {
         assertEquals(routes.toString(), 2, routes.size)
         assertTrue(routes.first().contains("Flow"))
         assertTrue(routes.last().contains("PartnerEnded"))
+    }
+
+    // -- SHOWUP-200: Date 09 is this screen's fourth payload ---------------------------------
+
+    @Test
+    fun `a timed-out date is PartnerEnded for both people, whatever partnerScreen says, and never the chat's G`() {
+        for (byYou in listOf(true, false)) for (screen in listOf(null, PartnerScreen.DateTimedOut, PartnerScreen.YouNoShowed)) {
+            assertEquals(
+                "byYou=$byYou screen=$screen", EndedRoute.PartnerEnded,
+                endedRoute(ended(OutcomeReason.TimedOut, byYou = byYou, screen = screen)),
+            )
+        }
+    }
+
+    @Test
+    fun `every other reason keeps its route`() {
+        val table = mapOf(
+            OutcomeReason.Chat to (EndedRoute.DateEnded to EndedRoute.DateEnded),
+            OutcomeReason.Cancelled to (EndedRoute.PartnerCancelled to EndedRoute.Land),
+            OutcomeReason.Met to (EndedRoute.Land to EndedRoute.Land),
+            OutcomeReason.PartnerNoShow to (EndedRoute.Land to EndedRoute.Land),
+            OutcomeReason.Uncomfortable to (EndedRoute.Land to EndedRoute.Land),
+        )
+        table.forEach { (reason, expected) ->
+            // Left: ended by the other person; right: ended by you. Date 06's reasons need a partnerScreen to reach Date 08.
+            assertEquals(reason.name, expected.first, endedRoute(ended(reason, byYou = false)))
+            assertEquals(reason.name, expected.second, endedRoute(ended(reason, byYou = true)))
+        }
+    }
+
+    @Test
+    fun `Date 09 reports date_timed_out`() {
+        assertEquals(ProfileScreen.DateTimedOut, partnerEndedScreenId(PartnerScreen.DateTimedOut))
+        assertEquals("date_timed_out", ProfileScreen.DateTimedOut.screenId)
+        assertEquals("Date - Timed out", ProfileScreen.DateTimedOut.screenName)
+    }
+
+    @Test
+    fun `a timed-out outcome with no partnerScreen still gets a route, carrying the meet time`() {
+        val at = Instant.parse("2026-11-28T18:00:00Z")
+        val route = partnerEndedRoute(ended(OutcomeReason.TimedOut, byYou = false).copy(meetAt = at), "https://x/held.jpg", null)
+        assertEquals(AppRoute.PartnerEnded("d1", "Leonie", "date_timed_out", "https://x/held.jpg", "2026-11-28T18:00:00Z"), route)
+    }
+
+    @Test
+    fun `the meet time falls back to the held date's, and is absent when neither has one`() {
+        val held = date(checkedIn = true)
+        val outcome = ended(OutcomeReason.TimedOut, byYou = false)
+        assertEquals(meet.toString(), partnerEndedRoute(outcome, "p", held).meetAt)
+        assertEquals(
+            "the outcome's own wins", "2026-11-28T18:00:00Z",
+            partnerEndedRoute(outcome.copy(meetAt = Instant.parse("2026-11-28T18:00:00Z")), "p", held).meetAt,
+        )
+        assertNull(partnerEndedRoute(outcome, "p", null).meetAt)
+    }
+
+    @Test
+    fun `the route survives a save and restore with its meet time`() {
+        val route: AppRoute = AppRoute.PartnerEnded("d1", "Leonie", "date_timed_out", null, "2026-11-28T18:00:00Z")
+        assertEquals(route, Json.decodeFromString<AppRoute>(Json.encodeToString(route)))
+        // A route saved by Date 08 (no meetAt) still restores.
+        val old: AppRoute = AppRoute.PartnerEnded("d1", "Leonie", "you_no_showed", null)
+        assertNull((Json.decodeFromString<AppRoute>(Json.encodeToString(old)) as AppRoute.PartnerEnded).meetAt)
+    }
+
+    @Test
+    fun `Date 09 reports its view from the chat and from a cold start`() {
+        val analytics = RecordingAnalytics()
+        ChatHostEvents(analytics).partnerEndedShown(PartnerScreen.DateTimedOut, ProfileScreen.DateChat)
+        ChatHostEvents(analytics).partnerEndedShown(PartnerScreen.DateTimedOut, null)
+        val shown = analytics.of("screen_viewed").map { it.properties }
+        assertEquals(listOf("date_timed_out", "date_timed_out"), shown.map { it["screen_id"] })
+        assertEquals(listOf("date_chat", ""), shown.map { it["referrer_screen_id"] })
+        assertEquals(listOf("screen_viewed", "screen_viewed"), analytics.names())
+    }
+
+    @Test
+    fun `a late Date 06 end answered date_not_active re-reads and routes to Date 09 with no error box`() = runTest(dispatcher) {
+        val timedOut = ended(OutcomeReason.TimedOut, byYou = false)
+        val routed = mutableListOf<EndedRoute>()
+        val endStore = FakeEndStore().also { it.answers += EndDateResult.Refused("date_not_active") }
+        val end = DateEndViewModel(endStore, RecordingAnalytics(), SavedStateHandle(), reread = { routed += endedRoute(timedOut) })
+        end.bind(date(checkedIn = true), meet.plusSeconds(60))
+        runCurrent()
+        end.openWrap(EndEntry.EndDateBar)
+        end.pick(EndOption.Met)
+        end.end()
+        runCurrent()
+        assertFalse("no EndErrorBox", end.ui.value.failed)
+        assertNull(end.ui.value.route)
+        assertEquals(listOf(EndedRoute.PartnerEnded), routed)
+    }
+
+    @Test
+    fun `a late Date 07 cancel answered date_not_active re-reads and routes to Date 09 with no error`() = runTest(dispatcher) {
+        val timedOut = ended(OutcomeReason.TimedOut, byYou = false)
+        val routed = mutableListOf<EndedRoute>()
+        val store = FakeCancelStore().also { it.answers += CancelResult.Refused("date_not_active") }
+        val cancel = CancelViewModel(store, RecordingAnalytics(), SavedStateHandle(), reread = { routed += endedRoute(timedOut) })
+        cancel.bind(date(checkedIn = false), meet.minusSeconds(3 * 3600))
+        runCurrent()
+        cancel.open()
+        cancel.cancel()
+        runCurrent()
+        assertFalse("no error box", cancel.ui.value.failed)
+        assertFalse(cancel.ui.value.open)
+        assertEquals(listOf(EndedRoute.PartnerEnded), routed)
+    }
+
+    // -- the switch closes every sheet, and sends nothing ------------------------------------
+
+    private fun gate(store: FakeArrivalStore, reread: () -> Unit = {}) =
+        ArrivalGateViewModel(store, { LocationFix(52.5, 13.4, 8.0) }, RecordingAnalytics(), { meet }, { "id-1" }, reread = reread)
+
+    @Test
+    fun `with the check-in done sheet open the switch closes it and neither commit nor undo reaches the store`() = runTest(dispatcher) {
+        val store = FakeArrivalStore()
+        val gate = gate(store)
+        gate.bind(date(checkedIn = false))
+        runCurrent()
+        gate.open(ArrivalEntry.DateScreen)
+        gate.yes()
+        runCurrent()
+        assertTrue(gate.ui.value.phase is GatePhase.Done)
+        gate.discardForPartnerEnd()
+        runCurrent()
+        assertEquals(GatePhase.Idle, gate.ui.value.phase)
+        assertFalse(gate.ui.value.undone)
+        assertFalse("not committed either", gate.ui.value.committed)
+        // Nothing can close it afterwards: Close and Undo are inert on an idle gate, and leaving the app commits nothing.
+        gate.close()
+        gate.undo()
+        gate.leftApp()
+        runCurrent()
+        assertEquals(0, store.commitCalls)
+        assertEquals(0, store.undoCalls)
+    }
+
+    @Test
+    fun `a Yes refused with 409 closes the gate and reads the date again, with no error`() = runTest(dispatcher) {
+        val store = FakeArrivalStore().also { it.checkIns += CheckInResult.AlreadyCheckedIn }
+        var rereads = 0
+        val gate = gate(store) { rereads++ }
+        gate.bind(date(checkedIn = false))
+        runCurrent()
+        gate.open(ArrivalEntry.DateScreen)
+        gate.yes()
+        runCurrent()
+        assertEquals(GatePhase.Idle, gate.ui.value.phase)
+        assertEquals(1, rereads)
     }
 }

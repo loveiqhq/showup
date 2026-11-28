@@ -41,7 +41,7 @@ Each story is one screen (or one logic job) with all its states, a spec sheet an
 | 06 | End date and report a problem | `coord-wrap-*` · `coord-report-*` | End Date bar, "How did it go?", Report a problem (2 options), the shared "Not here yet?" guidance + "Thanks for waiting", "I don't feel comfortable" (Head out now ends the date · Stay for now flags), one check-in gate, end failed | **ticketed — not built** (10 Nov 2026) |
 | 07 | Cancel this date | `coord-cancel-2-confirm` · `coord-cancel-4-partner` | Penalty-guard sheet, the confirmed outcome, what the match sees | to write |
 | 08 | What the other side sees | `you-no-showed` · `date-ended-discomfort` · `date-closed-positive` | The three screens shown to B when A ends the date, picked by `end_reason` alone. Each leads into flow 10 | written 17 Nov 2026 |
-| 09 | Switch to flow 10 | — | Server/client logic, no spec sheet: every date still open at +2 h moves both users to flow 10 | to write |
+| 09 | Your date has ended (+2 h switch) | `date-timed-out` | The +2 h job and one screen for both: every date still open at +2 h → Your date has ended → normal review (17 Nov 2026) | **ticketed — not built** (17 Nov 2026) |
 | 10 | Match Mate | — | Content and UI for the Match Mate slot. **Needs design first** | to design |
 
 **Build order:** 01 → 02 → 03 and 05 in parallel → 06, 07, 08 → 09. 04 is folded into 03. 10 can land any time after 01; until then its slot renders nothing.
@@ -117,7 +117,7 @@ Family **K — Date Coordination** and **L — Chat Metadata** in `design_handof
 - `match_mate_tab_opened` · `match_mate_item_used` — **respecified by 10**
 - `change_picker_opened` · `change_picker_dismissed` · `change_suggested` · `change_agreed` · `change_expired` — **NEW, Date 05**, registry 1.4.35 / taxonomy 1.4.28, §42 `change_entry`. A suggestion is never `message_sent`
 - `wrapup_opened` · `date_ended` (server) · `problem_stay_flagged` (server) — **NEW, Date 06**; `wrapup_outcome_selected` · `problem_report_opened` · `problem_category_selected` respecified; `wrapup_prompted` · `wrapup_confirmed` · `grace_period_*` · `no_penalty_exit_granted` **retired** — registry 1.4.36 / taxonomy 1.4.29, §43 `date_end_reason` · §44 `problem_category` · §45 `end_entry`, §41 gains `wrapup`
-- The +2 h switch (09) **has no events yet** — defined in `events.json` before its ticket is written
+- The +2 h switch (09): `date_ended` respecified — `end_reason: timed_out`, `entry: auto_switch`, `checked_in_count` NEW; §11 `date_timed_out` — registry 1.4.40 / taxonomy 1.4.32
 
 **Never in a payload:** coordinates, distances in metres, chat text, place addresses. Location stays in the check-in store.
 

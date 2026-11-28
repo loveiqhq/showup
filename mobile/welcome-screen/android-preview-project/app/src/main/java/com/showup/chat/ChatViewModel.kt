@@ -437,6 +437,19 @@ class ChatViewModel(
         }
     }
 
+    /**
+     * The Date screen found the end first (Date 08 / 09 over a chat that never saw it): what was being written goes, as
+     * [ended] does, and nothing is sent. The chat is left through navigation; this model is the host's for the session.
+     */
+    fun discardForPartnerEnd() {
+        _ui.update {
+            it.copy(
+                endSheet = false, ending = false, endFailed = null,
+                draft = "", selected = null, guide = Guide.None, sending = false,
+            )
+        }
+    }
+
     private fun leave() {
         poll?.cancel()
         poll = null

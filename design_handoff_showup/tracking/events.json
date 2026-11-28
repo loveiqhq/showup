@@ -1,8 +1,13 @@
 {
-  "taxonomy_version": "1.4.31",
+  "taxonomy_version": "1.4.32",
   "reconciled_against": "loveiqhq/showup main @ c195089",
   "generated": "2026-09-25",
   "event_count": 308,
+  "changed_in_1_4_32": [
+    "Date 09 (+2 h switch), 17 Nov 2026 — registry 1.4.40. No new events.",
+    "date_ended — RESPECIFIED: also fired by the +2 h switch with end_reason timed_out (§43 NEW) and entry auto_switch (§45 NEW). checked_in_count NEW (0 | 1 | 2, every end). ender_checked_in and partner_checked_in are absent for timed_out (no ender).",
+    "date_ended.partner_checked_in — the 'decides the match's Date 08 screen' note removed (superseded 17 Nov 2026 by Date 08: end_reason alone decides)."
+  ],
   "changed_in_1_4_31": [
     "Date 03 (Arrival check-in) build questions, 16 Nov 2026 — registry 1.4.38.",
     "location_gate_shown — NEW optional payload screen_id (§11): date_location_gate when the gate blocks the Date screen (context=date). Absent = search_location_gate, so a Search 04 emitter built without it stays correct.",
@@ -5211,18 +5216,22 @@
             },
             {
               "name": "ender_checked_in",
-              "type": "bool"
+              "type": "bool — absent for timed_out (no ender)"
             },
             {
               "name": "partner_checked_in",
-              "type": "bool — decides the match's Date 08 screen for partner_no_show"
+              "type": "bool — absent for timed_out (no ender)"
+            },
+            {
+              "name": "checked_in_count",
+              "type": "int — 0 | 1 | 2, committed arrival check-ins at the moment of the end. NEW 1.4.32 (Date 09), every end"
             },
             {
               "name": "minutes_vs_start",
               "type": "int — from the latest AGREED meet time; negative = before"
             }
           ],
-          "trigger": "NEW 1.4.29 (Date 06). The server ended the date from a Date 06 path: End Date → Review (met), End date and review (partner_no_show), Head out now (uncomfortable). Fires once, on success only — a failed end fires nothing. Both users move on: the ender to flow 10, the match to a Date 08 screen. NOT fired for an end in the chat (date_ended_in_chat), a cancel (date_cancelled) or the +2 h switch (09)."
+          "trigger": "NEW 1.4.29 (Date 06), RESPECIFIED 1.4.32 (Date 09). The server ended the date — from a Date 06 path: End Date → Review (met), End date and review (partner_no_show), Head out now (uncomfortable); or by the +2 h switch (timed_out, entry auto_switch). Fires once per date, on success only — a failed end fires nothing; the first end to reach the server wins. Both users move on: after a Date 06 end the ender to flow 10, the match to a Date 08 screen; after timed_out both to date_timed_out. NOT fired for an end in the chat (date_ended_in_chat) or a cancel (date_cancelled)."
         },
         {
           "name": "problem_report_opened",

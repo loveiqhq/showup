@@ -20,6 +20,8 @@ export const QUEUE_COORDINATE_UNLOCK = 'coordinate-unlock';
 
 /** Change expiry (Date 05): expires change suggestions nobody answered by meet - 0:30, every minute. */
 export const QUEUE_CHANGE_EXPIRY = 'change-expiry';
+/** Date timeout (Date 09): closes a confirmed date nobody ended 2 h after its meet time, every minute. */
+export const QUEUE_DATE_TIMEOUT = 'date-timeout';
 /** Arrival retention (Date 03, R14): deletes arrival check-ins older than a year, once a day. */
 export const QUEUE_ARRIVAL_RETENTION = 'arrival-retention';
 

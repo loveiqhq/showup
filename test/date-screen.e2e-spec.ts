@@ -13,6 +13,7 @@ import { CheckInsService } from './../src/modules/check-ins/check-ins.service';
 import { DateChatMessage } from './../src/modules/dates/entities/date-chat-message.entity';
 import { DatesService } from './../src/modules/dates/dates.service';
 import { DateEntity } from './../src/modules/dates/entities/date.entity';
+import { EndEntry, EndReason } from './../src/modules/dates/util/date-end';
 import { DateStatus } from './../src/modules/dates/util/date-lifecycle';
 import { ChatReason } from './../src/modules/dates/util/pre-date-chat';
 import { Profile } from './../src/modules/profiles/entities/profile.entity';
@@ -203,6 +204,41 @@ describe('The Date screen (e2e)', () => {
   it('answers date: null when there is no active date', async () => {
     const res = await getDate();
     expect(res.body).toEqual({ date: null, ended: null });
+  });
+
+  it('shows a timed-out date to both people as Date 09, until each has seen it (SHOWUP-200)', async () => {
+    const dateId = await makeDate(-130);
+    await dates.update(
+      { id: dateId },
+      {
+        status: DateStatus.TimedOut,
+        endReason: EndReason.TimedOut,
+        endEntry: EndEntry.AutoSwitch,
+        endedAt: new Date(),
+      },
+    );
+    const meetAt = (await dates.findOneByOrFail({ id: dateId })).scheduledAt;
+    for (const [who, name] of [
+      ['you', 'Leonie'],
+      ['leonie', 'Max'],
+    ] as const) {
+      const body = (await getDate(who)).body;
+      expect(body.date).toBeNull();
+      expect(body.ended).toMatchObject({
+        dateId,
+        name,
+        endedByYou: false,
+        reason: 'timed_out',
+        partnerScreen: 'date_timed_out',
+        meetAt: meetAt.toISOString(),
+      });
+    }
+    await request(server)
+      .post(`/dates/${dateId}/ended/seen`)
+      .set('Authorization', as('you'))
+      .expect(204);
+    expect((await getDate('you')).body.ended).toBeNull();
+    expect((await getDate('leonie')).body.ended).not.toBeNull();
   });
 
   it('shows a date three hours away as locked, with the agreed time and place', async () => {

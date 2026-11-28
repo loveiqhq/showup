@@ -5,8 +5,8 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 
 import { AnalyticsService } from '../analytics/analytics.service';
 import {
@@ -17,6 +17,7 @@ import {
 import { NotificationDispatchService } from '../notifications/services/notification-dispatch.service';
 import { Profile } from '../profiles/entities/profile.entity';
 import { firstName } from '../search/util/search-profile';
+import { REFUSAL_TEXT, refusalException } from './date-end.service';
 import { CreateArrivalCheckInDto } from './dto/arrival.dto';
 import { DateArrivalCheckIn } from './entities/date-arrival-check-in.entity';
 import { DateEntity } from './entities/date.entity';
@@ -46,6 +47,7 @@ export class ArrivalCheckInsService {
     private readonly profiles: Repository<Profile>,
     private readonly analytics: AnalyticsService,
     private readonly dispatch: NotificationDispatchService,
+    @InjectDataSource() private readonly db: DataSource,
   ) {}
 
   /**
@@ -59,19 +61,21 @@ export class ArrivalCheckInsService {
     now: Date = new Date(),
   ): Promise<DateArrivalCheckIn> {
     const date = await this.participantDate(dateId, userId);
-    if (date.status !== DateStatus.Confirmed) {
-      throw new ConflictException('This date is no longer active');
-    }
     const partnerId = date.userAId === userId ? date.userBId : date.userAId;
-    const partnerHasRow = await this.rows.exists({
-      where: { dateId, userId: partnerId },
-    });
 
+    // The status is re-read under a FOR SHARE lock in the transaction that writes, so the +2 h switch
+    // or an end (FOR UPDATE on the same row) cannot slip between the check and the INSERT.
     // One statement: insert, or replace the caller's own uncommitted row from another tap. No row
     // comes back for a resend of the same tap or for a committed row, and it never throws on the
     // unique index, so two concurrent taps resolve to one stored row.
-    const stored: Array<{ id: string }> = await this.rows.query(
-      `INSERT INTO ${TABLE}
+    const { stored, partnerHasRow } = await this.db.transaction(async (em) => {
+      await this.lockConfirmed(em, dateId);
+      const partnerHasRow = await em.exists(DateArrivalCheckIn, {
+        where: { dateId, userId: partnerId },
+      });
+      const stored = normalise<{ id: string }>(
+        await em.query(
+          `INSERT INTO ${TABLE}
          (date_id, user_id, location, accuracy_m, entry, client_id, checked_in_at)
        VALUES ($1, $2, ST_SetSRID(ST_MakePoint($3, $4), 4326)::geography, $5, $6, $7, $8)
        ON CONFLICT (date_id, user_id) DO UPDATE
@@ -80,17 +84,20 @@ export class ArrivalCheckInsService {
              checked_in_at = EXCLUDED.checked_in_at
          WHERE ${TABLE}.committed_at IS NULL AND ${TABLE}.client_id <> EXCLUDED.client_id
        RETURNING id`,
-      [
-        dateId,
-        userId,
-        dto.longitude,
-        dto.latitude,
-        dto.accuracyM ?? null,
-        dto.entry,
-        dto.clientId,
-        now,
-      ],
-    );
+          [
+            dateId,
+            userId,
+            dto.longitude,
+            dto.latitude,
+            dto.accuracyM ?? null,
+            dto.entry,
+            dto.clientId,
+            now,
+          ],
+        ),
+      );
+      return { stored, partnerHasRow };
+    });
 
     const row = await this.rows.findOneOrFail({ where: { dateId, userId } });
     if (stored.length === 0) {
@@ -119,15 +126,19 @@ export class ArrivalCheckInsService {
     now: Date = new Date(),
   ): Promise<void> {
     await this.participantDate(dateId, userId);
-    const removed: Array<{ entry: DateArrivalCheckIn['entry']; at: Date }> =
-      normalise(
-        await this.rows.query(
+    // Refused on EVERY non-confirmed date (epic rule 6: the uncommitted check-in is evidence), under
+    // a FOR SHARE lock so the +2 h switch cannot close the date between the check and the DELETE.
+    const removed = await this.db.transaction(async (em) => {
+      await this.lockConfirmed(em, dateId);
+      return normalise<{ entry: DateArrivalCheckIn['entry']; at: Date }>(
+        await em.query(
           `DELETE FROM ${TABLE}
             WHERE date_id = $1 AND user_id = $2 AND committed_at IS NULL
         RETURNING entry, checked_in_at AS at`,
           [dateId, userId],
         ),
       );
+    });
     if (removed.length > 0) {
       void this.analytics.trackServerEvent({
         userId,
@@ -154,19 +165,21 @@ export class ArrivalCheckInsService {
     now: Date = new Date(),
   ): Promise<void> {
     const date = await this.participantDate(dateId, userId);
-    // A date cancelled, ended in the chat or marked no-show while the check-in waited must not
-    // tell the person who ended it that the match "has arrived".
-    if (date.status !== DateStatus.Confirmed) {
-      throw new ConflictException('This date is no longer active');
-    }
-    const committed = normalise(
-      await this.rows.query(
-        `UPDATE ${TABLE} SET committed_at = $3
-          WHERE date_id = $1 AND user_id = $2 AND committed_at IS NULL
-      RETURNING id`,
-        [dateId, userId, now],
-      ),
-    );
+    // The status is re-read under a FOR SHARE lock, in the transaction that commits: the +2 h switch
+    // (FOR UPDATE on the same row) waits for this commit or goes first and this one is refused, so a
+    // check-in is never committed, and the match never told, after the date was closed. A date
+    // cancelled, ended in the chat or marked no-show while the check-in waited is refused alike.
+    const committed = await this.db.transaction(async (em) => {
+      await this.lockConfirmed(em, dateId);
+      return normalise<{ id: string }>(
+        await em.query(
+          `UPDATE ${TABLE} SET committed_at = $3
+            WHERE date_id = $1 AND user_id = $2 AND committed_at IS NULL
+        RETURNING id`,
+          [dateId, userId, now],
+        ),
+      );
+    });
     if (committed.length > 0) {
       // Before the push: the match's re-read on that push must already see the chat open.
       await this.openChat(date, now);
@@ -259,6 +272,20 @@ export class ArrivalCheckInsService {
           error instanceof Error ? error.name : 'unknown error'
         }`,
       );
+    }
+  }
+
+  /** Load the date FOR SHARE and refuse 409 `date_not_active` unless it is still confirmed. */
+  private async lockConfirmed(
+    em: EntityManager,
+    dateId: string,
+  ): Promise<void> {
+    const locked = await em.findOne(DateEntity, {
+      where: { id: dateId },
+      lock: { mode: 'pessimistic_read' },
+    });
+    if (!locked || locked.status !== DateStatus.Confirmed) {
+      throw refusalException('date_not_active', REFUSAL_TEXT.date_not_active);
     }
   }
 

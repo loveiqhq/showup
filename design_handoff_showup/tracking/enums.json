@@ -1,6 +1,12 @@
 {
-  "registry_version": "1.4.39",
+  "registry_version": "1.4.40",
   "registry_version_note": "Bump this on ANY change to a value set below. This is the string stamped into field_registry_version on every attribute event — it versions the vocabulary, not the taxonomy document.",
+  "changed_in_1_4_40": [
+    "§43 date_end_reason — timed_out NEW: nobody ended the date, the +2 h switch closed it. Date 09, 17 Nov 2026.",
+    "§45 end_entry — auto_switch NEW: the server's +2 h job.",
+    "§11 date_timed_out / Date - Timed out — NEW row, Date 09. Carried by screen_viewed.",
+    "§43 note: the 10 Nov rule 'partner_no_show → date_closed_positive when the match has checked in' removed (superseded 17 Nov 2026 by Date 08)."
+  ],
   "changed_in_1_4_39": [
     "§11 date_partner_ended_no_show · date_partner_ended_uncomfortable · date_partner_ended_met — NEW rows, Date 08 (17 Nov 2026). Carried by screen_viewed. No new events: Proceed to review fires nothing — flow 10's screen_viewed with referrer_screen_id measures it."
   ],
@@ -1329,6 +1335,14 @@
               "ticket": "Date 08",
               "status": "ticketed — not built",
               "notes": "Shown to the person whose match ended the date with We met (end_reason met) (ScreenDateClosed). Only exit: Proceed to review → flow 10. Added 17 Nov 2026 (registry 1.4.39)."
+            },
+            {
+              "screen_id": "date_timed_out",
+              "screen_name": "Date - Timed out",
+              "flow": "Date (07a Match & date confirmation)",
+              "ticket": "Date 09",
+              "status": "ticketed — not built",
+              "notes": "Shown to BOTH people when nobody ended the date and the +2 h switch closed it (end_reason timed_out) (ScreenDateTimedOut). Same screen whatever the check-ins. Only exit: Proceed to review → flow 10 normal review. Added 17 Nov 2026 (registry 1.4.40)."
             }
           ]
         }
@@ -1987,11 +2001,12 @@
       "id": "e43",
       "num": "43",
       "name": "date_end_reason",
-      "note": "HOW ONE PERSON ENDED THE DATE FROM A DATE 06 PATH (date_ended.end_reason; wrapup_outcome_selected.outcome uses met | partner_no_show). met = We met → End Date → Review · partner_no_show = My date isn't showing up → End date and review (End date sheet or Report) · uncomfortable = Report → I don't feel comfortable → Head out now. The match's Date 08 screen follows from it: met → date_closed_positive · partner_no_show → you_no_showed, or date_closed_positive when the match has checked in · uncomfortable → date_ended_discomfort. Created 10 Nov 2026 with Date 06.",
+      "note": "HOW ONE PERSON ENDED THE DATE FROM A DATE 06 PATH (date_ended.end_reason; wrapup_outcome_selected.outcome uses met | partner_no_show). met = We met → End Date → Review · partner_no_show = My date isn't showing up → End date and review (End date sheet or Report) · uncomfortable = Report → I don't feel comfortable → Head out now · timed_out = nobody ended it; the server's +2 h switch closed it (Date 09, 17 Nov 2026). The match's Date 08 screen follows from it: met → date_closed_positive · partner_no_show → you_no_showed (checked in or not, 17 Nov 2026) · uncomfortable → date_ended_discomfort · timed_out → both see date_timed_out. Created 10 Nov 2026 with Date 06.",
       "values": [
         "met",
         "partner_no_show",
-        "uncomfortable"
+        "uncomfortable",
+        "timed_out"
       ]
     },
     {
@@ -2010,11 +2025,12 @@
       "id": "e45",
       "num": "45",
       "name": "end_entry",
-      "note": "WHERE AN END STARTED (wrapup_opened.entry, date_ended.entry). end_date_bar = End Date on the End Date bar (after check-in) · checkin_bar_link = the End date link under the Check-in bar (before check-in) · report = the Report a problem sheet. Created 10 Nov 2026 with Date 06.",
+      "note": "WHERE AN END STARTED (wrapup_opened.entry, date_ended.entry). end_date_bar = End Date on the End Date bar (after check-in) · checkin_bar_link = the End date link under the Check-in bar (before check-in) · report = the Report a problem sheet · auto_switch = the server's +2 h job, no person (Date 09, 17 Nov 2026). Created 10 Nov 2026 with Date 06.",
       "values": [
         "end_date_bar",
         "checkin_bar_link",
-        "report"
+        "report",
+        "auto_switch"
       ]
     },
     {

@@ -1,6 +1,6 @@
 /*
  * PartnerEndedPreviews.kt
- * ShowUp · Date 08's three payloads at the narrowest phone (320 x 686) and the widest (430 x 932), from
+ * ShowUp · Date 08's four payloads at the narrowest phone (320 x 686) and the widest (430 x 932), from
  * [PartnerEndedSamples]. The fit sweep measures all the sizes between.
  */
 package com.showup.date.partnerend
@@ -26,3 +26,9 @@ import com.showup.date.PartnerScreen
 
 @Preview(name = "Date 08 · C met · 430", widthDp = 430, heightDp = 932)
 @Composable private fun PreviewC430() = PartnerEndedSamples.frame(PartnerScreen.DateClosedPositive)
+
+@Preview(name = "Date 09 · D timed out · 320", widthDp = 320, heightDp = 686)
+@Composable private fun PreviewD320() = PartnerEndedSamples.frame(PartnerScreen.DateTimedOut)
+
+@Preview(name = "Date 09 · D timed out · 430", widthDp = 430, heightDp = 932)
+@Composable private fun PreviewD430() = PartnerEndedSamples.frame(PartnerScreen.DateTimedOut)

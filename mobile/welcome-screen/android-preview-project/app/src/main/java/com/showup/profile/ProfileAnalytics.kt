@@ -230,6 +230,7 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     DatePartnerEndedNoShow("date_partner_ended_no_show", "Date - Partner ended no-show"),
     DatePartnerEndedUncomfortable("date_partner_ended_uncomfortable", "Date - Partner ended uncomfortable"),
     DatePartnerEndedMet("date_partner_ended_met", "Date - Partner ended met"),
+    DateTimedOut("date_timed_out", "Date - Timed out"),
 }
 
 /**
@@ -400,6 +401,7 @@ object Stamp {
      *
      * 1.4.38 (16 November 2026): §11 `date_location_gate` (Date 03); 1.4.35–1.4.37 add Date 05 / 06 / 07 value sets.
      * 1.4.39 (17 November 2026): §11 `date_partner_ended_*` rows (Date 08); the registry these apps ship with Date 06 / 07.
+     * 1.4.40 (28 November 2026): §11 `date_timed_out` (Date 09, SHOWUP-200), `timed_out` in `date_end_reason` and `auto_switch` in `end_entry`.
      *
      * 1.4.34 (10 November 2026): §41 `arrival_entry` (Date 03).
      *
@@ -439,7 +441,7 @@ object Stamp {
      * READ IT FROM HERE AND NOWHERE ELSE -- a payload stamped with a version the values did not
      * come from is worse than an unstamped one, because it looks checked.
      */
-    const val FIELD_REGISTRY_VERSION = "1.4.39"
+    const val FIELD_REGISTRY_VERSION = "1.4.40"
 
     fun of(sensitivityClass: Int): Map<String, Any> = mapOf(
         "sensitivity_class" to sensitivityClass,

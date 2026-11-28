@@ -8,6 +8,7 @@ import {
   QUEUE_ARRIVAL_RETENTION,
   QUEUE_CHANGE_EXPIRY,
   QUEUE_COORDINATE_UNLOCK,
+  QUEUE_DATE_TIMEOUT,
 } from '../../queue/queue.constants';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { CheckInsModule } from '../check-ins/check-ins.module';
@@ -32,6 +33,9 @@ import { ChangeExpiryScheduler } from './jobs/change-expiry.scheduler';
 import { CoordinateUnlockProcessor } from './jobs/coordinate-unlock.processor';
 import { ArrivalRetentionProcessor } from './jobs/arrival-retention.processor';
 import { ArrivalRetentionScheduler } from './jobs/arrival-retention.scheduler';
+import { DateTimeoutProcessor } from './jobs/date-timeout.processor';
+import { DateTimeoutScheduler } from './jobs/date-timeout.scheduler';
+import { DateTimeoutService } from './date-timeout.service';
 import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
 
 /** Date scheduling & lifecycle (Epic 7), and the Date screen's unlock job (Date 01). */
@@ -50,6 +54,7 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
     BullModule.registerQueue({ name: QUEUE_COORDINATE_UNLOCK }),
     BullModule.registerQueue({ name: QUEUE_ARRIVAL_RETENTION }),
     BullModule.registerQueue({ name: QUEUE_CHANGE_EXPIRY }),
+    BullModule.registerQueue({ name: QUEUE_DATE_TIMEOUT }),
     CheckInsModule,
     LocationModule,
     AnalyticsModule,
@@ -64,6 +69,9 @@ import { CoordinateUnlockScheduler } from './jobs/coordinate-unlock.scheduler';
     ChangeSuggestionsService,
     DateEndService,
     DateCancelService,
+    DateTimeoutService,
+    DateTimeoutScheduler,
+    DateTimeoutProcessor,
     ChangeExpiryScheduler,
     ChangeExpiryProcessor,
     CoordinateUnlockScheduler,

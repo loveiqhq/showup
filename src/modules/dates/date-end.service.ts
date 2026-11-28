@@ -168,6 +168,8 @@ export class DateEndService {
         dateId,
         endReason: dto.reason,
         entry: dto.entry,
+        checkedInCount:
+          Number(done.enderCheckedIn) + Number(done.partnerCheckedIn),
         enderCheckedIn: done.enderCheckedIn,
         partnerCheckedIn: done.partnerCheckedIn,
         minutesVsStart: minutesVsStart(done.locked.scheduledAt, now),

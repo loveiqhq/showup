@@ -198,6 +198,7 @@ internal fun CheckInGalleryFrame(state: String, leave: () -> Unit = {}) {
         "199A", "199A-chat" -> com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.YouNoShowed)
         "199B" -> com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.DateEndedDiscomfort)
         "199C" -> com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.DateClosedPositive)
+        "200", "200-chat" -> com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.DateTimedOut)
         else -> Text("Unknown state $state")
     }
 }

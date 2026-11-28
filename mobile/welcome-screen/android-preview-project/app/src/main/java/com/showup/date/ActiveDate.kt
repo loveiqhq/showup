@@ -87,6 +87,8 @@ data class EndedOutcome(
     val photoUrl: String? = null,
     val reason: OutcomeReason = OutcomeReason.Chat,
     val partnerScreen: PartnerScreen? = null,
+    /** The latest agreed meet time, for Date 09's `{time}`; null from a server that does not send it. */
+    val meetAt: Instant? = null,
 )
 
 /** How an ended date ended, the server's `reason`. */
@@ -95,7 +97,10 @@ enum class OutcomeReason(val wire: String) {
     Cancelled("cancelled"),
     Met("met"),
     PartnerNoShow("partner_no_show"),
-    Uncomfortable("uncomfortable");
+    Uncomfortable("uncomfortable"),
+
+    /** The +2 h switch closed the date; nobody ended it (Date 09). */
+    TimedOut("timed_out");
 
     companion object {
         /** A payload with no reason is an older server's, from when the chat was the only way a date ended. */
@@ -107,7 +112,8 @@ enum class OutcomeReason(val wire: String) {
 enum class PartnerScreen(val wire: String) {
     DateClosedPositive("date_closed_positive"),
     YouNoShowed("you_no_showed"),
-    DateEndedDiscomfort("date_ended_discomfort");
+    DateEndedDiscomfort("date_ended_discomfort"),
+    DateTimedOut("date_timed_out");
 
     companion object {
         fun fromWire(wire: String?): PartnerScreen? = entries.firstOrNull { it.wire == wire }

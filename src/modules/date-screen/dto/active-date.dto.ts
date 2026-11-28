@@ -10,6 +10,7 @@ export const ENDED_REASONS = [
   'met',
   'partner_no_show',
   'uncomfortable',
+  'timed_out',
 ] as const;
 export type EndedReason = (typeof ENDED_REASONS)[number];
 
@@ -18,6 +19,7 @@ export const PARTNER_SCREENS = [
   'date_closed_positive',
   'you_no_showed',
   'date_ended_discomfort',
+  'date_timed_out',
 ] as const;
 export type PartnerScreenName = (typeof PARTNER_SCREENS)[number];
 
@@ -236,6 +238,12 @@ export class EndedOutcomeDto {
       "The other person's first photo that may be shown, for G or H drawn without the date held -- at the next launch",
   })
   photoUrl?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ISO 8601: the latest agreed meet time of the date that ended. Set on every outcome the read returns.',
+  })
+  meetAt?: string;
 }
 
 /**

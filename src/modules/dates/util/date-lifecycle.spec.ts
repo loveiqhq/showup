@@ -19,6 +19,14 @@ describe('date lifecycle state machine', () => {
     }
   });
 
+  it('lets a confirmed date time out (Date 09), and nothing follows it', () => {
+    expect(DateStatus.TimedOut).toBe('timed_out');
+    expect(canTransition(DateStatus.Confirmed, DateStatus.TimedOut)).toBe(true);
+    for (const to of Object.values(DateStatus)) {
+      expect(canTransition(DateStatus.TimedOut, to)).toBe(false);
+    }
+  });
+
   it('allows the moves out of "confirmed"', () => {
     expect(canTransition(DateStatus.Confirmed, DateStatus.Cancelled)).toBe(
       true,

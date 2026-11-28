@@ -175,25 +175,53 @@ describe('date analytics events', () => {
     });
   });
 
-  it('date_ended carries the six fields and nothing else', () => {
-    expect(
+  it('date_ended of a Date 06 end carries checked_in_count and the six old fields', () => {
+    const base = {
+      dateId: 'd1',
+      endReason: 'partner_no_show',
+      entry: 'report',
+      minutesVsStart: -5,
+    };
+    const props = (e: boolean, p: boolean, n: number) =>
       dateEndedEvent({
-        dateId: 'd1',
-        endReason: 'partner_no_show',
-        entry: 'report',
-        enderCheckedIn: true,
-        partnerCheckedIn: false,
-        minutesVsStart: -5,
-      }),
-    ).toEqual({
+        ...base,
+        enderCheckedIn: e,
+        partnerCheckedIn: p,
+        checkedInCount: n,
+      });
+    expect(props(true, false, 1)).toEqual({
       eventName: DATE_ENDED,
       properties: {
         date_id: 'd1',
         end_reason: 'partner_no_show',
         entry: 'report',
+        checked_in_count: 1,
         ender_checked_in: true,
         partner_checked_in: false,
         minutes_vs_start: -5,
+      },
+    });
+    expect(props(false, false, 0).properties.checked_in_count).toBe(0);
+    expect(props(true, true, 2).properties.checked_in_count).toBe(2);
+  });
+
+  it('date_ended of a timed-out date omits the two per-person flags', () => {
+    expect(
+      dateEndedEvent({
+        dateId: 'd9',
+        endReason: 'timed_out',
+        entry: 'auto_switch',
+        checkedInCount: 1,
+        minutesVsStart: 120,
+      }),
+    ).toEqual({
+      eventName: DATE_ENDED,
+      properties: {
+        date_id: 'd9',
+        end_reason: 'timed_out',
+        entry: 'auto_switch',
+        checked_in_count: 1,
+        minutes_vs_start: 120,
       },
     });
   });

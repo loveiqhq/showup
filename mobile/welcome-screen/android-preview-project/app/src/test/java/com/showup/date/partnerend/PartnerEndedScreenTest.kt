@@ -38,7 +38,7 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w390dp-h844dp-xhdpi")
 class PartnerEndedScreenTest {
-    private class Expect(val screen: PartnerScreen, val texts: List<String>, val rows: List<String>)
+    private class Expect(val screen: PartnerScreen, val texts: List<String>, val rows: List<String>, val meetTime: String? = null)
 
     private val a = Expect(
         PartnerScreen.YouNoShowed,
@@ -70,6 +70,26 @@ class PartnerEndedScreenTest {
         ),
     )
 
+    private val dRows = listOf(
+        "If you met, we hope you had a great time. Either way, tell us how it went in the review.",
+        "Once the review is done, you're free to search for your next date.",
+    )
+    private val d24 = Expect(
+        PartnerScreen.DateTimedOut,
+        listOf("Your date has ended.", "We closed your date with Leonie automatically, 2 hours after the meet time (19:00)."),
+        dRows, meetTime = "19:00",
+    )
+    private val d12 = Expect(
+        PartnerScreen.DateTimedOut,
+        listOf("Your date has ended.", "We closed your date with Leonie automatically, 2 hours after the meet time (7:00 PM)."),
+        dRows, meetTime = "7:00 PM",
+    )
+    private val dNoTime = Expect(
+        PartnerScreen.DateTimedOut,
+        listOf("Your date has ended.", "We closed your date with Leonie automatically, 2 hours after the meet time."),
+        dRows,
+    )
+
     private fun texts(node: SemanticsNode, out: MutableList<String> = mutableListOf()): List<String> {
         // WashHeadline binds the washed run with no-break spaces so it never wraps inside; the ticket's are plain.
         node.config.getOrNull(SemanticsProperties.Text)?.let { l -> out += l.joinToString("") { it.text }.replace(' ', ' ') }
@@ -78,7 +98,7 @@ class PartnerEndedScreenTest {
     }
 
     private fun render(e: Expect, check: (List<String>) -> Unit) = runComposeUiTest {
-        setContent { PartnerEndedScreen(e.screen, "Leonie", null) {} }
+        setContent { PartnerEndedScreen(e.screen, "Leonie", null, e.meetTime) {} }
         waitForIdle()
         check(texts(onRoot(useUnmergedTree = true).fetchSemanticsNode()))
     }
@@ -92,6 +112,25 @@ class PartnerEndedScreenTest {
     @Test fun `A reads the ticket exactly`() = readsTheTicket(a)
     @Test fun `B reads the ticket exactly`() = readsTheTicket(b)
     @Test fun `C reads the ticket exactly`() = readsTheTicket(c)
+    @Test fun `D reads the ticket exactly with a 24 h time`() = readsTheTicket(d24)
+    @Test fun `D reads the ticket exactly with a 12 h time`() = readsTheTicket(d12)
+    @Test fun `D with no time drops the parenthesis and never shows a placeholder`() = readsTheTicket(dNoTime)
+
+    @Test
+    fun `D shows no verdict, no pronoun about the match and no digit but the time`() = render(d12) { all ->
+        val joined = all.joinToString("\n")
+        assertFalse(Regex("\\b(she|he|her|his|him|hers|they|them|their)\\b", RegexOption.IGNORE_CASE).containsMatchIn(joined))
+        assertFalse(joined.contains("no-show", ignoreCase = true))
+        assertFalse(joined.contains("uncomfortable", ignoreCase = true))
+        // The clock and the "2 hours" are the only digits.
+        assertFalse(Regex("\\d").containsMatchIn(joined.replace("7:00 PM", "").replace("2 hours", "")))
+    }
+
+    @Test
+    fun `D draws the match photo, not the heart disc`() {
+        assertTrue(partnerEndedPayload(PartnerScreen.DateTimedOut).usesPhoto)
+        assertFalse(partnerEndedPayload(PartnerScreen.DateClosedPositive).usesPhoto)
+    }
 
     @Test
     fun `Proceed to review is the only click action on each payload`() = runComposeUiTest {
@@ -131,7 +170,7 @@ class PartnerEndedScreenTest {
             val headings = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading), useUnmergedTree = true)
                 .fetchSemanticsNodes()
             assertEquals("$s: one heading", 1, headings.size)
-            assertTrue(texts(headings.single()).any { it.startsWith("Leonie ended the date") })
+            assertTrue(texts(headings.single()).any { it.startsWith("Leonie ended the date") || it.startsWith("Your date has ended") })
         }
     }
 

@@ -362,7 +362,7 @@ describe('Arrival check-in (e2e)', () => {
   });
 
   it.each([[DateStatus.EndedInChat], [DateStatus.Cancelled]])(
-    'commit on a date that became %s while pending is 409 with no push; undo still works',
+    'commit on a date that became %s while pending is 409 with no push; undo is 409 date_not_active and the row stays',
     async (status) => {
       await create('you', body()).expect(201);
       await dates.update({ id: dateId }, { status });
@@ -370,8 +370,9 @@ describe('Arrival check-in (e2e)', () => {
       expect(pushes).toHaveLength(0);
       const [row] = await rows();
       expect(row.committed_at).toBeNull();
-      await undo('you').expect(204);
-      expect(await rows()).toHaveLength(0);
+      const undone = await undo('you').expect(409);
+      expect(undone.body).toMatchObject({ code: 'date_not_active' });
+      expect(await rows()).toHaveLength(1);
     },
   );
 

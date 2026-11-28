@@ -1422,4 +1422,24 @@ class EvidenceScreenshots {
         assertEquals("three payloads at the three sizes, two scrolled to the end", 11, images.size)
         images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
     }
+
+    /**
+     * SHOWUP-200's evidence: Date 09, "Your date has ended", at the three frames the ticket names -- 3 images -- and
+     * again at 375 x 667 scrolled to the end, where the CTA is the last item (1 more). Its sub carries the meet time.
+     */
+    @Test
+    fun `SHOWUP-200 Your date has ended`() {
+        val tight = DEVICES.filter { it.width == 375 && it.height == 667 }
+        val before = written.size
+        shoot("SHOWUP-200", "timed-out") {
+            com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.DateTimedOut)
+        }
+        val end = ScrollState(0)
+        shoot("SHOWUP-200", "timed-out-scrolled-end", devices = tight, scrolled = end) {
+            com.showup.date.partnerend.PartnerEndedSamples.frame(com.showup.date.PartnerScreen.DateTimedOut, scroll = end)
+        }
+        val images = written.drop(before)
+        assertEquals("the payload at the three sizes, once scrolled to the end", 4, images.size)
+        images.forEach { name -> assertTrue("$name is too small to be a rendered screen", File(out, name).length() > 5_000) }
+    }
 }

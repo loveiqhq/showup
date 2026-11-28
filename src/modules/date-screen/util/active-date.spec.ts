@@ -88,6 +88,9 @@ describe('unreadOf', () => {
   });
 });
 
+const MEET = new Date('2026-11-03T18:00:00Z');
+const MEET_ISO = '2026-11-03T18:00:00.000Z';
+
 describe('endedOutcomeOf (Date 02)', () => {
   const ended = {
     id: 'd1',
@@ -95,6 +98,7 @@ describe('endedOutcomeOf (Date 02)', () => {
     userAId: VIEWER,
     userBId: PARTNER,
     endedById: VIEWER as string | null,
+    scheduledAt: MEET,
     aEndSeenAt: null as Date | null,
     bEndSeenAt: null as Date | null,
   };
@@ -105,12 +109,14 @@ describe('endedOutcomeOf (Date 02)', () => {
       name: 'Leonie',
       endedByYou: true,
       reason: 'chat',
+      meetAt: MEET_ISO,
     });
     expect(endedOutcomeOf(ended, PARTNER, 'Max')).toEqual({
       dateId: 'd1',
       name: 'Max',
       endedByYou: false,
       reason: 'chat',
+      meetAt: MEET_ISO,
     });
   });
 
@@ -138,6 +144,7 @@ describe('endedOutcomeOf (Date 06, R3)', () => {
     userAId: VIEWER,
     userBId: PARTNER,
     endedById: VIEWER as string | null,
+    scheduledAt: MEET,
     endReason: EndReason.Met as EndReason | null,
     aEndSeenAt: null as Date | null,
     bEndSeenAt: null as Date | null,
@@ -152,6 +159,7 @@ describe('endedOutcomeOf (Date 06, R3)', () => {
         name: 'Leonie',
         endedByYou: true,
         reason,
+        meetAt: MEET_ISO,
       });
     }
   });
@@ -184,6 +192,45 @@ describe('endedOutcomeOf (Date 06, R3)', () => {
   });
 });
 
+describe('endedOutcomeOf (Date 09, timed out)', () => {
+  const timedOut = {
+    id: 'd9',
+    status: DateStatus.TimedOut,
+    userAId: VIEWER,
+    userBId: PARTNER,
+    endedById: null as string | null,
+    scheduledAt: MEET,
+    endReason: EndReason.TimedOut as EndReason | null,
+    aEndSeenAt: null as Date | null,
+    bEndSeenAt: null as Date | null,
+  };
+
+  it('reads the same to both people: nobody ended it, both get Date 09', () => {
+    for (const [viewer, name] of [
+      [VIEWER, 'Leonie'],
+      [PARTNER, 'Max'],
+    ] as const) {
+      expect(endedOutcomeOf(timedOut, viewer, name)).toEqual({
+        dateId: 'd9',
+        name,
+        endedByYou: false,
+        reason: 'timed_out',
+        partnerScreen: 'date_timed_out',
+        meetAt: MEET_ISO,
+      });
+    }
+  });
+
+  it('is null once that person has seen it, each side on its own', () => {
+    expect(
+      endedOutcomeOf({ ...timedOut, aEndSeenAt: new Date() }, VIEWER, 'L'),
+    ).toBeNull();
+    expect(
+      endedOutcomeOf({ ...timedOut, aEndSeenAt: new Date() }, PARTNER, 'M'),
+    ).not.toBeNull();
+  });
+});
+
 describe('endedOutcomeOf (Date 07, cancelled)', () => {
   const cancelled = {
     id: 'date-1',
@@ -191,6 +238,7 @@ describe('endedOutcomeOf (Date 07, cancelled)', () => {
     userAId: VIEWER,
     userBId: PARTNER,
     endedById: null as string | null,
+    scheduledAt: MEET,
     cancelledById: VIEWER as string | null,
     penaltyPoints: 10 as number | null,
     aEndSeenAt: null,
@@ -203,12 +251,14 @@ describe('endedOutcomeOf (Date 07, cancelled)', () => {
       name: 'Leonie',
       endedByYou: true,
       reason: 'cancelled',
+      meetAt: MEET_ISO,
     });
     expect(endedOutcomeOf(cancelled, PARTNER, 'Max')).toEqual({
       dateId: 'date-1',
       name: 'Max',
       endedByYou: false,
       reason: 'cancelled',
+      meetAt: MEET_ISO,
     });
   });
 

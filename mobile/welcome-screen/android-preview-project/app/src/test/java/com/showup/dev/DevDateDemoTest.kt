@@ -70,7 +70,7 @@ class DevDateDemoTest {
             ChangeSamples.LETTERS.map { "196$it" to it } +
                 DateEndSamples.LETTERS.map { "197$it" to "197$it" } +
                 CancelSamples.LETTERS.map { "198$it" to "198$it" } +
-                listOf("199A", "199B", "199C", "199A-chat").map { it to it },
+                listOf("199A", "199B", "199C", "199A-chat", "200", "200-chat").map { it to it },
             live,
         )
         assertNull(devLiveFrame(DevState("195A", "SHOWUP-195", "A")))
@@ -437,6 +437,38 @@ class DevDateDemoTest {
         assertEquals(EndReason.PartnerNoShow, demoPartnerEnd("199A-chat")!!.reason)
         assertEquals(3_000L, demoPartnerEnd("199A-chat")!!.afterMs)
         assertNull(demoPartnerEnd("197A"))
+    }
+
+    @Test
+    fun `200 frames are live, the switch landing at once on the Date screen and three seconds into the chat`() {
+        assertTrue("200" in DEV_LIVE_FRAMES && "200-chat" in DEV_LIVE_FRAMES)
+        assertTrue(demoPartnerEnd("200")!!.timesOut)
+        assertEquals(0L, demoPartnerEnd("200")!!.afterMs)
+        assertTrue(demoPartnerEnd("200-chat")!!.timesOut)
+        assertEquals(3_000L, demoPartnerEnd("200-chat")!!.afterMs)
+        assertFalse(demoPartnerEnd("199A")!!.timesOut)
+        assertEquals(DemoLanding.DateScreen, demoLanding("200"))
+        assertEquals(DemoLanding.Chat, demoLanding("200-chat"))
+        assertEquals(emptyList<DemoStep>(), demoSteps("200"))
+        assertEquals(emptyList<DemoStep>(), demoSteps("200-chat"))
+        assertEquals("200", devLiveFrame(DevState("200", "SHOWUP-200 Your date has ended", "200 · Your date has ended")))
+        assertEquals("200-chat", devLiveFrame(DevState("200-chat", "SHOWUP-200 Your date has ended", "200-chat · In the chat when the switch lands")))
+    }
+
+    @Test
+    fun `the demo's switch ends the date for both with Date 09's payload, the meet time, and unseen`() = runTest {
+        val d = demo("200")
+        val meetAt = d.read().meetAt
+        assertTrue(d.timesOut().getOrThrow())
+        val o = ((d.active("Europe/Berlin") as Outcome.Ok).value as DateRead.Ended).outcome
+        assertEquals(OutcomeReason.TimedOut, o.reason)
+        assertEquals(PartnerScreen.DateTimedOut, o.partnerScreen)
+        assertFalse(o.endedByYou)
+        assertEquals(meetAt, o.meetAt)
+        // A second switch does nothing: the date is over.
+        assertFalse(d.timesOut().getOrThrow())
+        // Late actions are refused with the shared code, so the sheets re-read.
+        assertEquals(EndDateResult.Refused("date_not_active"), d.end(o.dateId, EndReason.Met, EndEntry.EndDateBar))
     }
 
     @Test

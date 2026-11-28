@@ -1235,7 +1235,8 @@
               "no_show_reported",
               "disputed",
               "ended_in_chat",
-              "ended"
+              "ended",
+              "timed_out"
             ],
             "type": "string"
           },
@@ -1568,6 +1569,10 @@
           "endedByYou": {
             "type": "boolean"
           },
+          "meetAt": {
+            "description": "ISO 8601: the latest agreed meet time of the date that ended. Set on every outcome the read returns.",
+            "type": "string"
+          },
           "name": {
             "description": "The other person's first name",
             "type": "string"
@@ -1606,7 +1611,8 @@
           "cancelled",
           "met",
           "partner_no_show",
-          "uncomfortable"
+          "uncomfortable",
+          "timed_out"
         ],
         "type": "string"
       },
@@ -2317,7 +2323,8 @@
         "enum": [
           "date_closed_positive",
           "you_no_showed",
-          "date_ended_discomfort"
+          "date_ended_discomfort",
+          "date_timed_out"
         ],
         "type": "string"
       },
