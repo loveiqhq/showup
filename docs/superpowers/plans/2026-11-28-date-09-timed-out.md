@@ -44,7 +44,7 @@
 3. Two sweeps (or a crashed retry) never close twice nor fire `date_ended` twice. Test: Task 2.
 4. An agreed later time moves the switch; a pending suggestion and an agreed place change do not. Test: Task 2.
 5. With the switch off nothing closes; the dev frames still show the screen. Tests: Task 2, Task 4 / 5 dev.
-6. A / B / C render pixel-identically after `BadgeTone`. Test: Task 3 (evidence diff of the 199 shots).
+6. A / B / C render pixel-identically after `PartnerBadgeTone`. Test: Task 3 (evidence diff of the 199 shots).
 
 ---
 
@@ -170,16 +170,16 @@
 - [ ] **Step 4:** `npm run lint:ci && npm test` and `npm run test:cov` (util thresholds hold). Run `test/date-timeout.e2e-spec.ts` if Postgres is up.
 - [ ] **Step 5:** commit `feat(dates): the +2 h switch closes a date nobody ended, off until flow 10 (SHOWUP-200)`; push.
 
-### Task 3: Android — the fourth payload, `BadgeTone`, `{time}`
+### Task 3: Android — the fourth payload, `PartnerBadgeTone`, `{time}`
 
 **Files** (main code under `mobile/welcome-screen/android-preview-project/app/src/main/java/com/showup/`):
 - Modify:
   - `date/ActiveDate.kt`: `PartnerScreen.DateTimedOut("date_timed_out")`, `OutcomeReason.TimedOut("timed_out")`, and `EndedOutcome.meetAt: Instant?` (nullable, default null).
   - `date/DateEndRepository.kt`: map `meetAt` and both new wire values in `toOutcome`.
-  - `date/partnerend/PartnerEndedRules.kt`: `enum class BadgeTone { Orange, Success, Violet }` replaces `badgeSuccess`; payload D per R8; `partnerEndedScreenId` D → `ProfileScreen.DateTimedOut`.
+  - `date/partnerend/PartnerEndedRules.kt`: `enum class PartnerBadgeTone { Orange, Success, Violet }` replaces `badgeSuccess`; payload D per R8; `partnerEndedScreenId` D → `ProfileScreen.DateTimedOut`.
   - `profile/ProfileAnalytics.kt`: add the row `ProfileScreen.DateTimedOut("date_timed_out", "Date - Timed out")` here, because the `when` is exhaustive. Task 4 bumps the stamp.
   - `date/partnerend/PartnerEndedCopy.kt`: a `// D ·` section after C with `D_HEADLINE_LEAD` `Your date has `, `D_HEADLINE_ITALIC` `ended.`, `dSub(name, time)` and `D_SUB_NO_TIME`, and `D_ROWS` as `Run` lists with the bold pieces.
-  - `date/partnerend/PartnerEndedScreen.kt`: the badge colour from `BadgeTone`; the D branches of the headline and sub `when`s; a new `meetTime: String?` parameter (the formatted clock, null → no-time sub).
+  - `date/partnerend/PartnerEndedScreen.kt`: the badge colour from `PartnerBadgeTone`; the D branches of the headline and sub `when`s; a new `meetTime: String?` parameter (the formatted clock, null → no-time sub).
   - `date/partnerend/PartnerEndedSamples.kt` + `PartnerEndedPreviews.kt`: add D (sample time `19:00`).
 - Create: `date/partnerend/MeetClock.kt`: `fun meetClock(meetAt: Instant, zone: ZoneId, is24h: Boolean): String`, giving `HH:mm` or `h:mm a` with `Locale.ENGLISH` AM/PM.
 - Test (under `app/src/test/java/com/showup/`):
@@ -192,14 +192,14 @@
 - Consumes: the OpenAPI `PartnerScreen.date_timed_out` / `EndedReason.timed_out` / `meetAt` from Task 1 (the Gradle build regenerates the client from the root `openapi.json`).
 - Produces:
   - `PartnerScreen.DateTimedOut`, `OutcomeReason.TimedOut`, `EndedOutcome.meetAt`;
-  - `BadgeTone`, `ProfileScreen.DateTimedOut`;
+  - `PartnerBadgeTone`, `ProfileScreen.DateTimedOut`;
   - `PartnerEndedScreen(screen, name, photoUrl, meetTime: String?, scroll, onProceed)`;
   - `meetClock(...)`.
 
 - [ ] **Step 1: failing tests.**
   - Rules:
-    - D maps to lilac, padding 24 / 30, gap 18, `usesPhoto = true`, `BadgeTone.Violet`, Clock 15 / 2.6, rows top 18, rows Heart / Search, `RowAccent.Violet`;
-    - A / B / C keep their values, with `BadgeTone.Orange` / `Orange` / `Success`;
+    - D maps to lilac, padding 24 / 30, gap 18, `usesPhoto = true`, `PartnerBadgeTone.Violet`, Clock 15 / 2.6, rows top 18, rows Heart / Search, `RowAccent.Violet`;
+    - A / B / C keep their values, with `PartnerBadgeTone.Orange` / `Orange` / `Success`;
     - the shared-layout test covers D.
   - Screen:
     - D reads the ticket's headline, sub (with `19:00` and with `7:00 PM`) and both rows exactly;
@@ -215,7 +215,7 @@
   - Fit: D at the 17 `FitHarness` sizes and the largest-type row (no clip, CTA reachable, CTA below the last row); at 375 × 667, state in the report whether D's CTA needs a scroll.
 - [ ] **Step 2:** run them and see them fail (`--tests "com.showup.date.partnerend.*" --tests "com.showup.fit.PartnerEndedFitTest"`).
 - [ ] **Step 3:** implement. One layout: D only adds a payload row and copy. The badge uses `Purple` for Violet.
-- [ ] **Step 4:** run the tests above. Then run `-Pevidence` for the existing SHOWUP-199 shots, if the harness allows a filter, and confirm they are byte-identical to the committed ones (A / B / C unchanged by `BadgeTone`). If they cannot be filtered, say so.
+- [ ] **Step 4:** run the tests above. Then run `-Pevidence` for the existing SHOWUP-199 shots, if the harness allows a filter, and confirm they are byte-identical to the committed ones (A / B / C unchanged by `PartnerBadgeTone`). If they cannot be filtered, say so.
 - [ ] **Step 5:** commit `feat(date): Date 09's payload on PartnerEndedScreen, with the meet time in the device's clock, on Android (SHOWUP-200)`; push.
 
 ### Task 4: Android — routing, closing what is open, tracking, dev frames, evidence
@@ -270,7 +270,7 @@
 - Modify:
   - `ActiveDate.swift` (`PartnerScreen.dateTimedOut`, the reason `.timedOut`, `EndedOutcome.meetAt: Date?`)
   - the outcome mapping (wherever `toOutcome`'s twin lives)
-  - `PartnerEndedRules.swift` (`BadgeTone`, payload D, `partnerEndedHeadline` / `partnerEndedSub(screen:name:meetTime:)` / `partnerEndedScreenID`)
+  - `PartnerEndedRules.swift` (`PartnerBadgeTone`, payload D, `partnerEndedHeadline` / `partnerEndedSub(screen:name:meetTime:)` / `partnerEndedScreenID`)
   - `PartnerEndedCopy.swift` (`// D ·` section)
   - `PartnerEndedScreen.swift` (`meetTime: String?`)
   - `PartnerEndedSamples.swift`, `PartnerEndedPreviews.swift`
@@ -287,7 +287,7 @@
   - `EvidenceShots.swift` (the 200 shots)
 - Regenerate the project with `python gen_pbxproj.py`.
 
-**Interfaces:** the Swift spellings of Tasks 3 / 4: `BadgeTone`, `PartnerScreen.dateTimedOut`, `meetClock(_:timeZone:is24h:)`, `PartnerEndedScreen(screen:name:photoURL:meetTime:onProceed:)`, `ArrivalGateModel.discardForPartnerEnd()`, `ProfileScreen.dateTimedOut`, dev ids `200` / `200-chat`.
+**Interfaces:** the Swift spellings of Tasks 3 / 4: `PartnerBadgeTone`, `PartnerScreen.dateTimedOut`, `meetClock(_:timeZone:is24h:)`, `PartnerEndedScreen(screen:name:photoURL:meetTime:onProceed:)`, `ArrivalGateModel.discardForPartnerEnd()`, `ProfileScreen.dateTimedOut`, dev ids `200` / `200-chat`.
 
 - [ ] **Step 1: failing tests** mirroring every Task 3 / 4 test name. Add `deviceUses24h`: true for `de_DE`, false for `en_US`.
 - [ ] **Step 2:** iOS cannot run here (no Mac); say so.

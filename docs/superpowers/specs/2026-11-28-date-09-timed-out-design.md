@@ -100,7 +100,7 @@ switch, and a last message.
   - **The avatar is the match's photo** (`MatchPhoto` 76, as A / B), not C's heart disc.
   - **The badge is violet** (primary 500, the `Purple` token) with `clock` 15 / stroke 2.6.
   - Rows start 18 below the hero; `heart` and `search` are violet 500 on violet 12 % (C's rows, D's copy).
-  - The badge colour becomes a three-way `BadgeTone { Orange, Success, Violet }`, replacing `badgeSuccess`. A / B / C
+  - The badge colour becomes a three-way `PartnerBadgeTone { Orange, Success, Violet }`, replacing `badgeSuccess`. A / B / C
     render identically. Every other layout value is the shared one (an AC: switching payloads changes no layout value).
 - **R9 — `{time}`.** A pure `meetClock(meetAt, zone, is24h)`: 24 h gives `HH:mm` (`19:00`), 12 h gives `h:mm a` with
   English AM/PM (`7:00 PM`); the app's copy is English.
@@ -152,4 +152,4 @@ Apostrophes as the ticket writes them (straight `'`). `{name}` is the match's fi
 3. Two sweeps (or a crashed retry) never close a date twice nor fire `date_ended` twice.
 4. An agreed later time moves the switch; a pending suggestion and an agreed place change do not.
 5. With the switch off, nothing closes, and the screen is still reachable from dev frames.
-6. A / B / C render pixel-identically after the `BadgeTone` change.
+6. A / B / C render pixel-identically after the `PartnerBadgeTone` change.
