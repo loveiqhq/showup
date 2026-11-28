@@ -18,6 +18,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -61,6 +63,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -225,6 +228,44 @@ class PartnerEndedRoutingTest {
         showing = true
         waitForIdle()
         assertEquals(2, analytics.of("screen_viewed").size)
+    }
+
+    @get:Rule val rule = createComposeRule()
+
+    @Test
+    fun `a rotation is not a second view, a restore after process death is`() {
+        val analytics = RecordingAnalytics()
+        val events = ChatHostEvents(analytics)
+        val tester = StateRestorationTester(rule)
+        tester.setContent {
+            WithBack(OnBackPressedDispatcher()) {
+                PartnerEndedRoute(
+                    PartnerScreen.DateClosedPositive, "Leonie", null,
+                    onShown = { events.partnerEndedShown(PartnerScreen.DateClosedPositive, ProfileScreen.DateScreen) },
+                    onProceed = {},
+                )
+            }
+        }
+        rule.waitForIdle()
+        assertEquals(1, analytics.of("screen_viewed").size)
+        // Configuration change: same process, state saved and restored.
+        tester.emulateSavedInstanceStateRestore()
+        rule.waitForIdle()
+        assertEquals("a rotation adds no view", 1, analytics.of("screen_viewed").size)
+        // Process death: the restore happens in a new process.
+        val before = partnerEndedProcessId
+        try {
+            partnerEndedProcessId = "a-new-process"
+            tester.emulateSavedInstanceStateRestore()
+            rule.waitForIdle()
+            assertEquals("B reopening the app is a view", 2, analytics.of("screen_viewed").size)
+            // ...and a rotation after that one is again not.
+            tester.emulateSavedInstanceStateRestore()
+            rule.waitForIdle()
+            assertEquals(2, analytics.of("screen_viewed").size)
+        } finally {
+            partnerEndedProcessId = before
+        }
     }
 
     // -- no exit -----------------------------------------------------------------------------
