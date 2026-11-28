@@ -380,6 +380,14 @@ private struct TutorialFlow: View {
     @State private var landedOnce = LandedOnce()
     /// Where G or H was reached from, for its `screen_viewed` referrer.
     @State private var outcomeFrom: ProfileScreen = .dateScreen
+    // ── what the other side sees (SHOWUP-199, Date 08) ────────────────────────
+    //
+    /// Where Date 08 was reached from, for its `screen_viewed` referrer: none on a launch, when nothing led there.
+    @State private var partnerEndedFrom: ProfileScreen?
+    /// Date 08 shows once per ended date: the chat's poll and the Date screen's read can both see one end.
+    @State private var partnerEndedOnce = LandedOnce()
+    /// `Proceed to review` starts the review (flow 10's slot) once per date.
+    @State private var reviewStarted = LandedOnce()
     /// The share sheet's sentence while it is up, and the calendar sheet's event.
     @State private var sharingText: String?
     @State private var calendarSheetEvent: CalendarEvent?
@@ -444,6 +452,8 @@ private struct TutorialFlow: View {
                     // A swipe back off a chat destination: the chat closes, G or H moves on to Search.
                     if !chatPath.isEmpty {
                         if path.count < chatPath.count {
+                            // Date 08 has no way out but Proceed to review (R6): the pop is refused, the path stays.
+                            guard canGoBack(from: chatPath.last) else { return }
                             // Back off the picker is Cancel (fires `change_picker_dismissed`); the model refuses
                             // it while a send is in flight, and the path then stays as it is.
                             if case .changePicker? = chatPath.last { changeModel?.cancel(); return }
@@ -849,6 +859,9 @@ private struct TutorialFlow: View {
         dateCancel = CancelModel(store: cancelStore, analytics: AppAnalytics.shared)
         cancelStored = ""
         landedOnce = LandedOnce()
+        partnerEndedOnce = LandedOnce()
+        reviewStarted = LandedOnce()
+        partnerEndedFrom = nil
         chatModel = nil
         chatDateId = nil
         chatPath = []
@@ -1108,8 +1121,16 @@ private struct TutorialFlow: View {
         // is up, and an outcome not yet seen is shown before anything else.
         .onAppear { dateModel.onScreen(true) }
         .onDisappear { dateModel.onScreen(false) }
-        .onChange(of: dateModel.state.ended) { _, ended in
-            if let ended { routeEnded(ended, from: .dateScreen) }
+        .onChange(of: dateModel.state.ended, initial: true) { _, ended in
+            // `initial: true`: this view is new each time the flow returns to the Date screen (`.id(screen.rawValue)`), and a
+            // Settings read may have stored the end meanwhile -- nobody was listening, so it is routed on appear. A second
+            // call for the same end is harmless: `partnerEndedOnce` / `landedOnce` guard Date 08 and the landing, and G / H
+            // only re-set the path they already hold.
+            // `from` is read from the stack (`endFoundFrom`): the chat when it is over this screen -- this read also runs
+            // on a return to the foreground under it, racing the chat's own -- nil when this screen was on top. Nil, G
+            // and H read it as the Date screen, and whether Date 08's read was the launch's is decided from the held
+            // date (`partnerEndedReferrer`), not from `cameFrom`, which a launch never sets.
+            if let ended { routeEnded(ended, from: endFoundFrom(chatPath)) }
         }
         // THE END SHEETS follow every read and the 1 s tick: pastMeet and the chat's lock are re-evaluated there.
         .onChange(of: shownDate.date, initial: true) { _, _ in bindDateEnd() }
@@ -1169,8 +1190,8 @@ private struct TutorialFlow: View {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
             }
         }
-        // THE DATE WENT AWAY (ended or cancelled elsewhere): the normal resume, the Check-In read again
-        // first. Date 08's outcome screens replace this later.
+        // THE DATE WENT AWAY (ended or cancelled elsewhere, and already seen): the normal resume, the Check-In read again
+        // first. An end not yet seen is `ended` above, which routes it (Date 08 for the match of a Date 06 end).
         .onChange(of: dateModel.state.left) { _, left in
             guard left else { return }
             dateProfileModel.close()
@@ -1336,20 +1357,61 @@ private struct TutorialFlow: View {
     }
 
     /// An end that reached the person -- the Date screen's read, the chat's poll or its 409 re-read: ONE routing
-    /// (`endedRoute`). Date 06's reasons land after the end (R1); the chat's and a cancel on you keep G and H.
-    private func routeEnded(_ ended: EndedOutcome, from: ProfileScreen) {
+    /// (`endedRoute`). `from` is the chat when the chat found the end or was on top when the Date screen's read did
+    /// (`endFoundFrom`), nil when the Date screen was on top; G and H then read nil as from the Date screen. Date 08's
+    /// referrer is `partnerEndedReferrer`: none only when no date was held, the launch.
+    private func routeEnded(_ ended: EndedOutcome, from: ProfileScreen?) {
         switch endedRoute(ended) {
-        case .dateEnded, .partnerCancelled: showOutcome(ended, from: from)
+        case .dateEnded, .partnerCancelled: showOutcome(ended, from: from ?? .dateScreen)
+        case .partnerEnded:
+            // Once per ended date: the chat's poll and the Date screen's read can both see one end.
+            guard let screen = partnerEndedToShow(ended, once: &partnerEndedOnce) else { return }
+            showPartnerEnded(ended, screen: screen,
+                             from: partnerEndedReferrer(heldDate: dateModel.state.date, from: from))
         case .land: landAfterEnd(ended)
         }
     }
 
-    /// An end the server confirmed, or one found on a read (the match's, or this phone's after a restart): the date is
-    /// over for this person, so it is marked seen and the normal Search resume runs. FLOW 10 (Review your date) and
-    /// DATE 08 (what the match sees) PLUG IN HERE: until they exist, every Date 06 reason lands where a date that went
-    /// away does (R1). Once per ended date: a re-read that sees the end before navigation must not route twice.
+    /// An end the server confirmed, or one found on a read (this phone's own, or one found after a restart): the date is
+    /// over for this person, so it is marked seen and the normal Search resume runs. FLOW 10 (Review your date) PLUGS IN
+    /// HERE for the person who ended it: until it exists, their Date 06 end lands where a date that went away does (R1).
+    /// The match's side is Date 08, `startReview` below. Once per ended date: a re-read that sees the end before
+    /// navigation must not route twice.
     private func landAfterEnd(_ outcome: EndedOutcome) {
         guard landedOnce.first(outcome.dateId) else { return }
+        let store = chatStore
+        let id = outcome.dateId
+        Task { await store.markEndSeen(dateId: id) }
+        findNextDate()
+    }
+
+    /// Date 08 over whatever is up (R6). The Date 06 sheet and Date 07's guard live in models, not in the routes the
+    /// replaced path removes: left open they would be drawn again under the next Date screen, and their scene-stored
+    /// drafts would restore after a process death -- so each is discarded and its storage cleared. Date 05's picker is a
+    /// route, but its draft outlives it in scene storage, so it goes too. The chat model holds an unsent draft for the
+    /// session; it is dropped with the date. The path becomes Date 08 alone, so back can reopen none of them.
+    private func showPartnerEnded(_ outcome: EndedOutcome, screen: PartnerScreen, from: ProfileScreen?) {
+        partnerEndedFrom = from
+        dateEnd.discardForPartnerEnd()
+        dateEndStored = ""
+        dateCancel.discardForPartnerEnd()
+        cancelStored = ""
+        changeModel?.discardForPartnerEnd()
+        changeStored = ""
+        chatModel?.close()
+        chatModel = nil
+        chatDateId = nil
+        dateProfileModel.close()
+        let route = partnerEndedRoute(outcome, screen: screen, photoURL: dateModel.state.date?.match.photoUrl)
+        chatPath = pathAfterPartnerEnd(chatPath, showing: route)
+    }
+
+    /// `Proceed to review` on Date 08: the FLOW 10 SLOT (R1). Flow 10 is not built, so this does what `landAfterEnd`
+    /// does -- the end is marked seen and Search opens -- once per date. Until it is tapped the end stays unseen, so
+    /// every read and every launch returns to Date 08. When flow 10 exists this opens its `ScreenRating` (`claimedNoShow`
+    /// for `PartnerScreen.youNoShowed`) and the mark-seen moves to the review's send. Nothing else changes.
+    private func startReview(_ outcome: EndedOutcome) {
+        guard reviewStarted.first(outcome.dateId) else { return }
         let store = chatStore
         let id = outcome.dateId
         Task { await store.markEndSeen(dateId: id) }
@@ -1403,6 +1465,9 @@ private struct TutorialFlow: View {
             chatPath = []
         case .dateEnded?:
             findNextDate()
+        case .partnerEnded?:
+            // Never left by a back (R6): only Proceed to review moves on.
+            return
         default:
             chatPath = []
         }
@@ -1591,6 +1656,18 @@ private struct TutorialFlow: View {
                 let id = outcome.dateId
                 Task { await store.markEndSeen(dateId: id) }
             }
+    }
+
+    /// DATE 08 (SHOWUP-199): what the match of a Date 06 end sees. No tab bar, no back, no swipe: `Proceed to review` is
+    /// the only way on, and until it is tapped the end stays unseen, so every launch returns here. One view per showing,
+    /// with the referrer the routing recorded.
+    private func partnerEndedView(dateId: String, name: String, screen: PartnerScreen, photoURL: URL?) -> some View {
+        PartnerEndedRoute(
+            screen: screen,
+            name: name,
+            photoURL: photoURL,
+            onShown: { chatEvents.partnerEndedShown(screen, referrer: partnerEndedFrom) },
+            onProceed: { startReview(EndedOutcome(dateId: dateId, name: name, endedByYou: false, partnerScreen: screen)) })
     }
 
     /// The match's profile, read-only (SHOWUP-193 ⑫): Search's profile view with nothing to decide,
@@ -2149,6 +2226,10 @@ private struct TutorialFlow: View {
         dateCancel = CancelModel(store: demo, analytics: AppAnalytics.shared)
         cancelStored = ""
         landedOnce = LandedOnce()
+        // Every frame runs on the demo's one date id: a guard left from the last frame would swallow this one's end.
+        partnerEndedOnce = LandedOnce()
+        reviewStarted = LandedOnce()
+        partnerEndedFrom = nil
         toDate()
         dateModel.foreground()
         Task { await landDevDate(frame) }
@@ -2161,6 +2242,17 @@ private struct TutorialFlow: View {
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
         guard dateModel.state.date != nil else { return }
+        // SHOWUP-199: Leonie ends the demo date and the app's own routing shows Date 08, the same call as the developer
+        // menu's. The chat frame goes into the chat first and lets her end it a moment later, so the chat's poll finds
+        // the end, as it would for a real match; the Date screen frames read again at once instead of waiting 15 s.
+        if let end = demoPartnerEnd(frame) {
+            let store = dateStore
+            if demoLanding(frame) == .chat { openChat() }
+            if end.afterMs > 0 { try? await Task.sleep(nanoseconds: UInt64(end.afterMs) * 1_000_000) }
+            _ = await store.partnerEnds(reason: end.reason)
+            if demoLanding(frame) != .chat { dateModel.foreground() }
+            return
+        }
         // SHOWUP-197 and 198: the sheet the frame draws, opened by the calls its own taps make. Each model is bound to
         // the date by the host's own effect, so wait for that first.
         let steps = demoSteps(frame)
@@ -2346,6 +2438,8 @@ private struct TutorialFlow: View {
                     case .chatTutorial: chatTutorialView
                     case .chat(let entry): chatView(entry)
                     case .dateEnded(let outcome, let photoURL): dateEndedView(outcome, photoURL: photoURL)
+                    case .partnerEnded(let dateId, let name, let screen, let photoURL):
+                        partnerEndedView(dateId: dateId, name: name, screen: screen, photoURL: photoURL)
                     case .changePicker: changePickerView
                     }
                 }

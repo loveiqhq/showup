@@ -697,4 +697,10 @@ final class DateEndModelTests: XCTestCase {
         m.bind(date(id: "d2"), now: before)
         XCTAssertNil(m.ui.route)
     }
+
+    /// The dedupe compares strings, so one draft must encode to one string however many times it is encoded.
+    func testADraftEncodesToOneStringEveryTime() {
+        let draft = DateEndDraft(route: .wrap, step: .guide, entry: .endDateBar, gated: .noShow, dateId: "d1")
+        XCTAssertEqual(Set((0..<50).map { _ in draft.encoded }).count, 1)
+    }
 }

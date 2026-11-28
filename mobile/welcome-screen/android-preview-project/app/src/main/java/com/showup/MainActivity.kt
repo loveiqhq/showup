@@ -90,6 +90,9 @@ import com.showup.date.ApiDateEndStore
 import com.showup.date.DateEndStore
 import com.showup.date.EndEntry
 import com.showup.date.EndedOutcome
+import com.showup.date.PartnerScreen
+import com.showup.date.partnerend.PartnerEndedRoute
+import com.showup.date.partnerend.showPartnerEnded
 import com.showup.date.OutcomeReason
 import com.showup.date.ApiCancelStore
 import com.showup.date.CancelStore
@@ -140,6 +143,8 @@ import com.showup.chat.chatEntryFor
 import com.showup.chat.openChatFromArrivalCard
 import com.showup.chat.chatRoute
 import com.showup.chat.outcomeRoute
+import com.showup.chat.partnerEndedReferrer
+import com.showup.chat.partnerEndedRoute
 import androidx.navigation.toRoute
 import kotlinx.coroutines.awaitCancellation
 import com.showup.date.DateScreen
@@ -238,6 +243,7 @@ import com.showup.dev.DevDateDemoHolder
 import com.showup.dev.DemoLanding
 import com.showup.dev.DemoStep
 import com.showup.dev.demoLanding
+import com.showup.dev.demoPartnerEnd
 import com.showup.dev.demoSteps
 import com.showup.dev.demoQuery
 import com.showup.dev.devLiveFrame
@@ -1041,6 +1047,9 @@ class MainActivity : ComponentActivity() {
             /** Where G or H was reached from, for its `screen_viewed` referrer. */
             var outcomeFrom by remember { mutableStateOf(ProfileScreen.DateScreen) }
 
+            /** The same for Date 08, which has none on a launch: nothing led there. Read once, by the route's first view. */
+            var partnerEndedFrom by remember { mutableStateOf<ProfileScreen?>(null) }
+
             /** Onto the Date screen from wherever the user is, a Search profile over it closed first. */
             fun toDate() {
                 search.closeProfileForElsewhere()
@@ -1402,6 +1411,15 @@ class MainActivity : ComponentActivity() {
                 screen = FlowScreen.Date
                 date.foreground()
                 snapshotFlow { dateState.date }.first { it != null }
+                // SHOWUP-199: Leonie ends the demo date and the app's own routing shows the screen. The chat frame goes
+                // into the chat first and lets her end it a moment later, so its poll finds the end.
+                demoPartnerEnd(frame)?.let { end ->
+                    if (demoLanding(frame) == DemoLanding.Chat) openChat()
+                    delay(end.afterMs)
+                    dateDemo?.partnerEnds(end.reason)
+                    date.foreground()
+                    return@LaunchedEffect
+                }
                 // SHOWUP-197 and 198: the sheet the frame draws, opened by the calls its own taps make. Each model
                 // is bound to the date by the host's own effect, so wait for that first.
                 val steps = demoSteps(frame)
@@ -1444,6 +1462,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
+            /**
+             * Date 08 over whatever is up. The Date 06 sheet and Date 07's guard are closed here (and their saved
+             * state with them) because they live in models, not in the screens the pop removes: left open they would
+             * be drawn again on the next Date screen, or restored after a process death. Date 05's pickers and the chat
+             * are destinations, which the pop removes with their saved state.
+             */
+            fun showPartnerEnded(outcome: EndedOutcome, from: ProfileScreen?) {
+                partnerEndedFrom = from
+                dateEnd.discardForPartnerEnd()
+                dateCancel.discardForPartnerEnd()
+                navController.showPartnerEnded(partnerEndedRoute(outcome, dateState.date?.match?.photoUrl))
+            }
+
             /** `Find your next date`: the date is over, so Search, Likes and Instant open, and Search shows. */
             fun findNextDate() {
                 date.outcomeShown()
@@ -1454,10 +1485,10 @@ class MainActivity : ComponentActivity() {
             }
 
             /**
-             * An end the server confirmed, or one found on a read (the match's, or this phone's after a restart): the
+             * An end the server confirmed, or one found on a read (this phone's own, or one found after a restart): the
              * date is over for this person, so it is marked seen and the normal Search resume runs. FLOW 10 (Review
-             * your date) and DATE 08 (what the match sees) PLUG IN HERE: until they exist, every Date 06 reason
-             * lands where a date that went away does (R1).
+             * your date) PLUGS IN HERE for the person who ended it: until it exists, their Date 06 end lands where a
+             * date that went away does (R1). The match's side is Date 08, [startReview] below.
              */
             val landedOnce = remember { LandedOnce() }
             fun landAfterEnd(outcome: EndedOutcome) {
@@ -1467,10 +1498,31 @@ class MainActivity : ComponentActivity() {
                 findNextDate()
             }
 
-            /** Every way an end reaches the person -- the Date screen's read, the chat's poll or 409 -- routes here. */
-            fun routeEnded(outcome: EndedOutcome, from: ProfileScreen) {
+            /**
+             * `Proceed to review` on Date 08: the FLOW 10 SLOT (R1). Flow 10 is not built, so this does what
+             * [landAfterEnd] does -- the end is marked seen and Search opens -- once per date. Until it is tapped the end
+             * stays unseen, so every read and every launch returns to Date 08. When flow 10 exists this opens its
+             * `ScreenRating` (`claimedNoShow` for [PartnerScreen.YouNoShowed]) and the mark-seen moves to the review's
+             * send. Nothing else changes.
+             */
+            val reviewStarted = remember { LandedOnce() }
+            fun startReview(outcome: EndedOutcome) {
+                if (!reviewStarted.first(outcome.dateId)) return
+                dateScope.launch { chatStore.markEndSeen(outcome.dateId) }
+                findNextDate()
+            }
+
+            /**
+             * Every way an end reaches the person -- the Date screen's read, the chat's poll or 409 -- routes here.
+             * [from] is the chat when it found the end, null when the Date screen's read did; G and H then read as from
+             * the Date screen. Date 08's referrer is [partnerEndedReferrer]: none only when no date was held, the launch.
+             */
+            val partnerEndedOnce = remember { LandedOnce() }
+            fun routeEnded(outcome: EndedOutcome, from: ProfileScreen?) {
                 when (endedRoute(outcome)) {
-                    EndedRoute.DateEnded, EndedRoute.PartnerCancelled -> showOutcome(outcome, from)
+                    EndedRoute.DateEnded, EndedRoute.PartnerCancelled -> showOutcome(outcome, from ?: ProfileScreen.DateScreen)
+                    // Once per ended date: the chat's poll and the Date screen's read can both see one end.
+                    EndedRoute.PartnerEnded -> if (partnerEndedOnce.first(outcome.dateId)) showPartnerEnded(outcome, partnerEndedReferrer(dateState.date, from))
                     EndedRoute.Land -> landAfterEnd(outcome)
                 }
             }
@@ -2711,7 +2763,9 @@ class MainActivity : ComponentActivity() {
                             val ended = dateState.ended
                             if (onTop && ended != null) {
                                 // Date 06's reasons land after the end (R1); the chat's and a cancel on you keep G and H.
-                                routeEnded(ended, ProfileScreen.DateScreen)
+                                // from stays null: whether this was a launch is decided from the held date in routeEnded,
+                                // not from cameFrom, which a launch never sets and a restore brings back.
+                                routeEnded(ended, null)
                             }
                         }
                         val heldDate = heldWhileLeaving(dateState, onTop)
@@ -3204,6 +3258,22 @@ class MainActivity : ComponentActivity() {
                     ),
                     photoUrl = route.photoUrl,
                     onFindNext = { findNextDate() },
+                )
+            }
+
+            // DATE 08 (SHOWUP-199): what the match of a Date 06 end sees. No tab bar, no back, no swipe: `Proceed to
+            // review` is the only way on, and until it is tapped every launch returns here.
+            composable<AppRoute.PartnerEnded>(
+                enterTransition = { fadeIn(tween(if (motion.enabled) Motion.SCREEN else 0)) },
+            ) { entry ->
+                val route = entry.toRoute<AppRoute.PartnerEnded>()
+                val screen = PartnerScreen.fromWire(route.screen) ?: return@composable
+                PartnerEndedRoute(
+                    screen = screen,
+                    name = route.name,
+                    photoUrl = route.photoUrl,
+                    onShown = { chatEvents.partnerEndedShown(screen, partnerEndedFrom) },
+                    onProceed = { startReview(EndedOutcome(route.dateId, route.name, endedByYou = false, partnerScreen = screen)) },
                 )
             }
 

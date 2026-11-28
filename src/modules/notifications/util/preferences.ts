@@ -15,6 +15,7 @@ export type NotificationType =
   | 'date_change_agreed'
   | 'date_change_expired'
   | 'date_cancelled'
+  | 'date_partner_ended'
   | 'check_in_expiry'
   | 'new_match'
   | 'email_verification'
@@ -44,7 +45,8 @@ const CATEGORY_BY_TYPE: Record<NotificationType, NotificationCategory> = {
   date_change_suggested: 'engagement',
   date_change_agreed: 'engagement',
   date_change_expired: 'engagement',
-  date_cancelled: 'engagement',
+  date_cancelled: 'essential',
+  date_partner_ended: 'essential',
   check_in_expiry: 'engagement',
   new_match: 'engagement',
   email_verification: 'essential',
@@ -59,6 +61,10 @@ const CATEGORY_BY_TYPE: Record<NotificationType, NotificationCategory> = {
  * Critical messages bypass the toggles entirely — they are mandatory service/safety messages
  * (password reset, email verification, account closure, security/safety alerts) that a user cannot
  * opt out of. Everything else respects its category toggle.
+ *
+ * The two pushes that tell someone their date is over (Date 07's cancel, Date 08's partner end) are
+ * critical too: Philipp, 27 Nov 2026 — "those should always get through, definitely". A blocked
+ * account and a phone with notifications off still skip them (sendPush checks both first).
  */
 const CRITICAL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>(
   [
@@ -67,6 +73,8 @@ const CRITICAL_TYPES: ReadonlySet<NotificationType> = new Set<NotificationType>(
     'account_closure',
     'security_alert',
     'safety_alert',
+    'date_cancelled',
+    'date_partner_ended',
   ],
 );
 

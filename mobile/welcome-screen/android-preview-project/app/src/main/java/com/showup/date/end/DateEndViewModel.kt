@@ -259,6 +259,16 @@ class DateEndViewModel(
         change { it.copy(route = null, step = EndStep.Menu, gated = null, openGate = null, failed = false) }
     }
 
+    /**
+     * The other person ended this date (Date 08): the sheet closes whatever it is doing, including while an end of ours is in
+     * flight (that call finishes on its own: a 409 re-reads into the same screen), and nothing of it stays saved, so it cannot come
+     * back after a process death. Not a dismissal: nothing is reported.
+     */
+    fun discardForPartnerEnd() {
+        if (_ui.value.route == null) return
+        change { it.copy(route = null, step = EndStep.Menu, gated = null, openGate = null, failed = false) }
+    }
+
     /** The CTA of C, G or I: end the date. Inert while one is already in flight. */
     fun end() {
         val u = _ui.value

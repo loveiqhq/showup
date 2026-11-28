@@ -303,6 +303,10 @@ val DEV_STATES: List<DevState> = listOf(
     DevState("198F", "SHOWUP-198 Cancel this date", "F · After check-in — no link"),
     DevState("198H", "SHOWUP-198 Cancel this date", "H · What the match sees"),
     DevState("198I", "SHOWUP-198 Cancel this date", "I · Guard sheet — from meet − 0:30"),
+    DevState("199A", "SHOWUP-199 What the other side sees", "A · You didn't show up"),
+    DevState("199B", "SHOWUP-199 What the other side sees", "B · Uncomfortable"),
+    DevState("199C", "SHOWUP-199 What the other side sees", "C · We met"),
+    DevState("199A-chat", "SHOWUP-199 What the other side sees", "A · B in the chat when A ends"),
 )
 
 /** The developer menu's Date actions (SHOWUP-193), each a dev-server route. */
@@ -337,7 +341,7 @@ sealed interface DevDateAction {
     /** Leonie cancels this date from the red link (SHOWUP-198 H): this phone lands on the cancelled outcome. */
     data object PartnerCancels : DevDateAction
 
-    /** Leonie ends the date with [reason] (SHOWUP-197, the Date 08 slot): the date is over for this phone. */
+    /** Leonie ends the date with [reason] (SHOWUP-197, whose match sees Date 08, SHOWUP-199): the date is over for this phone. */
     data class PartnerEnds(val reason: com.showup.date.EndReason) : DevDateAction
 
     /** Ends the test date: the screen leaves for the normal resume. */
@@ -357,5 +361,7 @@ fun devLiveFrame(state: DevState): String? = when {
     state.id.startsWith("196") -> state.id.removePrefix("196").takeIf { it in ChangeSamples.LETTERS }
     state.id.startsWith("197") -> state.id.takeIf { it.removePrefix("197") in DateEndSamples.LETTERS }
     state.id.startsWith("198") -> state.id.takeIf { it.removePrefix("198") in CancelSamples.LETTERS }
+    // 199's frames are the real thing: the demo date is opened, then Leonie ends it and the app's own routing shows the screen.
+    state.id.startsWith("199") -> state.id.takeIf { it in PARTNER_END_FRAMES }
     else -> null
 }

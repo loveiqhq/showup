@@ -38,7 +38,7 @@ protocol DateStoring: Sendable {
     /// the cancelled outcome. Android's `partnerCancels`. A default that refuses, so only the real store and the demo
     /// carry it.
     func partnerCancels() async -> Bool
-    /// Debug only (Date 06, the Date 08 slot): the test match ends the viewer's date with `reason`. The server has her
+    /// Debug only (Date 06, whose match sees Date 08): the test match ends the viewer's date with `reason`. The server has her
     /// check in first for the two problem reasons. Android's `partnerEnds`.
     func partnerEnds(reason: EndReason) async -> Bool
 }

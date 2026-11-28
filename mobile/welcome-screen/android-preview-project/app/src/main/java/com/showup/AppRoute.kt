@@ -81,6 +81,19 @@ sealed interface AppRoute {
     ) : AppRoute
 
     /**
+     * Date 08 (SHOWUP-199): what the person who did NOT end the date sees. Everything it draws rides in the route, so a
+     * process death on it restores the same screen; [screen] is the server's `partnerScreen` wire value. It has no
+     * way out but its one button (the host consumes back).
+     */
+    @Serializable
+    data class PartnerEnded(
+        val dateId: String,
+        val name: String,
+        val screen: String,
+        val photoUrl: String?,
+    ) : AppRoute
+
+    /**
      * The time or place picker (SHOWUP-196, Date 05 A, B, K, M, N), pushed over whatever opened it: the Date
      * screen's locked card, or the chat. [kind] is `time` or `place` and [entry] the §42 `change_entry` wire
      * value; both ride in the route, and the selection, the typed query and the send's id are the model's saved state,

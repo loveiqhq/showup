@@ -69,6 +69,29 @@ describe('message catalog (EN/DE rendering)', () => {
     });
   });
 
+  it('renders the Date 08 partner-ended push (temporary copy) in full, with and without a name', () => {
+    expect(
+      renderMessage('date_partner_ended', 'en', { name: 'Leonie' }),
+    ).toEqual({
+      title: 'Leonie ended your date',
+      body: 'Open Show Up to see what happens next.',
+    });
+    expect(renderMessage('date_partner_ended', 'en', { name: '' })).toEqual({
+      title: 'Your date was ended',
+      body: 'Open Show Up to see what happens next.',
+    });
+    expect(
+      renderMessage('date_partner_ended', 'de', { name: 'Leonie' }),
+    ).toEqual({
+      title: 'Leonie hat euer Date beendet',
+      body: 'Öffne Show Up, um zu sehen, wie es weitergeht.',
+    });
+    expect(renderMessage('date_partner_ended', 'de', { name: '' })).toEqual({
+      title: 'Dein Date wurde beendet',
+      body: 'Öffne Show Up, um zu sehen, wie es weitergeht.',
+    });
+  });
+
   it('renders the Date 05 change pushes in English and German (interim copy)', () => {
     expect(
       renderMessage('date_change_suggested', 'en', {

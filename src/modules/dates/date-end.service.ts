@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -16,6 +17,7 @@ import {
 import type { EndedOutcomeDto } from '../date-screen/dto/active-date.dto';
 import { Match } from '../matching/entities/match.entity';
 import { MatchStatus, orderedUserPair } from '../matching/util/match';
+import { NotificationDispatchService } from '../notifications/services/notification-dispatch.service';
 import { Profile } from '../profiles/entities/profile.entity';
 import { firstName } from '../search/util/search-profile';
 import { EndDateDto } from './dto/end-date.dto';
@@ -60,6 +62,8 @@ export function refusalException(code: string, message: string) {
  */
 @Injectable()
 export class DateEndService {
+  private readonly logger = new Logger(DateEndService.name);
+
   constructor(
     @InjectDataSource() private readonly db: DataSource,
     @InjectRepository(DateEntity)
@@ -70,6 +74,7 @@ export class DateEndService {
     private readonly profiles: Repository<Profile>,
     private readonly analytics: AnalyticsService,
     private readonly config: ConfigService,
+    private readonly dispatch: NotificationDispatchService,
   ) {}
 
   /** The `DATE_ENDS_ENABLED` switch (R1). Off, the routes answer 404. */
@@ -169,9 +174,25 @@ export class DateEndService {
       }),
     });
 
-    const profile = await this.profiles.findOne({
-      where: { userId: done.partnerId },
-    });
+    const [profile, self] = await Promise.all([
+      this.profiles.findOne({ where: { userId: done.partnerId } }),
+      this.profiles.findOne({ where: { userId } }),
+    ]);
+    try {
+      await this.dispatch.sendPush(
+        done.partnerId,
+        'date_partner_ended',
+        { name: firstName(self?.displayName ?? null) },
+        { type: 'date_partner_ended', dateId },
+      );
+    } catch (error) {
+      // The end is committed; a failed push must not undo or fail it.
+      this.logger.warn(
+        `End push failed for date ${dateId}: ${
+          error instanceof Error ? error.name : 'unknown error'
+        }`,
+      );
+    }
     return {
       dateId,
       name: firstName(profile?.displayName ?? null),

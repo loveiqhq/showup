@@ -76,7 +76,7 @@ interface DateStore {
     suspend fun partnerCancels(): Result<Boolean> = Result.failure(UnsupportedOperationException("partnerCancels"))
 
     /**
-     * Debug only (Date 06, the Date 08 slot): the test match ends the viewer's date with [reason]. The server has her
+     * Debug only (Date 06, whose match sees Date 08): the test match ends the viewer's date with [reason]. The server has her
      * check in first for the two problem reasons.
      */
     suspend fun partnerEnds(reason: EndReason): Result<Boolean> = Result.failure(UnsupportedOperationException("partnerEnds"))

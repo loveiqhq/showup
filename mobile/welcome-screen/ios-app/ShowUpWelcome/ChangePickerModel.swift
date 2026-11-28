@@ -75,8 +75,7 @@ struct ChangePickerDraft: Codable, Equatable, Sendable {
     var attemptId: String?
 
     var encoded: String {
-        guard let data = try? JSONEncoder().encode(self) else { return "" }
-        return String(decoding: data, as: UTF8.self)
+        DraftEncoding.string(self)
     }
 
     /// Anything that does not decode is no draft: a value from another build is a shape this one never saw.
@@ -286,6 +285,15 @@ final class ChangePickerModel {
                 self?.ui.sendFailed = true
             }
         }
+    }
+
+    /// The other person ended the date (Date 08, SHOWUP-199): the picker ends with nothing sent, and its draft goes, so
+    /// opening it again after a process death finds nothing. Not the person's Cancel: no `change_picker_dismissed`. A send
+    /// already on its way finishes on its own; an ended picker writes no draft again.
+    func discardForPartnerEnd() {
+        loadTask?.cancel()
+        ui.closed = true
+        persistDraft("")
     }
 
     /// Cancel or back: nothing was stored or sent. Ignored while a send is in flight (both buttons are inert).

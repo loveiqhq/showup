@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.AlignmentLine
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -120,8 +121,38 @@ fun Modifier.fitWordsOf(text: String, style: TextStyle): Modifier {
 
 /** The widest word of [text] in [style], in px: what [fitWordsOf] shrinks to its box. */
 fun widestWord(measurer: TextMeasurer, text: String, style: TextStyle): Int =
-    text.split(' ', '\n', '\u200B').filter { it.isNotEmpty() }
-        .maxOfOrNull { measurer.measure(it, style, softWrap = false).size.width } ?: 0
+    wordsOf(AnnotatedString(text)).maxOfOrNull { measurer.measure(it, style, softWrap = false).size.width } ?: 0
+
+/**
+ * [text]'s words, each with its own spans so an italic run is measured in its own cut. A word ends
+ * only at a breaking space -- a no-break space joins, so a washed run whose spaces are no-break is
+ * one word, as the line breaker sees it. [widestWord] and the balance floor ([minContentPx]) both
+ * cut text here, so the two cannot disagree on what a word is.
+ */
+internal fun wordsOf(text: AnnotatedString): List<AnnotatedString> {
+    val words = mutableListOf<AnnotatedString>()
+    var start = 0
+    for (i in 0..text.length) {
+        if (i < text.length && text[i] !in WORD_BREAKS) continue
+        if (i > start) words += text.subSequence(start, i)
+        start = i + 1
+    }
+    return words
+}
+
+/**
+ * The word of [text] that holds [start, end) -- an em run with whatever touches it, `met.` with its
+ * full stop -- cut as [wordsOf] cuts: how wide the run is to the line breaker.
+ */
+internal fun wordAround(text: AnnotatedString, start: Int, end: Int): AnnotatedString {
+    var from = start
+    var to = end
+    while (from > 0 && text[from - 1] !in WORD_BREAKS) from--
+    while (to < text.length && text[to] !in WORD_BREAKS) to++
+    return text.subSequence(from, to)
+}
+
+private val WORD_BREAKS = charArrayOf(' ', '\n', '\u200B')
 
 /** The least [fitWordsOf] shrinks a word to at the user's type size: 60 %, or the default size. */
 @Composable

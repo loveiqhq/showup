@@ -26,6 +26,23 @@ func outcomeRoute(_ outcome: EndedOutcome, photoURL: URL?) -> AppRoute {
     .dateEnded(outcome, photoURL: outcome.photoUrl ?? photoURL)
 }
 
+/// Where the person was when the Date screen's read found an end, for the `referrer_screen_id` of G, H and Date 08 (R7):
+/// the chat (or its tutorial) when it is on the stack over the Date screen, nil when the Date screen itself was on top.
+/// The Date model reads again on every return to the foreground, even with the chat pushed over it, so on that return
+/// its read and the chat's own race for the same end; read from the stack, either one reports where the person really
+/// was. Not Android's `onTop` guard: SwiftUI's `onChange` does not fire again when the chat pops, so an end held back
+/// here would be lost.
+func endFoundFrom(_ path: [AppRoute]) -> ProfileScreen? {
+    for route in path.reversed() {
+        switch route {
+        case .chat: return ProfileScreen.dateChat
+        case .chatTutorial: return ProfileScreen.dateChatTutorial
+        default: continue
+        }
+    }
+    return nil
+}
+
 /// The events the app reports for the chat's destinations: `screen_viewed` for the tutorial, the chat (B and
 /// C to E are one screen, one view per open) and the outcome (G and H are one); the tutorial's
 /// `chat_tutorial_shown` and `chat_tutorial_acknowledged`, the second carrying how long it was read.
@@ -62,5 +79,11 @@ final class ChatHostEvents {
     /// G or H is shown, from the chat or the Date screen; `cancelled` is Date 07's H (`date_partner_cancelled`).
     func outcomeShown(referrer: ProfileScreen, cancelled: Bool = false) {
         analytics?.report(ProfileAnalytics.screenViewed(cancelled ? .datePartnerCancelled : .dateEndedInChat, referrer: referrer))
+    }
+
+    /// Date 08 is shown, one view per showing. `referrer` is where the person was; nil on a launch, when nothing led
+    /// there. Proceed to review reports nothing, and `date_ended` is the server's, never the match's phone.
+    func partnerEndedShown(_ screen: PartnerScreen, referrer: ProfileScreen?) {
+        analytics?.report(ProfileAnalytics.screenViewed(partnerEndedScreenID(screen), referrer: referrer))
     }
 }

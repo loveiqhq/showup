@@ -43,6 +43,24 @@ describe('notification preferences (pure gating logic)', () => {
       expect(isCriticalType('safety_alert')).toBe(true);
       expect(isCriticalType('security_alert')).toBe(true);
     });
+    it('treats the date-over pushes as critical (Philipp, 27 Nov 2026: always get through)', () => {
+      expect(isCriticalType('date_cancelled')).toBe(true);
+      expect(isCriticalType('date_partner_ended')).toBe(true);
+      expect(categoryForType('date_cancelled')).toBe('essential');
+      expect(categoryForType('date_partner_ended')).toBe('essential');
+      expect(
+        shouldSend('date_partner_ended', {
+          essential: false,
+          engagement: false,
+          marketing: false,
+        }),
+      ).toBe(true);
+    });
+    it('keeps the other date pushes on the engagement toggle', () => {
+      expect(isCriticalType('date_partner_arrived')).toBe(false);
+      expect(isCriticalType('date_change_agreed')).toBe(false);
+      expect(categoryForType('date_partner_arrived')).toBe('engagement');
+    });
     it('treats reminders and marketing as non-critical', () => {
       expect(isCriticalType('date_reminder')).toBe(false);
       expect(isCriticalType('check_in_expiry')).toBe(false);

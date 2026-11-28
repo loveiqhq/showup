@@ -125,4 +125,279 @@ final class CSSTextLayoutTests: XCTestCase {
     func testANarrowedClampedPreviewDrawsBothLines() {
         assertDrawsEveryLine(styled(preview, font, lineHeight: 14 * 1.4), clampedTo: 2, "the message preview")
     }
+
+    // MARK: - `text-wrap: balance` never splits a word
+
+    // Below a word's width -- or an em run's, its spaces no-break -- TextKit breaks INSIDE it by character, often at
+    // the same line count, so a search for "the narrowest width that keeps the line count" settled there: Android's
+    // Date 08 B drew `didn't feel comforta` / `ble in the situation.` on every phone (SHOWUP-199, 22 Nov 2026), and
+    // both searches here were the same one. Android's `BalancedWidthTest.kt`, case for case.
+
+    private let bParts: [(String, Bool)] = [("Leonie ended the date, saying they ", false),
+                                            ("didn't feel comfortable", true), (" in the situation.", false)]
+
+    /// The search as it was, from 2 half points: the control the sweep compares against.
+    private func unfloored(_ text: NSAttributedString, within full: CGFloat) -> CGFloat {
+        let target = CSSTextLayout.lines(text, width: full).count
+        guard target > 1 else { return full }
+        var lo = 2
+        var hi = Int(full * 2)
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if CSSTextLayout.lines(text, width: CGFloat(mid) / 2).count <= target { hi = mid } else { lo = mid + 1 }
+        }
+        return CGFloat(lo) / 2
+    }
+
+    /// Sweeps `full` up from the widest piece: never narrower than it, no word split, and wherever the old search
+    /// stayed above the piece the answer is unchanged. `mustBite` asks for at least one width where the old search
+    /// went below the piece: only a text whose old search did so on this platform can say the floor is what holds, and
+    /// iOS's old search split the long word but never Date 08 B's headline (CI, 22 Nov 2026), so B asserts the
+    /// invariant alone.
+    private func assertNeverSplits(_ text: NSAttributedString, _ name: String, mustBite: Bool = false) {
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        var wouldSplit = 0
+        // From the first half point past the piece: at or under it the answer is `full` itself, by design.
+        for halves in stride(from: Int((piece * 2).rounded(.down)) + 1, through: Int(piece * 6), by: 3) {
+            let full = CGFloat(halves) / 2
+            let got = CSSTextLayout.balancedWidth(text, within: full)
+            let old = unfloored(text, within: full)
+            if old < piece { wouldSplit += 1 }
+            XCTAssertGreaterThanOrEqual(got, piece, "\(name) at \(full)")
+            XCTAssertEqual(wordSplits(text, width: got), [], "\(name) at \(full)")
+            if old >= piece { XCTAssertEqual(got, old, "\(name) at \(full) moved a width that split nothing") }
+        }
+        if mustBite {
+            XCTAssertGreaterThan(wouldSplit, 0, "\(name): the old search never went below the piece, so this proves nothing")
+        }
+    }
+
+    /// The text columns the phones give the headline, 320 to 440 pt wide: no line ends inside a word, and the balanced
+    /// width is never below the widest piece. A column narrower than the piece is kept whole by design, so it is the
+    /// only case with nothing to assert.
+    private func assertNeverSplitsAcrossColumns(_ parts: [(String, Bool)], size: CGFloat, _ name: String) {
+        let text = washHeadlineText(parts, size: size)
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        for halves in stride(from: 640, through: 880, by: 2) {
+            let full = CGFloat(halves) / 2
+            let got = CSSTextLayout.balancedWidth(text, within: full)
+            if full <= piece {
+                XCTAssertEqual(got, full, "\(name) at \(full)")
+                continue
+            }
+            XCTAssertGreaterThanOrEqual(got, piece, "\(name) at \(full)")
+            XCTAssertLessThanOrEqual(got, full, "\(name) at \(full)")
+            XCTAssertEqual(wordSplits(text, width: got), [], "\(name) at \(full)")
+        }
+    }
+
+    private let aParts: [(String, Bool)] = [("Leonie ended the date, stating you ", false), ("didn't show up.", true)]
+
+    func testARunJoinedByNoBreakSpacesCountsAsOnePiece() {
+        let run = washHeadlineText([("didn't feel comfortable", true)])
+        let word = washHeadlineText([("comfortable", true)])
+        XCTAssertEqual(CSSTextLayout.widestUnbreakable(washHeadlineText(bParts)), CSSTextLayout.widestUnbreakable(run))
+        XCTAssertGreaterThan(CSSTextLayout.widestUnbreakable(run), CSSTextLayout.widestUnbreakable(word))
+    }
+
+    func testARunJoinedByNoBreakSpacesIsNeverSplit() {
+        assertNeverSplits(washHeadlineText(bParts), "B's headline")
+        assertNeverSplitsAcrossColumns(bParts, size: 27, "B's headline")
+        assertNeverSplitsAcrossColumns(bParts, size: 34, "B's headline at a larger size")
+    }
+
+    func testADateEightAHeadlineIsNeverSplit() {
+        assertNeverSplits(washHeadlineText(aParts), "A's headline")
+        assertNeverSplitsAcrossColumns(aParts, size: 27, "A's headline")
+        assertNeverSplitsAcrossColumns(aParts, size: 34, "A's headline at a larger size")
+    }
+
+    func testASingleLongWordIsNeverSplit() {
+        assertNeverSplits(washHeadlineText([("Incomprehensibilities is a word", false)]), "the long word", mustBite: true)
+    }
+
+    func testAWidthNarrowerThanTheWidestPieceIsKeptWhole() {
+        let text = washHeadlineText([("Incomprehensibilities is a word", false)])
+        let full = CSSTextLayout.widestUnbreakable(text) - 5
+        XCTAssertEqual(CSSTextLayout.balancedWidth(text, within: full), full)
+    }
+
+    /// The headline's own path: `WashHost` searches the label's height, not TextKit's line count.
+    func testAWashHostNeverNarrowsBelowTheWidestPiece() {
+        let text = washHeadlineText(bParts)
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        let host = WashHost()
+        host.label.attributedText = text
+        host.balance = true
+        for full in stride(from: piece.rounded(.down) + 1, through: piece * 3, by: 1.5) {
+            let got = host.lineWidth(within: full)
+            XCTAssertGreaterThanOrEqual(got, piece, "at \(full)")
+            XCTAssertEqual(wordSplits(text, width: got), [], "at \(full)")
+            XCTAssertGreaterThanOrEqual(labelWidestLine(host.label, at: got) + 1, piece, "the label broke a word at \(full)")
+        }
+    }
+
+    // MARK: - the floor on `WashHost`'s own search, over the label's height
+
+    /// `WashHost.balancedWidth` as it was, from 1 point over the label's own height: the control.
+    private func unflooredHostWidth(_ label: UILabel, within full: CGFloat) -> CGFloat {
+        let tallest = label.sizeThatFits(CGSize(width: full, height: .greatestFiniteMagnitude)).height
+        var low: CGFloat = 1
+        var high = full
+        while high - low > 1 {
+            let mid = ((low + high) / 2).rounded()
+            let h = label.sizeThatFits(CGSize(width: mid, height: .greatestFiniteMagnitude)).height
+            if h <= tallest { high = mid } else { low = mid }
+        }
+        return high
+    }
+
+    /// B's real path is `WashHost`'s search over the label's own height, not this file's TextKit one, and only a text
+    /// whose old search went below its widest piece can show the floor is what holds: the long word does (the review
+    /// of SHOWUP-199, 27 Nov 2026). Floored, the label's OWN layout keeps the word whole -- its widest line holds it --
+    /// and every width the old search kept whole is unchanged. Fails with the floor in `WashHost` removed.
+    func testTheWashHostFloorHoldsWhereItsOldHeightSearchSplitAWord() {
+        let text = washHeadlineText([("Incomprehensibilities is a word", false)])
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        let host = WashHost()
+        host.balance = true
+        host.label.attributedText = text
+        var wouldSplit = 0
+        for full in stride(from: piece.rounded(.down) + 1, through: piece * 3, by: 1.5) {
+            let old = unflooredHostWidth(host.label, within: full)
+            if old < piece { wouldSplit += 1 }
+            let got = host.lineWidth(within: full)
+            XCTAssertGreaterThanOrEqual(got, piece, "at \(full)")
+            XCTAssertGreaterThanOrEqual(labelWidestLine(host.label, at: got) + 1, piece, "the label broke a word at \(full)")
+            if old >= piece { XCTAssertEqual(got, old, "at \(full) moved a width that split nothing") }
+        }
+        XCTAssertGreaterThan(wouldSplit, 0, "the old height search never went below the long word, so this proves nothing")
+    }
+
+    // MARK: - `text-wrap: pretty` never splits a word either
+
+    /// `CSSTextLayout.prettyWidth` as it was, with no floor: the control.
+    private func unflooredPretty(_ text: NSAttributedString, within full: CGFloat) -> CGFloat {
+        let greedy = CSSTextLayout.lines(text, width: full)
+        guard greedy.count > 1 else { return full }
+        if greedy.lastText.contains(" ") || greedy.lastWidth >= full / 3 { return full }
+        func moved(_ halves: Int) -> Bool {
+            let r = CSSTextLayout.lines(text, width: CGFloat(halves) / 2)
+            return r.count > greedy.count || r.lastStart < greedy.lastStart
+        }
+        var lo = 2
+        var hi = Int(full * 2)
+        while lo < hi {
+            let mid = (lo + hi + 1) / 2
+            if moved(mid) { lo = mid } else { hi = mid - 1 }
+        }
+        for halves in [lo - 1, lo] where halves >= 2 {
+            let pulled = CSSTextLayout.lines(text, width: CGFloat(halves) / 2)
+            if pulled.count == greedy.count && pulled.lastStart < greedy.lastStart { return CGFloat(halves) / 2 }
+        }
+        return full
+    }
+
+    /// Where the line above an orphan holds one piece wider than everything after it, the only width that pulls a
+    /// word down is under that piece: TextKit splits it and its fragment is what lands on the last line
+    /// (`Incomprehensibiliti` / `es word`). Floored, there is no pretty width there and the paragraph keeps its own;
+    /// every width the old search kept whole is unchanged. Android's `PrettyWidthTest`.
+    func testAPrettyReWrapNeverSplitsALongWord() {
+        let text = washHeadlineText([("Incomprehensibilities word", false)], size: 30)
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        var wouldSplit = 0
+        for halves in stride(from: Int((piece * 2).rounded(.down)) + 1, through: Int(piece * 3), by: 2) {
+            let full = CGFloat(halves) / 2
+            let got = CSSTextLayout.prettyWidth(text, within: full)
+            let old = unflooredPretty(text, within: full)
+            if old < piece { wouldSplit += 1 }
+            XCTAssertGreaterThanOrEqual(got, piece, "at \(full)")
+            XCTAssertEqual(wordSplits(text, width: got), [], "at \(full)")
+            if old >= piece { XCTAssertEqual(got, old, "at \(full) moved a width that split nothing") }
+        }
+        XCTAssertGreaterThan(wouldSplit, 0, "the old pretty search never went below the long word, so this proves nothing")
+    }
+}
+
+/// The widest line `label` draws at `width`, from its own layout rather than TextKit's: under the widest unbreakable
+/// piece, the label broke a word between two letters.
+@MainActor
+func labelWidestLine(_ label: UILabel, at width: CGFloat) -> CGFloat {
+    label.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).width
+}
+
+/// `parts` as `WashHeadline.updateUIView` builds them at Date 08's type: Lora 700 `size` (27) / 1.15, -0.01em,
+/// centred, the italic run in Lora 500 italic with its spaces no-break -- or ordinary, `joinRun` false, the loose text
+/// `WashHost` swaps in for a run wider than its box. Rebuilt here because the headline builds it inline.
+@MainActor
+func washHeadlineText(_ parts: [(String, Bool)], size: CGFloat = 27, joinRun: Bool = true) -> NSAttributedString {
+    let regular = TypeMetrics.uiFont(PS.loraBold, size, fallback: .systemFont(ofSize: size, weight: .bold))
+    let italic = TypeMetrics.uiFont(PS.loraMediumItalic, size, fallback: TypeMetrics.italicSystem(size))
+    let para = NSMutableParagraphStyle()
+    para.lineHeightMultiple = (size * 1.15) / regular.lineHeight
+    para.alignment = .center
+    let out = NSMutableAttributedString()
+    for (text, isItalic) in parts {
+        out.append(NSAttributedString(
+            string: isItalic && joinRun ? text.replacingOccurrences(of: " ", with: "\u{00A0}") : text,
+            attributes: [.font: isItalic ? italic : regular, .kern: -0.01 * size, .paragraphStyle: para]))
+    }
+    return out
+}
+
+/// The italic run's range in `parts` joined, as `WashHeadline` records it.
+func washRunRange(_ parts: [(String, Bool)]) -> NSRange {
+    var location = 0
+    for (text, isItalic) in parts {
+        let length = (text as NSString).length
+        if isItalic { return NSRange(location: location, length: length) }
+        location += length
+    }
+    return NSRange(location: NSNotFound, length: 0)
+}
+
+/// A balanced `WashHost` holding `parts` as `updateUIView` hands them over: the run joined, the loose text beside it.
+@MainActor
+func balancedWashHost(_ parts: [(String, Bool)], size: CGFloat = 27) -> WashHost {
+    let host = WashHost()
+    host.balance = true
+    host.setText(washHeadlineText(parts, size: size), loose: washHeadlineText(parts, size: size, joinRun: false),
+                 run: washRunRange(parts))
+    return host
+}
+
+/// The text under each band of wash `WashLabel` paints for `run` when `text` is laid out at `width`.
+@MainActor
+func washBands(_ text: NSAttributedString, width: CGFloat, run: NSRange) -> [String] {
+    let storage = NSTextStorage(attributedString: text)
+    let manager = NSLayoutManager()
+    let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
+    container.lineFragmentPadding = 0
+    storage.addLayoutManager(manager)
+    manager.addTextContainer(container)
+    manager.ensureLayout(for: container)
+    let whole = text.string as NSString
+    let glyphs = manager.glyphRange(forCharacterRange: run, actualCharacterRange: nil)
+    return WashLabel.washSegments(manager, run: glyphs, in: whole)
+        .map { whole.substring(with: manager.characterRange(forGlyphRange: $0, actualGlyphRange: nil)) }
+}
+
+/// Every line of `text` at `width` but the last that ends without a breaking space before the break: a split word.
+@MainActor
+func wordSplits(_ text: NSAttributedString, width: CGFloat) -> [String] {
+    let storage = NSTextStorage(attributedString: text)
+    let manager = NSLayoutManager()
+    let container = NSTextContainer(size: CGSize(width: width, height: .greatestFiniteMagnitude))
+    container.lineFragmentPadding = 0
+    storage.addLayoutManager(manager)
+    manager.addTextContainer(container)
+    manager.ensureLayout(for: container)
+    var ranges: [NSRange] = []
+    manager.enumerateLineFragments(forGlyphRange: NSRange(location: 0, length: manager.numberOfGlyphs)) { _, _, _, glyphs, _ in
+        ranges.append(manager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil))
+    }
+    let whole = text.string as NSString
+    return ranges.dropLast()
+        .filter { $0.length > 0 && whole.character(at: NSMaxRange($0) - 1) != 0x20 }
+        .map { whole.substring(with: $0) }
 }

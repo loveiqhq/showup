@@ -35,7 +35,8 @@ import androidx.compose.ui.unit.Constraints
 
 /**
  * The width, in px, at which [text] in [style] wraps as CSS `text-wrap: pretty` would inside
- * [maxPx]: [maxPx] itself unless the greedy wrap ends on an orphan.
+ * [maxPx]: [maxPx] itself unless the greedy wrap ends on an orphan -- and never a width under
+ * [minContentPx], where a word would break inside to move, as [balancedWidthPx] never goes either.
  */
 fun prettyWidthPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyle, maxPx: Int): Int {
     if (maxPx <= 0) return maxPx
@@ -63,29 +64,65 @@ fun prettyWidthPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyl
     }
     val pulled = measurer.measure(text, style, constraints = Constraints(maxWidth = lo))
     // Only a word pulled down at the SAME line count is Chrome's re-wrap.
-    return if (pulled.lineCount == lines && pulled.getLineStart(last) < lastStart) lo else maxPx
+    if (pulled.lineCount != lines || pulled.getLineStart(last) >= lastStart) return maxPx
+    // And never under the widest unbreakable piece. Where the line above the orphan holds one piece
+    // wider than the rest, the only width that pulls anything down is under it: the line breaker
+    // splits the piece and its fragment is what moves (`Incomprehensibiliti` / `es word`; the review
+    // of SHOWUP-199, 27 Nov 2026). The search found the WIDEST width that moves, so nothing at or
+    // above the floor does: there is no pretty width, and the paragraph keeps its own.
+    return if (lo >= minContentPx(measurer, text, style)) lo else maxPx
 }
 
 /**
  * The width, in px, at which [text] in [style] wraps as CSS `text-wrap: balance` would inside
- * [maxPx]: the narrowest width that keeps the greedy line count, so the lines come out even. [maxPx]
- * itself for a single line, which has nothing to balance and would only become two.
+ * [maxPx]: the narrowest width that keeps the greedy line count, so the lines come out even -- and
+ * never narrower than the widest unbreakable piece, a word or an em run whose spaces are no-break.
+ * [maxPx] itself for a single line, which has nothing to balance and would only become two, and
+ * where that piece is already wider than [maxPx].
+ *
+ * THE FLOOR IS CSS'S MIN-CONTENT WIDTH. Chrome never balances a block below its widest unbreakable
+ * piece: it would overflow rather than break inside a word. Android's line breaker breaks inside
+ * instead, often at the same line count, so a search from 1 px settled below the piece and split
+ * it -- Date 08 B drew `didn't feel comforta` / `ble in the situation.` on every phone (SHOWUP-199,
+ * 22 Nov 2026). Where the old search stayed above the floor, nothing moves.
  *
  * A binary search -- eight measurements rather than a scan's three hundred, because a Text
- * re-measures on every recomposition.
+ * re-measures on every recomposition -- and one per word for the floor ([minContentPx]).
  */
 fun balancedWidthPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyle, maxPx: Int): Int {
     if (maxPx <= 0) return maxPx
     fun linesAt(px: Int) = measurer.measure(text, style, constraints = Constraints(maxWidth = px.coerceAtLeast(1))).lineCount
     val target = linesAt(maxPx)
     if (target <= 1) return maxPx
-    var low = 1
+    val minContent = minContentPx(measurer, text, style)
+    if (minContent >= maxPx) return maxPx
+    var low = minContent.coerceAtLeast(1)
     var high = maxPx
     while (low < high) {
         val mid = (low + high) / 2
         if (linesAt(mid) <= target) high = mid else low = mid + 1
     }
     return low
+}
+
+/**
+ * CSS's min-content width of [text] in [style], in px: the narrowest width at which every
+ * unbreakable piece ([wordsOf]) still lays out on one line -- the floor under [balancedWidthPx].
+ *
+ * LAID OUT, NOT READ OFF THE SIZE ALONE. A measured size is rounded up, and the line breaker can fit
+ * a piece a pixel narrower: the Check-In gate's `start dating.` at 200 % measures 414 px and stays
+ * whole at 413. Floored at the size, three headlines that split nothing moved a pixel (the 22 Nov
+ * 2026 fit sweep); floored here, a width moves only where the old search split a word.
+ */
+internal fun minContentPx(measurer: TextMeasurer, text: AnnotatedString, style: TextStyle): Int {
+    val sized = wordsOf(text).map { it to measurer.measure(it, style, softWrap = false).size.width }
+    var floor = sized.maxOfOrNull { it.second } ?: return 0
+    // A word no wider than `px` fits there; only the ones the rounding could have overstated are laid out.
+    fun allWhole(px: Int) = sized.all { (word, w) ->
+        w <= px || measurer.measure(word, style, constraints = Constraints(maxWidth = px)).lineCount == 1
+    }
+    while (floor > 1 && allWhole(floor - 1)) floor--
+    return floor
 }
 
 /**

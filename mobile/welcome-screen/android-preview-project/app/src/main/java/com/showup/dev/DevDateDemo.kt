@@ -54,6 +54,7 @@ import com.showup.date.DateUnread
 import com.showup.date.EndDateResult
 import com.showup.date.EndEntry
 import com.showup.date.EndReason
+import com.showup.date.PartnerScreen
 import com.showup.date.EndedOutcome
 import com.showup.date.OutcomeReason
 import com.showup.date.cancel.CancelSamples
@@ -87,14 +88,31 @@ fun demoSteps(frame: String): List<DemoStep> = when (frame) {
     else -> emptyList()
 }
 
-/** Every frame id a launch can carry: Date 05's letters, and the two tickets' prefixed ids. */
+/**
+ * SHOWUP-199's frames (Date 08): the demo date is opened, then Leonie ends it with the frame's reason, so the screen
+ * is reached by the app's own routing -- the same call as the developer menu's. `199A-chat` waits in the chat and
+ * lets her end it three seconds later: the poll finds it, as it would for a real match.
+ */
+class DemoPartnerEnd(val reason: EndReason, val afterMs: Long)
+
+val PARTNER_END_FRAMES: Set<String> = setOf("199A", "199B", "199C", "199A-chat")
+
+fun demoPartnerEnd(frame: String): DemoPartnerEnd? = when (frame) {
+    "199A" -> DemoPartnerEnd(EndReason.PartnerNoShow, 0)
+    "199B" -> DemoPartnerEnd(EndReason.Uncomfortable, 0)
+    "199C" -> DemoPartnerEnd(EndReason.Met, 0)
+    "199A-chat" -> DemoPartnerEnd(EndReason.PartnerNoShow, 3_000)
+    else -> null
+}
+
+/** Every frame id a launch can carry: Date 05's letters, and the three tickets' prefixed ids. */
 val DEV_LIVE_FRAMES: Set<String> =
-    (ChangeSamples.LETTERS + DateEndSamples.LETTERS.map { "197$it" } + CancelSamples.LETTERS.map { "198$it" }).toSet()
+    (ChangeSamples.LETTERS + DateEndSamples.LETTERS.map { "197$it" } + CancelSamples.LETTERS.map { "198$it" } + PARTNER_END_FRAMES).toSet()
 
 fun demoLanding(frame: String): DemoLanding = when (frame) {
     "A", "K" -> DemoLanding.TimePicker
     "B", "M", "N" -> DemoLanding.PlacePicker
-    "C", "F", "H" -> DemoLanding.Chat
+    "C", "F", "H", "199A-chat" -> DemoLanding.Chat
     else -> DemoLanding.DateScreen
 }
 
@@ -374,6 +392,12 @@ class DevDateDemo(
                     EndReason.Met -> OutcomeReason.Met
                     EndReason.PartnerNoShow -> OutcomeReason.PartnerNoShow
                     EndReason.Uncomfortable -> OutcomeReason.Uncomfortable
+                },
+                // What the real server sends the match of a Date 06 end, so the app's routing reaches Date 08.
+                partnerScreen = when (reason) {
+                    EndReason.Met -> PartnerScreen.DateClosedPositive
+                    EndReason.PartnerNoShow -> PartnerScreen.YouNoShowed
+                    EndReason.Uncomfortable -> PartnerScreen.DateEndedDiscomfort
                 },
             )
             endSeen = false

@@ -225,6 +225,11 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
 
     /** Date 07 H: what the match of a red-link cancel sees (§11 row added 21 Nov 2026, registry 1.4.37). */
     DatePartnerCancelled("date_partner_cancelled", "Date - Partner cancelled"),
+
+    /** Date 08, what the match of a Date 06 end sees: one row per payload (SHOWUP-199, §11 rows added 22 Nov 2026). */
+    DatePartnerEndedNoShow("date_partner_ended_no_show", "Date - Partner ended no-show"),
+    DatePartnerEndedUncomfortable("date_partner_ended_uncomfortable", "Date - Partner ended uncomfortable"),
+    DatePartnerEndedMet("date_partner_ended_met", "Date - Partner ended met"),
 }
 
 /**

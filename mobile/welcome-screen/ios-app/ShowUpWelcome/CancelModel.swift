@@ -77,8 +77,7 @@ struct CancelDraft: Codable, Equatable, Sendable {
     var dateId: String
 
     var encoded: String {
-        guard let data = try? JSONEncoder().encode(self) else { return "" }
-        return String(decoding: data, as: UTF8.self)
+        DraftEncoding.string(self)
     }
 
     /// Anything that does not decode is no draft: a value from another build is a shape this one never saw.
@@ -174,6 +173,13 @@ final class CancelModel {
     /// The link is gone and the route may be off: a sheet over a date that no longer allows it closes, silently.
     private func revalidate() {
         guard ui.open, let date = ui.date, !date.endsEnabled || date.checkedIn else { return }
+        change { Self.closing(&$0) }
+    }
+
+    /// The other person ended this date (Date 08, SHOWUP-199): the guard closes and its saved state goes with it, so it
+    /// cannot restore after a process death. Not a dismissal: `cancel_abandoned_at_guard` is for the person's own exit.
+    func discardForPartnerEnd() {
+        guard ui.open else { return }
         change { Self.closing(&$0) }
     }
 

@@ -107,6 +107,20 @@ const CATALOG: Record<NotificationType, Record<Locale, Template>> = {
       body: 'Öffne Show Up, um zu sehen, wie es weitergeht.',
     }),
   },
+  // TEMPORARY placeholder copy (Date 08, Open item 2): all push copy is written at the end of the
+  // project, in one pass. The ender's first name only; never a reason, a place or a time.
+  date_partner_ended: {
+    en: (p) => ({
+      title: p.name ? `${p.name} ended your date` : 'Your date was ended',
+      body: 'Open Show Up to see what happens next.',
+    }),
+    de: (p) => ({
+      title: p.name
+        ? `${p.name} hat euer Date beendet`
+        : 'Dein Date wurde beendet',
+      body: 'Öffne Show Up, um zu sehen, wie es weitergeht.',
+    }),
+  },
   check_in_expiry: {
     // Deliberately discreet — a check-in is tied to the user's real-world location (privacy/safety).
     en: () => ({

@@ -42,9 +42,13 @@ final class DevDateDemoTests: XCTestCase {
     func testTheStatesPageOpensEveryDate05FrameLiveAndEveryOtherAsAPicture() {
         let live = devStates.compactMap { state in devLiveFrame(state).map { "\(state.id)=\($0)" } }
         // 196's frames are named by their letter, 197's and 198's keep the ticket number (the letters would collide).
-        XCTAssertEqual(live, ChangeSamples.letters.map { "196\($0)=\($0)" }
-            + DateEndSamples.letters.map { "197\($0)=197\($0)" }
-            + CancelSamples.letters.map { "198\($0)=198\($0)" })
+        var expected: [String] = ChangeSamples.letters.map { "196\($0)=\($0)" }
+        expected += DateEndSamples.letters.map { "197\($0)=197\($0)" }
+        expected += CancelSamples.letters.map { "198\($0)=198\($0)" }
+        // 199's keep their whole id: the chat variant of A is not a letter.
+        expected += ["199A", "199B", "199C", "199A-chat"].map { "\($0)=\($0)" }
+        XCTAssertEqual(live, expected)
+        XCTAssertNil(devLiveFrame(DevState(id: "199D", ticket: "SHOWUP-199", label: "D")))
         XCTAssertNil(devLiveFrame(DevState(id: "195A", ticket: "SHOWUP-195", label: "A")))
         XCTAssertNil(devLiveFrame(DevState(id: "198G", ticket: "SHOWUP-198", label: "G")))
         XCTAssertNil(devLiveFrame(DevState(id: "196Z", ticket: "SHOWUP-196", label: "Z")))
@@ -279,7 +283,35 @@ final class DevDateDemoTests: XCTestCase {
         for f in ["198B", "198C", "198E", "198I"] { XCTAssertEqual(demoSteps(f), [.openCancel], f) }
         XCTAssertEqual(demoSteps("198D"), [.openCancel, .cancelSent])
         for f in ["197A", "198A", "198F", "198H"] { XCTAssertEqual(demoSteps(f), [], f) }
-        for f in devLiveFrames where f.hasPrefix("19") { XCTAssertEqual(demoLanding(f), .dateScreen, f) }
+        for f in devLiveFrames where f.hasPrefix("19") && !f.hasPrefix("199") { XCTAssertEqual(demoLanding(f), .dateScreen, f) }
+        // 199's frames do no sheet step: Leonie's end is the step, and the chat frame waits in the chat for it.
+        for f in partnerEndFrames { XCTAssertEqual(demoSteps(f), [], f) }
+        for f in ["199A", "199B", "199C"] { XCTAssertEqual(demoLanding(f), .dateScreen, f) }
+        XCTAssertEqual(demoLanding("199A-chat"), .chat)
+    }
+
+    func test199FramesHaveLeonieEndTheDateWithTheirReasonTheChatFrameThreeSecondsIn() {
+        XCTAssertEqual(demoPartnerEnd("199A"), DemoPartnerEnd(reason: .partnerNoShow, afterMs: 0))
+        XCTAssertEqual(demoPartnerEnd("199B"), DemoPartnerEnd(reason: .uncomfortable, afterMs: 0))
+        XCTAssertEqual(demoPartnerEnd("199C"), DemoPartnerEnd(reason: .met, afterMs: 0))
+        XCTAssertEqual(demoPartnerEnd("199A-chat"), DemoPartnerEnd(reason: .partnerNoShow, afterMs: 3_000))
+        XCTAssertNil(demoPartnerEnd("197A"))
+        for f in partnerEndFrames { XCTAssertTrue(devLiveFrames.contains(f), f) }
+    }
+
+    func testTheDemosDate06EndCarriesTheScreenTheRealServerSendsTheMatch() async {
+        let expected: [(EndReason, PartnerScreen)] = [
+            (.met, .dateClosedPositive), (.partnerNoShow, .youNoShowed), (.uncomfortable, .dateEndedDiscomfort),
+        ]
+        for (reason, screen) in expected {
+            let d = demo("199C")
+            _ = await d.partnerEnds(reason: reason)
+            guard case .success(.ended(let o)) = await d.active(zone: "Europe/Berlin") else { return XCTFail("expected ended") }
+            XCTAssertEqual(o.partnerScreen, screen, reason.rawValue)
+            XCTAssertFalse(o.endedByYou)
+            // The app's one routing sends it to Date 08 with that payload.
+            XCTAssertEqual(endedRoute(o), .partnerEnded(screen), reason.rawValue)
+        }
     }
 
     func test197FramesAreCheckedInExceptDAndFGAndJAreTenMinutesPastTheMeetTime() async throws {

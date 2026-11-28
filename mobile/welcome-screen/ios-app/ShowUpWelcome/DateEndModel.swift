@@ -76,8 +76,7 @@ struct DateEndDraft: Codable, Equatable, Sendable {
     var dateId: String
 
     var encoded: String {
-        guard let data = try? JSONEncoder().encode(self) else { return "" }
-        return String(decoding: data, as: UTF8.self)
+        DraftEncoding.string(self)
     }
 
     /// Anything that does not decode is no draft: a value from another build is a shape this one never saw.
@@ -318,6 +317,20 @@ final class DateEndModel {
     /// `Cancel`, the scrim or a swipe-down on B or H. Nothing is stored. Inert while an end is in flight.
     func close() {
         guard ui.route != nil, !ui.ending else { return }
+        change {
+            $0.route = nil
+            $0.step = .menu
+            $0.gated = nil
+            $0.openGate = nil
+            $0.failed = false
+        }
+    }
+
+    /// The other person ended this date (Date 08, SHOWUP-199): the sheet closes whatever it is doing, including while an
+    /// end of ours is in flight (that call finishes on its own: a 409 re-reads into the same screen), and nothing of it
+    /// stays saved, so it cannot come back after a process death. Not a dismissal: nothing is reported.
+    func discardForPartnerEnd() {
+        guard ui.route != nil else { return }
         change {
             $0.route = nil
             $0.step = .menu

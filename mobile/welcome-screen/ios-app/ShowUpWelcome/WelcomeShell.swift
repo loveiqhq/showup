@@ -408,7 +408,8 @@ struct WashHeadline: UIViewRepresentable {
     /// HOW. Balance is "the narrowest width that still fits in the same number of lines". The
     /// UILabel this wraps already reports its height at a given width, so the search is over that:
     /// measure at the full width to learn the line count, then binary-search downward for the
-    /// narrowest width whose height is unchanged. Eight measurements, not three hundred.
+    /// narrowest width whose height is unchanged -- never below the widest word, the em run counting
+    /// as one, or the run splits (`WashHost.balancedWidth`). Eight measurements, not three hundred.
     ///
     /// OFF BY DEFAULT: it moves where existing headlines break.
     var balance: Bool = false
@@ -481,6 +482,7 @@ struct WashHeadline: UIViewRepresentable {
             return nil
         }
         let v = host.label
+        host.useText(within: width)
         let used = host.lineWidth(within: width)
         v.preferredMaxLayoutWidth = used
         let fit = v.sizeThatFits(CGSize(width: used, height: .greatestFiniteMagnitude))
@@ -516,19 +518,24 @@ struct WashHeadline: UIViewRepresentable {
         if centered { para.alignment = .center }
 
         let out = NSMutableAttributedString()
+        // The same text with the run's spaces ordinary, for a run wider than the box itself
+        // (`WashHost.useText`).
+        let loose = NSMutableAttributedString()
         var italicRange = NSRange(location: NSNotFound, length: 0)
         for (rawText, isItalic) in parts {
             // `white-space: nowrap` on the emphasis span, expressed the only way an attributed
             // string can: a space that is not a break opportunity. Without it "Show Up" can split
             // across two lines and the wash paints under two disconnected fragments.
             let text = isItalic && !emphasisBreaks ? rawText.replacingOccurrences(of: " ", with: "\u{00A0}") : rawText
-            let start = out.length
-            out.append(NSAttributedString(string: text, attributes: [
+            let attributes: [NSAttributedString.Key: Any] = [
                 .font: isItalic ? italic : regular,
                 .foregroundColor: UIColor(color),
                 .kern: trackingEm * fontSize,
                 .paragraphStyle: para,
-            ]))
+            ]
+            let start = out.length
+            out.append(NSAttributedString(string: text, attributes: attributes))
+            loose.append(NSAttributedString(string: rawText, attributes: attributes))
             if isItalic && italicRange.location == NSNotFound {
                 italicRange = NSRange(location: start, length: (text as NSString).length)
             }
@@ -538,16 +545,17 @@ struct WashHeadline: UIViewRepresentable {
         // which is what "on the baseline" means for a solid shape with no descender. The gap
         // is a NON-BREAKING space, so the icon can never be pulled onto a line by itself.
         if let trailing, let mark = rasterisedIcon(trailing) {
-            out.append(NSAttributedString(
-                string: "\u{00A0}",
-                attributes: [.font: UIFont.systemFont(ofSize: trailingGap)]))
+            let gap = NSAttributedString(string: "\u{00A0}", attributes: [.font: UIFont.systemFont(ofSize: trailingGap)])
             let attachment = NSTextAttachment()
             attachment.image = mark
             attachment.bounds = CGRect(x: 0, y: 0, width: trailingSize, height: trailingSize)
-            out.append(NSAttributedString(attachment: attachment))
+            for text in [out, loose] {
+                text.append(gap)
+                text.append(NSAttributedString(attachment: attachment))
+            }
         }
 
-        v.attributedText = out
+        host.setText(out, loose: emphasisBreaks ? nil : loose, run: italicRange)
         v.italicRange = italicRange
         v.emSize = fontSize
         v.washEnabled = wash
@@ -585,9 +593,40 @@ final class WashHost: UIView {
     var cssLineHeight: CGFloat?
     /// The run's font, whose ascent and descent CSS centres in each line.
     var cssFont: UIFont?
+    /// The text with the em run joined by no-break spaces, the same text with the run's spaces
+    /// ordinary (nil under `emphasisBreaks`, whose run is never joined), and the run's range.
+    private var joinedText: NSAttributedString?
+    private var looseText: NSAttributedString?
+    private var runRange = NSRange(location: NSNotFound, length: 0)
+    private var showingLoose = false
 
     /// Whether this host places the label itself rather than letting it fill the box.
     var managesLayout: Bool { pretty || cssLineHeight != nil }
+
+    /// The headline's text, the run joined, as `WashHeadline` builds it.
+    func setText(_ joined: NSAttributedString, loose: NSAttributedString?, run: NSRange) {
+        joinedText = joined
+        looseText = loose
+        runRange = run
+        showingLoose = false
+        label.attributedText = joined
+    }
+
+    /// `white-space: nowrap` holds the em run in one piece -- until the run is wider than the box
+    /// itself. Then no width keeps it whole and the label broke a word between two letters (Android's
+    /// Date 08 B at 320: `didn't feel comforta` / `ble ...`), and no word may ever break inside
+    /// (SHOWUP-199 ruling R-e, 22 Nov 2026): the run wraps between its own words instead, the wash
+    /// under each line of it. A run that fits keeps its join, so nothing else moves. Balanced and
+    /// pretty headlines only, as on Android, where only those know their width before they draw.
+    func useText(within width: CGFloat) {
+        guard balance || pretty, width > 0, let joined = joinedText, let loose = looseText,
+              runRange.location != NSNotFound else { return }
+        let wide = CSSTextLayout.pieceWidth(joined, around: runRange) > width
+        guard wide != showingLoose else { return }
+        showingLoose = wide
+        label.attributedText = wide ? loose : joined
+        label.setNeedsDisplay()
+    }
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -618,9 +657,19 @@ final class WashHost: UIView {
     /// Searched over HEIGHT rather than line count, because the label reports height and height is
     /// a faithful proxy: one more line is one more line's worth of points, and nothing else here
     /// changes it. Binary search over whole points, so eight probes settle a 400-point range.
+    ///
+    /// NEVER BELOW THE WIDEST UNBREAKABLE PIECE -- a word, or the em run whose spaces are no-break:
+    /// CSS's min-content width, which Chrome never balances below. Under it the label breaks INSIDE
+    /// the piece, by character, often at the same height, so a search from 1 settled there and split
+    /// it -- Android's Date 08 B drew `didn't feel comforta` / `ble in the situation.` (SHOWUP-199,
+    /// 22 Nov 2026), and this is the same search. `full` where the piece is wider than it.
     private func balancedWidth(within full: CGFloat) -> CGFloat {
+        let minContent = label.attributedText.map(CSSTextLayout.widestUnbreakable) ?? 0
+        if minContent >= full { return full }
         let tallest = label.sizeThatFits(CGSize(width: full, height: .greatestFiniteMagnitude)).height
-        var low: CGFloat = 1
+        // `low` is the last width known NOT to be the answer: the whole point under the floor rounded
+        // up, so every probe is a whole point at or above the floor.
+        var low: CGFloat = max(1, minContent.rounded(.up) - 1)
         var high = full
         while high - low > 1 {
             let mid = ((low + high) / 2).rounded()
@@ -632,6 +681,7 @@ final class WashHost: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        useText(within: bounds.width)
         guard managesLayout else {
             label.bottomRoom = 0
             label.frame = bounds
@@ -700,22 +750,28 @@ final class WashLabel: UILabel {
         manager.ensureLayout(for: container)
 
         let glyphRange = manager.glyphRange(forCharacterRange: italicRange, actualCharacterRange: nil)
-        // One band a line: a run that wraps (`emphasisBreaks`) is painted under each of its lines, the space the
-        // line broke at left out. A run on one line is one segment, painted exactly as before.
+        let segments = Self.washSegments(manager, run: glyphRange, in: attributed.string as NSString)
+        for segment in segments.isEmpty ? [glyphRange] : segments {
+            paintWash(manager: manager, container: container, glyphRange: segment, ctx: ctx)
+        }
+    }
+
+    /// One band a line: the glyphs of `run` on each line it lies on, the space the line broke at left
+    /// out -- a run that wraps (`emphasisBreaks`, or one wider than its box, `WashHost.useText`) is
+    /// painted under each of its lines. A run on one line is one segment, painted exactly as before.
+    static func washSegments(_ manager: NSLayoutManager, run glyphRange: NSRange, in string: NSString) -> [NSRange] {
         var segments: [NSRange] = []
         manager.enumerateLineFragments(forGlyphRange: glyphRange) { _, _, _, lineGlyphs, _ in
             var part = NSIntersectionRange(lineGlyphs, glyphRange)
             guard part.length > 0 else { return }
             if NSMaxRange(part) < NSMaxRange(glyphRange), part.length > 1 {
                 let last = manager.characterIndexForGlyph(at: NSMaxRange(part) - 1)
-                if (attributed.string as NSString).substring(with: NSRange(location: last, length: 1))
+                if string.substring(with: NSRange(location: last, length: 1))
                     .trimmingCharacters(in: .whitespaces).isEmpty { part.length -= 1 }
             }
             segments.append(part)
         }
-        for segment in segments.isEmpty ? [glyphRange] : segments {
-            paintWash(manager: manager, container: container, glyphRange: segment, ctx: ctx)
-        }
+        return segments
     }
 
     private func paintWash(manager: NSLayoutManager, container: NSTextContainer, glyphRange: NSRange,

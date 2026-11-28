@@ -23,8 +23,28 @@ func demoLanding(_ frame: String) -> DemoLanding {
     switch frame {
     case "A", "K": return .timePicker
     case "B", "M", "N": return .placePicker
-    case "C", "F", "H": return .chat
+    case "C", "F", "H", "199A-chat": return .chat
     default: return .dateScreen
+    }
+}
+
+/// SHOWUP-199's frames (Date 08): the demo date is opened, then Leonie ends it with the frame's reason, so the screen is
+/// reached by the app's own routing -- the same call as the developer menu's. `199A-chat` waits in the chat and lets her
+/// end it three seconds later: the chat's poll finds it, as it would for a real match. Android's `DemoPartnerEnd`.
+struct DemoPartnerEnd: Equatable, Sendable {
+    let reason: EndReason
+    let afterMs: Int
+}
+
+let partnerEndFrames: Set<String> = ["199A", "199B", "199C", "199A-chat"]
+
+func demoPartnerEnd(_ frame: String) -> DemoPartnerEnd? {
+    switch frame {
+    case "199A": return DemoPartnerEnd(reason: .partnerNoShow, afterMs: 0)
+    case "199B": return DemoPartnerEnd(reason: .uncomfortable, afterMs: 0)
+    case "199C": return DemoPartnerEnd(reason: .met, afterMs: 0)
+    case "199A-chat": return DemoPartnerEnd(reason: .partnerNoShow, afterMs: 3_000)
+    default: return nil
     }
 }
 
@@ -50,9 +70,10 @@ func demoSteps(_ frame: String) -> [DemoStep] {
     }
 }
 
-/// Every frame id a launch can carry: Date 05's letters, and the two tickets' prefixed ids. Android's `DEV_LIVE_FRAMES`.
+/// Every frame id a launch can carry: Date 05's letters, and the three tickets' prefixed ids. Android's `DEV_LIVE_FRAMES`.
 let devLiveFrames: Set<String> =
     Set(ChangeSamples.letters + DateEndSamples.letters.map { "197" + $0 } + CancelSamples.letters.map { "198" + $0 })
+        .union(partnerEndFrames)
 
 /// The search a frame's picker opens on: N is drawn as a search for "sushi" that finds nothing. Android's `demoQuery`.
 func demoQuery(_ frame: String) -> String? { frame == "N" ? "sushi" : nil }
@@ -62,6 +83,9 @@ func demoQuery(_ frame: String) -> String? { frame == "N" ? "sushi" : nil }
 /// stay pictures. 196's frames are named by their letter alone; 197's and 198's keep the ticket number, which says which
 /// is which. Android's `devLiveFrame`.
 func devLiveFrame(_ state: DevState) -> String? {
+    // 199's frames are the real thing: the demo date is opened, then Leonie ends it and the app's own routing shows the
+    // screen.
+    if state.id.hasPrefix("199") { return partnerEndFrames.contains(state.id) ? state.id : nil }
     let letter = String(state.id.dropFirst(3))
     if state.id.hasPrefix("196") { return ChangeSamples.letters.contains(letter) ? letter : nil }
     if state.id.hasPrefix("197") { return DateEndSamples.letters.contains(letter) ? state.id : nil }
@@ -376,7 +400,15 @@ actor DevDateDemo: DateStoring, ChatStoring, ChangeStoring, ArrivalStoring, Loca
         case .partnerNoShow: outcome = .partnerNoShow
         case .uncomfortable: outcome = .uncomfortable
         }
-        ended = EndedOutcome(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: false, reason: outcome)
+        // What the real server sends the match of a Date 06 end, so the app's routing reaches Date 08.
+        let screen: PartnerScreen
+        switch reason {
+        case .met: screen = .dateClosedPositive
+        case .partnerNoShow: screen = .youNoShowed
+        case .uncomfortable: screen = .dateEndedDiscomfort
+        }
+        ended = EndedOutcome(dateId: Self.demoDateId, name: DateSamples.date.match.name, endedByYou: false, reason: outcome,
+                             partnerScreen: screen)
         endSeen = false
         return true
     }
