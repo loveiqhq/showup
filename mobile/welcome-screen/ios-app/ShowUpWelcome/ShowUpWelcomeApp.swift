@@ -1363,7 +1363,7 @@ private struct TutorialFlow: View {
     private func routeEnded(_ ended: EndedOutcome, from: ProfileScreen?) {
         switch endedRoute(ended) {
         case .dateEnded, .partnerCancelled: showOutcome(ended, from: from ?? .dateScreen)
-        case .partnerEnded(let screen):
+        case .partnerEnded:
             // Once per ended date: the chat's poll and the Date screen's read can both see one end.
             guard let screen = partnerEndedToShow(ended, once: &partnerEndedOnce) else { return }
             showPartnerEnded(ended, screen: screen,
