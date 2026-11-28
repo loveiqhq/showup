@@ -333,11 +333,23 @@ describe('The Coordinate chat (e2e)', () => {
 
         expect((await getDate('you')).body).toEqual({
           date: null,
-          ended: { dateId, name: 'Leonie', endedByYou: true, reason: 'chat' },
+          ended: {
+            dateId,
+            name: 'Leonie',
+            endedByYou: true,
+            reason: 'chat',
+            meetAt: expect.any(String),
+          },
         });
         expect((await getDate('leonie')).body).toEqual({
           date: null,
-          ended: { dateId, name: 'Max', endedByYou: false, reason: 'chat' },
+          ended: {
+            dateId,
+            name: 'Max',
+            endedByYou: false,
+            reason: 'chat',
+            meetAt: expect.any(String),
+          },
         });
         expect(await datesService.isLockedFromMatching(id.you)).toBe(false);
         expect(await datesService.isLockedFromMatching(id.leonie)).toBe(false);

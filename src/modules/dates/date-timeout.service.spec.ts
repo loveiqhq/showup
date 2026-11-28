@@ -38,7 +38,7 @@ function build(
       (_: unknown, o: { where: { id: string }; lock: unknown }) => {
         locks.push(o.lock);
         if (opts.failOn === o.where.id) {
-          return Promise.reject(new Error('db down'));
+          return Promise.reject(new TypeError('db down'));
         }
         const rows = opts.rows ?? {};
         return Promise.resolve(
@@ -189,7 +189,8 @@ describe('DateTimeoutService.closeDue (SHOWUP-200)', () => {
     expect(t.analytics.trackServerEvent).toHaveBeenCalledTimes(1);
     const logged = warn.mock.calls.join(' ');
     expect(logged).toContain('d1');
-    expect(logged).toContain('db down');
+    expect(logged).toContain('TypeError');
+    expect(logged).not.toContain('db down');
   });
 
   it('sends no push of any kind: the service takes no dispatcher', () => {

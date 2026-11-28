@@ -56,10 +56,10 @@ export class DateTimeoutService {
       try {
         if (await this.closeOne(id, now)) closed += 1;
       } catch (error) {
-        // One bad date must not stop the rest. The id and the error only: never a name or a place.
+        // One bad date must not stop the rest. The id and the error name only: never a name or a place.
         this.logger.warn(
           `Timeout failed for date ${id}: ${
-            error instanceof Error ? error.message : 'unknown error'
+            error instanceof Error ? error.name : 'unknown error'
           }`,
         );
       }

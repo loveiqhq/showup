@@ -77,7 +77,9 @@ describe('Date 09 the +2 h switch (e2e)', () => {
   };
 
   /** Run one sweep at `now` with the switch `flag` ('true' when omitted; undefined = unset). */
-  const sweep = async (now: Date, flag: string | undefined = 'true') => {
+  const sweep = async (now: Date, ...flagArg: [flag?: string]) => {
+    // No argument = on; an explicit undefined = unset (a default parameter would turn it on).
+    const flag = flagArg.length === 0 ? 'true' : flagArg[0];
     const real = config.get.bind(config);
     const spy = jest
       .spyOn(config, 'get')

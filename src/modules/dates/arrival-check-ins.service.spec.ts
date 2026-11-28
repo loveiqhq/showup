@@ -183,6 +183,7 @@ describe('the arrival guards against a timed-out date (SHOWUP-200)', () => {
     const body = await refused(t.service.commit('d1', 'a', NOW));
     expect(body).toMatchObject({ statusCode: 409, code: 'date_not_active' });
     expect(t.dispatch.sendPush).not.toHaveBeenCalled();
+    expect(t.emQuery).not.toHaveBeenCalled();
     expect(t.query).not.toHaveBeenCalled();
   });
 
@@ -212,6 +213,7 @@ describe('the arrival guards against a timed-out date (SHOWUP-200)', () => {
       ),
     );
     expect(body).toMatchObject({ statusCode: 409, code: 'date_not_active' });
+    expect(t.emQuery).not.toHaveBeenCalled();
     expect(t.query).not.toHaveBeenCalled();
   });
 
@@ -219,13 +221,51 @@ describe('the arrival guards against a timed-out date (SHOWUP-200)', () => {
     const t = setupGuard({ status: DateStatus.TimedOut });
     const body = await refused(t.service.undo('d1', 'a', NOW));
     expect(body).toMatchObject({ statusCode: 409, code: 'date_not_active' });
+    expect(t.emQuery).not.toHaveBeenCalled();
     expect(t.query).not.toHaveBeenCalled();
   });
 
-  it('undo on a confirmed date still deletes', async () => {
+  it('undo deletes inside a FOR SHARE transaction and fires arrival_undone after it', async () => {
     const t = setupGuard({});
     await t.service.undo('d1', 'a', NOW);
-    expect(t.query).toHaveBeenCalledTimes(1);
+    expect(t.locks).toEqual([{ mode: 'pessimistic_read' }]);
+    expect(t.emQuery).toHaveBeenCalledTimes(1);
+    expect(t.emQuery.mock.calls[0][0]).toContain('DELETE');
+    expect(t.query).not.toHaveBeenCalled();
+    expect(t.analytics.trackServerEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('create inserts inside a FOR SHARE transaction and fires arrival_confirmed after it', async () => {
+    const t = setupGuard({});
+    await t.service.create(
+      'd1',
+      'a',
+      {
+        latitude: 1,
+        longitude: 2,
+        entry: 'date_screen',
+        clientId: 'c',
+      } as never,
+      NOW,
+    );
+    expect(t.locks).toEqual([{ mode: 'pessimistic_read' }]);
+    expect(t.emQuery).toHaveBeenCalledTimes(1);
+    expect(t.emQuery.mock.calls[0][0]).toContain('INSERT');
+    expect(t.query).not.toHaveBeenCalled();
+    expect(t.analytics.trackServerEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('commit runs its UPDATE through the transaction, not the repository', async () => {
+    const t = setupGuard({});
+    await t.service.commit('d1', 'a', NOW);
+    expect(t.emQuery.mock.calls[0][0]).toContain(
+      'UPDATE date_arrival_check_ins',
+    );
+    expect(
+      t.query.mock.calls.some((c) =>
+        String(c[0]).includes('UPDATE date_arrival_check_ins'),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -241,14 +281,19 @@ function setupGuard(opts: {
     status: opts.status ?? DateStatus.Confirmed,
     scheduledAt: new Date('2026-11-28T18:00:00Z'),
   };
-  const query = jest.fn((sql: string) => {
+  // The repositories' own query (outside any transaction) and the transaction's `em.query` are
+  // separate mocks, so a statement that ran outside the transaction fails the assertions below.
+  const query = jest.fn().mockResolvedValue([[], 0]);
+  const emQuery = jest.fn((sql: string) => {
     if (sql.includes('UPDATE date_arrival_check_ins')) {
       return Promise.resolve(
         Array.from({ length: opts.committedRows ?? 1 }, () => ({ id: 'r' })),
       );
     }
-    if (sql.includes('DELETE'))
+    if (sql.includes('DELETE')) {
       return Promise.resolve([[{ entry: 'date_screen', at: new Date() }], 1]);
+    }
+    if (sql.includes('INSERT')) return Promise.resolve([{ id: 'r' }]);
     return Promise.resolve([[], 0]);
   });
   const locks: unknown[] = [];
@@ -257,20 +302,29 @@ function setupGuard(opts: {
       locks.push(o.lock);
       return Promise.resolve(date);
     }),
-    query,
+    exists: jest.fn().mockResolvedValue(false),
+    query: emQuery,
   };
   const transaction = jest.fn((cb: (e: unknown) => unknown) => cb(em));
   const dispatch = { sendPush: jest.fn().mockResolvedValue(undefined) };
+  const analytics = { trackServerEvent: jest.fn() };
+  const stored = {
+    id: 'r',
+    clientId: 'c',
+    userId: 'a',
+    dateId: 'd1',
+  };
   const service = new ArrivalCheckInsService(
     {
       query,
       exists: jest.fn().mockResolvedValue(opts.exists ?? true),
+      findOneOrFail: jest.fn().mockResolvedValue(stored),
     } as never,
     { findOne: jest.fn().mockResolvedValue(date), query } as never,
     { findOne: jest.fn().mockResolvedValue(null) } as never,
-    { trackServerEvent: jest.fn() } as never,
+    analytics as never,
     dispatch as never,
     { transaction } as never,
   );
-  return { service, query, dispatch, locks, transaction };
+  return { service, query, emQuery, dispatch, analytics, locks, transaction };
 }
