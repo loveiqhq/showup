@@ -8,6 +8,7 @@ date/
   screen-change-reference.jsx ← Date 05: time + place pickers, suggestion card, request card, expiry
   screen-wrap-report-reference.jsx ← Date 06: End Date bar, How did it go?, Report a problem, shared no-show + uncomfortable steps
   screen-cancel-reference.jsx ← Date 07: the red link, the penalty guard sheet, what the match sees
+  screen-timed-out-reference.jsx ← Date 09: Your date has ended (4th payload of Date 08's screen)
   tickets/00-epic.md          ← flow shape, built-once inventory, flow-level rules
   tickets/01-date-screen.md   ← scope, copy strings, AC, tracking
   tickets/02-coordinate-chat.md
@@ -21,6 +22,7 @@ date/
   spec-sheets/05-change-time-place.png
   spec-sheets/06-end-report.png
   spec-sheets/07-cancel.png
+  spec-sheets/09-timed-out.png
   07a-decisions.md            ← check-in, time/place changes, auto-switch, retention (2 Nov 2026)
 ```
 
@@ -36,7 +38,7 @@ Kit source: `ui_kits/show-up/screens-date-chat.jsx`, `screens-date-change.jsx`, 
 | 06 | End date and report a problem | A End Date bar · B How did it go? · C we met · D check in first (consumed) · E/F not here yet, before / after meet time · G thanks for waiting · H report · I not comfortable · J end failed | ticketed — not built (10 Nov 2026) |
 | 07 | Cancel this date | A link · B guard, chat locked · C chat open · D after a change request · E cancel failed · F after check-in, no link · G canceller → flow 10 (consumed) · H match sees | ticketed — not built (16 Nov 2026) |
 | 08 | What the other side sees | you didn't show up (claim) · ended (uncomfortable) · ended (We met) · + flow 10 claim headline `rating-claimed-noshow` | written 17 Nov 2026 · `tickets/08-partner-end.md` |
-| 09 | Switch to flow 10 | logic only, no sheet | to write |
+| 09 | Your date has ended (+2 h switch) | one screen `date-timed-out` for both · the +2 h job | written 17 Nov 2026 · `tickets/09-timed-out.md` |
 | 10 | Match Mate | topics from both profiles · ice breakers · quick games · safety tips · if it's awkward — library + AI picks, always visible, mixed tone | to design |
 | 00 | Epic | — | written 2 Nov 2026 · `tickets/00-epic.md` |
 
@@ -118,3 +120,9 @@ Order: 01 → 02 → 03 and 05 in parallel → 06, 07, 08 → 09.
 - **Permanent pair block** after a red-link cancel, both directions (`matching-plan.md` rule 7). The link shows from the match until this user's check-in.
 - Guard copy final ("her" stays, typo fixed, "by 10" from the rate config). Screen 4: "are paused" removed. No pause in MVP; account deletion blocked during a date (Settings, later).
 - Tracking: `cancel_guard_shown` · `cancel_abandoned_at_guard` · `date_cancelled` respecified; `cancel_link_tapped` · `partner_cancellation_received` · `rematch_started` RETIRED; §46 `cancel_guard_exit` NEW, §42 `cancel_sheet`, §11 `date_partner_cancelled` — registry 1.4.37 / taxonomy 1.4.30.
+
+## Decided 17 Nov 2026 — Date 09
+
+- **09 has a screen:** `date-timed-out`, Your date has ended · Proceed to review. Shown to **both**, same for 0 / 1 / 2 check-ins, no verdict → normal review. Fourth payload of Date 08's `PartnerEndedScreen`.
+- First to the server wins (late end → this screen, no error) · a stored check-in with its done sheet open counts, match not notified · no last message · no warning before +2 h · push + review reminders → notifications pass.
+- Tracking: `date_ended` respecified — §43 `timed_out` · §45 `auto_switch` · `checked_in_count` NEW (every end); §11 `date_timed_out` — registry 1.4.40 / taxonomy 1.4.32.

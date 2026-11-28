@@ -154,3 +154,19 @@ A ends the date; B sees one screen at once, whatever B is doing (replaces the Da
 - **Discomfort screen:** gender-neutral headline ("{name} ended the date, saying they didn't feel comfortable in the situation."); "uncomfortable" only — **unsafe is out of MVP** (the `rating-unsafe` artboards are parked).
 - **No way around the review.** No close, back or swipe-down on any Date 08 screen; **Proceed to review** is the only exit, and the review must be sent before anything else in the app opens. Reopening the app returns to the same screen (or the started review) until it is sent.
 - **Simultaneous ends:** ignored — one end is always first; the server takes the first.
+
+## Date 09 · +2 h switch (17 Nov 2026, in progress)
+
+- **09 gets a screen** (was: logic only, no sheet). Both people see the same one, whatever their check-ins — no hint of a verdict. Draft copy: **Your date has ended** · "We closed your date with {name} automatically, 2 hours after the meet time ({time})." · "If you met, we hope you had a great time. Either way, tell us how it went in the review." · **Proceed to review**.
+- **Behaves like Date 08:** replaces whatever is open (Date screen, chat, any sheet) the moment the switch runs. No close, back or swipe-down; reopening the app returns to it (or to the started review) until the review is sent.
+- **No last message on this screen.** It would count as chat contact after the date (flow 10 evidence), could steer the review, and gives a channel after an uncomfortable date. **Flow 10 backlog:** a short note during the review — e.g. delivered only if both reviews are positive.
+- **Open:** none — answered 17 Nov 2026, below.
+
+**Decided 17 Nov 2026 (Date 09 questions):**
+- **Review:** the switch only runs when nobody ended the date, so nobody has said anything about the other → **both get the normal review** (`rating`), whatever the check-ins (0, 1 or 2). Every case where someone did act already has its flow (Date 02, 06, 07, 08).
+- **Race with an end:** whatever reaches the server first wins. An end arriving after the switch is ignored; the user sees `date-timed-out` like the other. No error shown.
+- **Check-in done sheet open at the switch:** the stored check-in counts as evidence; the match is not notified (the date is over). Rare.
+- **Push at the switch:** yes, both — but **not in this story**; built with the notifications pass after the main flows.
+- **No warning before +2 h** — two hours after the meet time, nobody needs one.
+- **Tracking:** reuse `date_ended` with a new §43 `date_end_reason` value (`timed_out`) and the check-in count (0 / 1 / 2). No separate event.
+- **Review reminders** (user never sends the review, search stays blocked): not in 09. **Notifications backlog** — raise when the after-date notifications are worked on.
