@@ -230,6 +230,7 @@ enum class ProfileScreen(val screenId: String, val screenName: String) {
     DatePartnerEndedNoShow("date_partner_ended_no_show", "Date - Partner ended no-show"),
     DatePartnerEndedUncomfortable("date_partner_ended_uncomfortable", "Date - Partner ended uncomfortable"),
     DatePartnerEndedMet("date_partner_ended_met", "Date - Partner ended met"),
+    DateTimedOut("date_timed_out", "Date - Timed out"),
 }
 
 /**

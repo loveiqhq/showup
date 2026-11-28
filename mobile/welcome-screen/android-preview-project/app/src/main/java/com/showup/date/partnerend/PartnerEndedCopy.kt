@@ -62,4 +62,19 @@ object PartnerEndedCopy {
         listOf(p("We hope it was a good one. "), b("Head into the review"), p(" and tell us how it went — it takes a minute.")),
         listOf(p("Once the review is done, you're free to "), b("search for your next date.")),
     )
+
+    // D · Your date has ended
+    const val D_HEADLINE_LEAD = "Your date has "
+    const val D_HEADLINE_ITALIC = "ended."
+
+    /** `time` is the meet time already formatted for the device's clock (see [meetClock]). */
+    fun dSub(name: String, time: String): String = "We closed your date with $name automatically, 2 hours after the meet time ($time)."
+
+    /** An older server sends no meet time: the ticket's parenthesis goes with it (`%s` is the name). */
+    const val D_SUB_NO_TIME = "We closed your date with %s automatically, 2 hours after the meet time."
+
+    val D_ROWS: List<List<Run>> = listOf(
+        listOf(p("If you met, we hope you had a great time. "), b("Either way, tell us how it went in the review.")),
+        listOf(p("Once the review is done, you're free to "), b("search for your next date.")),
+    )
 }

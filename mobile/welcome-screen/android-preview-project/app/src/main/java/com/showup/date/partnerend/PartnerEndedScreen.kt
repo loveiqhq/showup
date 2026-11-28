@@ -1,6 +1,6 @@
 /*
  * PartnerEndedScreen.kt
- * ShowUp · Date 08, what the person who did NOT end the date sees: one full screen, three payloads (SHOWUP-199)
+ * ShowUp · Date 08, what the person who did NOT end the date sees: one full screen, four payloads (SHOWUP-199)
  *
  * Why this is not `DateEndedScreen` (spec R4): the two differ in nearly every number (avatar 76 vs 72, badge 30 vs 28,
  * headline 27 vs 26, tile 36 / 12 vs 34 / 11, row text 13.5 / 1.45 vs 13 / 1.42, hero padding 30 24 vs 26 24 24) and in
@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -97,6 +98,8 @@ fun PartnerEndedScreen(
     screen: PartnerScreen,
     name: String,
     photoUrl: String?,
+    /** Date 09's `{time}`, already in the device's clock; null drops it from the sub (an older server sent none). */
+    meetTime: String? = null,
     /** Hoisted only so the evidence harness can drive the column to its end; the screen owns it otherwise. */
     scroll: ScrollState = rememberScrollState(),
     onProceed: () -> Unit,
@@ -114,7 +117,7 @@ fun PartnerEndedScreen(
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column {
-                    Hero(screen, payload, name, photoUrl)
+                    Hero(screen, payload, name, photoUrl, meetTime)
                     Spacer(Modifier.height(payload.rowsTop))
                     Rows(payload)
                     Spacer(Modifier.height(14.dp))
@@ -130,7 +133,7 @@ fun PartnerEndedScreen(
 }
 
 @Composable
-private fun Hero(screen: PartnerScreen, p: PartnerEndedPayload, name: String, photoUrl: String?) {
+private fun Hero(screen: PartnerScreen, p: PartnerEndedPayload, name: String, photoUrl: String?, meetTime: String?) {
     val shape = RoundedCornerShape(PartnerEndedLayout.HeroRadius)
     Column(
         Modifier
@@ -162,7 +165,14 @@ private fun Hero(screen: PartnerScreen, p: PartnerEndedPayload, name: String, ph
                     .pillShadows(SolidColor(Color.White), ShadowMd)
                     // The reference's 3 px border sits inside its 30 box.
                     .padding(3.dp)
-                    .background(if (p.badgeSuccess) SuccessFg else Orange, CircleShape),
+                    .background(
+                        when (p.badgeTone) {
+                            PartnerBadgeTone.Orange -> Orange
+                            PartnerBadgeTone.Success -> SuccessFg
+                            PartnerBadgeTone.Violet -> Purple
+                        },
+                        CircleShape,
+                    ),
                 contentAlignment = Alignment.Center,
             ) { Icon(p.badgeIcon, p.badgeIconSize, tint = Color.White, strokeWidth = p.badgeStroke) }
         }
@@ -176,6 +186,7 @@ private fun Hero(screen: PartnerScreen, p: PartnerEndedPayload, name: String, ph
                     PartnerEndedCopy.B_HEADLINE_REST to false,
                 )
                 PartnerScreen.DateClosedPositive -> listOf(PartnerEndedCopy.C_HEADLINE_LEAD.format(name) to false, PartnerEndedCopy.C_HEADLINE_ITALIC to true)
+                PartnerScreen.DateTimedOut -> listOf(PartnerEndedCopy.D_HEADLINE_LEAD to false, PartnerEndedCopy.D_HEADLINE_ITALIC to true)
             },
             fontSize = 27.sp,
             lineHeight = (27 * 1.15).sp,
@@ -191,6 +202,10 @@ private fun Hero(screen: PartnerScreen, p: PartnerEndedPayload, name: String, ph
             PartnerScreen.YouNoShowed -> runsToText(PartnerEndedCopy.aSub(name))
             PartnerScreen.DateEndedDiscomfort -> runsToText(listOf(com.showup.date.cancel.Run(PartnerEndedCopy.B_SUB)))
             PartnerScreen.DateClosedPositive -> runsToText(listOf(com.showup.date.cancel.Run(PartnerEndedCopy.C_SUB)))
+            PartnerScreen.DateTimedOut ->
+                AnnotatedString(
+                    if (meetTime != null) PartnerEndedCopy.dSub(name, meetTime) else PartnerEndedCopy.D_SUB_NO_TIME.format(name),
+                )
         }
         Text(sub, modifier = Modifier.prettyWrap(sub, SubText, centered = true).cssLineBox(SubText.lineHeight), style = SubText)
     }

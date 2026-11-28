@@ -1,6 +1,6 @@
 /*
  * PartnerEndedFitTest.kt
- * ShowUp · Date 08's three payloads on every phone at every type size (SHOWUP-199)
+ * ShowUp · Date 08's four payloads on every phone at every type size (SHOWUP-199)
  *
  * Under the shared checks (nothing clipped, 44 dp touch areas) and this ticket's own: the CTA is reachable by
  * scrolling and lies below the last row at every size, never over it. Whether the CTA NEEDS a scroll on 375 x 667 is
@@ -24,6 +24,7 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w1000dp-h1200dp-xhdpi")
 class PartnerEndedFitTest {
+    private val MEET = "7:00 PM"
     private val scales = listOf(0.85f, 1f, 1.15f, 1.3f, 1.5f, 1.8f, 2f)
 
     private fun rules(): (FitFrame) -> List<Violation> = { f ->
@@ -44,7 +45,7 @@ class PartnerEndedFitTest {
         val out = mutableListOf<String>()
         for (scale in scales) for (d in DEVICES) {
             out += measureFit(d, "PartnerEnded/${screen.wire} @$scale", scale, 0, extra = rules()) {
-                PartnerEndedScreen(screen, "Leonie", null) {}
+                PartnerEndedScreen(screen, "Leonie", null, MEET) {}
             }.filterNot { it.advisory }.map { "$it" }
         }
         return out
@@ -56,7 +57,7 @@ class PartnerEndedFitTest {
         assertTrue("Date 08 ${screen.wire} layout problems (${found.size}):\n" + found.take(40).joinToString("\n") { "  $it" }, found.isEmpty())
         val reach = mutableListOf<String>()
         for (scale in listOf(1f, 2f)) reach += unreachableByScroll(375, 667, scale, listOf(PARTNER_ENDED_CTA_TAG)) {
-            PartnerEndedScreen(screen, "Leonie", null) {}
+            PartnerEndedScreen(screen, "Leonie", null, MEET) {}
         }
         assertTrue("CTA out of reach: $reach", reach.isEmpty())
     }
@@ -64,6 +65,7 @@ class PartnerEndedFitTest {
     @Test fun `A is clean on every phone at every type size`() = check(PartnerScreen.YouNoShowed)
     @Test fun `B is clean on every phone at every type size`() = check(PartnerScreen.DateEndedDiscomfort)
     @Test fun `C is clean on every phone at every type size`() = check(PartnerScreen.DateClosedPositive)
+    @Test fun `D is clean on every phone at every type size`() = check(PartnerScreen.DateTimedOut)
 
     /** Measured, not asserted (ruling R-b): the CTA's bottom against the 375 x 667 safe area at 1x type. */
     @Test
@@ -75,7 +77,7 @@ class PartnerEndedFitTest {
                 val cta = f.tagged(PARTNER_ENDED_CTA_TAG)
                 needs = if (cta == null) "not drawn" else "CTA bottom %.1f of %.1f usable, scroll needed: %s".format(cta.bottom, f.height, cta.bottom > f.height + 0.75f)
                 emptyList()
-            }) { PartnerEndedScreen(s, "Leonie", null) {} }
+            }) { PartnerEndedScreen(s, "Leonie", null, MEET) {} }
             "${s.wire}: $needs"
         }
         java.io.File("build/partner-ended-scroll.txt").writeText(lines.joinToString("\n"))
