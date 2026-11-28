@@ -233,8 +233,54 @@ final class CSSTextLayoutTests: XCTestCase {
             let got = host.lineWidth(within: full)
             XCTAssertGreaterThanOrEqual(got, piece, "at \(full)")
             XCTAssertEqual(wordSplits(text, width: got), [], "at \(full)")
+            XCTAssertGreaterThanOrEqual(labelWidestLine(host.label, at: got) + 1, piece, "the label broke a word at \(full)")
         }
     }
+
+    // MARK: - the floor on `WashHost`'s own search, over the label's height
+
+    /// `WashHost.balancedWidth` as it was, from 1 point over the label's own height: the control.
+    private func unflooredHostWidth(_ label: UILabel, within full: CGFloat) -> CGFloat {
+        let tallest = label.sizeThatFits(CGSize(width: full, height: .greatestFiniteMagnitude)).height
+        var low: CGFloat = 1
+        var high = full
+        while high - low > 1 {
+            let mid = ((low + high) / 2).rounded()
+            let h = label.sizeThatFits(CGSize(width: mid, height: .greatestFiniteMagnitude)).height
+            if h <= tallest { high = mid } else { low = mid }
+        }
+        return high
+    }
+
+    /// B's real path is `WashHost`'s search over the label's own height, not this file's TextKit one, and only a text
+    /// whose old search went below its widest piece can show the floor is what holds: the long word does (the review
+    /// of SHOWUP-199, 27 Nov 2026). Floored, the label's OWN layout keeps the word whole -- its widest line holds it --
+    /// and every width the old search kept whole is unchanged. Fails with the floor in `WashHost` removed.
+    func testTheWashHostFloorHoldsWhereItsOldHeightSearchSplitAWord() {
+        let text = washHeadlineText([("Incomprehensibilities is a word", false)])
+        let piece = CSSTextLayout.widestUnbreakable(text)
+        let host = WashHost()
+        host.balance = true
+        host.label.attributedText = text
+        var wouldSplit = 0
+        for full in stride(from: piece.rounded(.down) + 1, through: piece * 3, by: 1.5) {
+            let old = unflooredHostWidth(host.label, within: full)
+            if old < piece { wouldSplit += 1 }
+            let got = host.lineWidth(within: full)
+            XCTAssertGreaterThanOrEqual(got, piece, "at \(full)")
+            XCTAssertGreaterThanOrEqual(labelWidestLine(host.label, at: got) + 1, piece, "the label broke a word at \(full)")
+            if old >= piece { XCTAssertEqual(got, old, "at \(full) moved a width that split nothing") }
+        }
+        XCTAssertGreaterThan(wouldSplit, 0, "the old height search never went below the long word, so this proves nothing")
+    }
+
+}
+
+/// The widest line `label` draws at `width`, from its own layout rather than TextKit's: under the widest unbreakable
+/// piece, the label broke a word between two letters.
+@MainActor
+func labelWidestLine(_ label: UILabel, at width: CGFloat) -> CGFloat {
+    label.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).width
 }
 
 /// `parts` as `WashHeadline.updateUIView` builds them at Date 08's type: Lora 700 `size` (27) / 1.15, -0.01em,

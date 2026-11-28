@@ -189,20 +189,29 @@ final class PartnerEndedScreenTests: XCTestCase {
         for phone in [375, 390, 430] as [CGFloat] {
             let laid = laidOut(phone: phone)
             XCTAssertEqual(wordSplits(laid.text, width: laid.width), [], "at \(phone)")
+            assertLabelKeepsEveryWord(laid, "at \(phone)")
         }
     }
 
     private let bParts = partnerEndedHeadline(.dateEndedDiscomfort, name: "Leonie")
 
     /// B's headline as `WashHost` lays it out in B's column on `phone` at `size` points: the text it chose -- the run
-    /// joined, or loose where the run is wider than the column -- and the width it breaks at. The column is the phone
-    /// less the screen's 20 a side and B's hero padding.
-    private func laidOut(phone: CGFloat, size: CGFloat = 27) -> (text: NSAttributedString, width: CGFloat) {
+    /// joined, or loose where the run is wider than the column -- the width it breaks at, and the label that draws it.
+    /// The column is the phone less the screen's 20 a side and B's hero padding.
+    private func laidOut(phone: CGFloat, size: CGFloat = 27) -> (text: NSAttributedString, width: CGFloat, label: UILabel) {
         let host = balancedWashHost(bParts, size: size)
         let column = phone - 2 * 20 - 2 * partnerEndedPayload(.dateEndedDiscomfort).heroPadH
         host.useText(within: column)
         let width = host.lineWidth(within: column)
-        return (host.label.attributedText ?? NSAttributedString(), width)
+        return (host.label.attributedText ?? NSAttributedString(), width, host.label)
+    }
+
+    /// The label's OWN layout, not TextKit's: its widest line holds the widest unbreakable piece, so it broke no word
+    /// between two letters to fit.
+    private func assertLabelKeepsEveryWord(_ laid: (text: NSAttributedString, width: CGFloat, label: UILabel),
+                                           _ message: String) {
+        XCTAssertGreaterThanOrEqual(labelWidestLine(laid.label, at: laid.width) + 1,
+                                    CSSTextLayout.widestUnbreakable(laid.text), message)
     }
 
     /// Where the washed run is wider than the column itself -- 320 at 27, 390 at 54 -- no width keeps it whole, and
@@ -213,6 +222,7 @@ final class PartnerEndedScreenTests: XCTestCase {
         for (phone, size) in [(320, 27), (390, 54)] as [(CGFloat, CGFloat)] {
             let laid = laidOut(phone: phone, size: size)
             XCTAssertEqual(wordSplits(laid.text, width: laid.width), [], "at \(phone), \(size) pt")
+            assertLabelKeepsEveryWord(laid, "at \(phone), \(size) pt")
         }
     }
 
