@@ -41,6 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -180,6 +182,9 @@ private fun Hero(screen: PartnerScreen, p: PartnerEndedPayload, name: String, ph
             letterSpacing = (-0.01).em,
             balance = true,
             textAlign = TextAlign.Center,
+            // As iOS: the CSS line box and the CSS wash anchor, and a heading for TalkBack's heading navigation.
+            cssLineBox = true,
+            modifier = Modifier.semantics { heading() },
         )
         Spacer(Modifier.height(12.dp))
         val sub = when (screen) {

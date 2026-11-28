@@ -12,6 +12,7 @@ import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -118,6 +119,20 @@ class PartnerEndedScreenTest {
         assertFalse(Regex("\\d").containsMatchIn(joined))
         assertFalse(joined.contains("less visible", ignoreCase = true))
         assertFalse(joined.contains("lose App access", ignoreCase = true))
+    }
+
+    @Test
+    fun `the headline is a heading on each payload`() = runComposeUiTest {
+        var frame by mutableStateOf(PartnerScreen.YouNoShowed)
+        setContent { PartnerEndedScreen(frame, "Leonie", null) {} }
+        for (s in PartnerScreen.entries) {
+            frame = s
+            waitForIdle()
+            val headings = onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading), useUnmergedTree = true)
+                .fetchSemanticsNodes()
+            assertEquals("$s: one heading", 1, headings.size)
+            assertTrue(texts(headings.single()).any { it.startsWith("Leonie ended the date") })
+        }
     }
 
     @Test
