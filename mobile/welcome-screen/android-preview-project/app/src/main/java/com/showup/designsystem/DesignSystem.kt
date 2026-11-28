@@ -270,6 +270,9 @@ val RadarSlateDot = Color(0xD9F5F3F0)
 //     Manrope-SemiBold.ttf  ->  manrope_semibold.ttf
 //     Manrope-Bold.ttf      ->  manrope_bold.ttf
 //
+// Except Manrope since 28 Nov 2026: Android's files are written by a script, not copied -- see
+// `Manrope` below.
+//
 // Referenced directly rather than falling back to FontFamily.Serif/SansSerif: the fallback compiled
 // fine and rendered the wrong typeface with no warning, which is how a screen ships in the wrong
 // font. If the files are missing this now fails to build — loudly.
@@ -296,6 +299,13 @@ val Lora = FontFamily(
  * Instanced at wght 800 from upstream Manrope 4.505; the three statics beside it are 4.504.
  * Checked before it was added rather than after: identical unitsPerEm, ascender, descender,
  * lineGap and cap height, and the same 742 glyphs, so nothing above a line of text moves.
+ *
+ * ANDROID'S FIVE FILES ARE PATCHED, NOT COPIED. Each carries one extra `calt` lookup, so the straight
+ * apostrophe curls before "s " and after "em " as Chrome and iOS draw it: those two font rules need to
+ * see the space after them, and Minikin shapes word by word without it ("It's now closed." was
+ * straight on Android only, SHOWUP-199). Rewrite them with fonts/_patch_manrope_android_apostrophe.py;
+ * a file copied in from fonts/ or ios-app/ drops the patch, and ManropeApostropheTest fails. See
+ * fonts/README-android-apostrophe.md.
  */
 val Manrope = FontFamily(
     // 400 since 14 Oct 2026: the specs set body copy at 400, and with no Regular in the family
