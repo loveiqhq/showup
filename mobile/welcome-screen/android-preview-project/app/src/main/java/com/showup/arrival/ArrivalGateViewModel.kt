@@ -91,6 +91,8 @@ class ArrivalGateViewModel(
     private val newId: () -> String,
     /** Where commit and undo run, so their retries outlive this model; null is [viewModelScope] (tests, previews). */
     work: CoroutineScope? = null,
+    /** The host's date re-read: a `Yes` the server refused (409) leaves the screen to say why (the date ended, SHOWUP-200). */
+    private val reread: () -> Unit = {},
 ) : ViewModel() {
 
     private val workScope: CoroutineScope = work ?: viewModelScope
@@ -162,7 +164,12 @@ class ArrivalGateViewModel(
                 } else {
                     _ui.update { it.copy(phase = GatePhase.Done(phase.entry)) }
                 }
-                CheckInResult.AlreadyCheckedIn -> _ui.update { it.copy(phase = GatePhase.Idle, committed = true) }
+                CheckInResult.AlreadyCheckedIn -> {
+                    _ui.update { it.copy(phase = GatePhase.Idle, committed = true) }
+                    // Already checked in, or the date is no longer on (the +2 h switch): no error box either way; the
+                    // read says which, and an ended date routes itself.
+                    reread()
+                }
                 is CheckInResult.Failed -> failed(phase, ConfirmError.NotSaved)
             }
         }
@@ -207,6 +214,19 @@ class ArrivalGateViewModel(
     /** The app is in front again (the host's ON_START): a store that lands now is D as normal. */
     fun foregrounded() {
         away = false
+    }
+
+    /**
+     * The date ended under the sheet (Date 08's partner end, Date 09's switch): every sheet closes and NOTHING is sent.
+     * Not [close] (that commits and tells a match who is no longer there) and not [undo] (the stored row is evidence
+     * for flow 10, R6). The read in flight is dropped so a store landing now cannot raise the done sheet again. A
+     * Close tapped earlier has its commit retry still running on [workScope]; the server refuses it now, and it is
+     * left to finish rather than undone.
+     */
+    fun discardForPartnerEnd() {
+        yesJob?.cancel()
+        away = false
+        _ui.update { it.copy(phase = GatePhase.Idle, undone = false) }
     }
 
     /** The host has acted on [GateUi.undone]. */

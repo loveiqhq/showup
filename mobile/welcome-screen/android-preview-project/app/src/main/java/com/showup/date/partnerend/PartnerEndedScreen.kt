@@ -67,7 +67,6 @@ import com.showup.designsystem.Purple
 import com.showup.designsystem.PrimaryButton
 import com.showup.designsystem.ShadowInk
 import com.showup.designsystem.ShadowMd
-import com.showup.designsystem.SuccessFg
 import com.showup.designsystem.cssLineBox
 import com.showup.designsystem.pillShadows
 import com.showup.designsystem.prettyWrap
@@ -165,14 +164,7 @@ private fun Hero(screen: PartnerScreen, p: PartnerEndedPayload, name: String, ph
                     .pillShadows(SolidColor(Color.White), ShadowMd)
                     // The reference's 3 px border sits inside its 30 box.
                     .padding(3.dp)
-                    .background(
-                        when (p.badgeTone) {
-                            PartnerBadgeTone.Orange -> Orange
-                            PartnerBadgeTone.Success -> SuccessFg
-                            PartnerBadgeTone.Violet -> Purple
-                        },
-                        CircleShape,
-                    ),
+                    .background(partnerBadgeColor(p.badgeTone), CircleShape),
                 contentAlignment = Alignment.Center,
             ) { Icon(p.badgeIcon, p.badgeIconSize, tint = Color.White, strokeWidth = p.badgeStroke) }
         }

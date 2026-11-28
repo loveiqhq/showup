@@ -91,6 +91,8 @@ sealed interface AppRoute {
         val name: String,
         val screen: String,
         val photoUrl: String?,
+        /** Date 09's `{time}` as an ISO instant (SHOWUP-200); null for Date 08's payloads and from an older server. */
+        val meetAt: String? = null,
     ) : AppRoute
 
     /**

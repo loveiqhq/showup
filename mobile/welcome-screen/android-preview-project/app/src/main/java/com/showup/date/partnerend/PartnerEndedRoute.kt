@@ -34,6 +34,8 @@ fun PartnerEndedRoute(
     photoUrl: String?,
     onShown: () -> Unit,
     onProceed: () -> Unit,
+    /** Date 09's `{time}`, already in the device's clock; null drops it from the sub. */
+    meetTime: String? = null,
 ) {
     var reportedBy by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
@@ -43,7 +45,7 @@ fun PartnerEndedRoute(
         }
     }
     BackHandler(enabled = true) {}
-    PartnerEndedScreen(screen, name, photoUrl, onProceed = onProceed)
+    PartnerEndedScreen(screen, name, photoUrl, meetTime, onProceed = onProceed)
 }
 
 /**

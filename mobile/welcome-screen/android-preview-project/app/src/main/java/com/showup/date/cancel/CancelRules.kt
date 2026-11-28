@@ -62,12 +62,15 @@ fun cancelledOnYou(outcome: EndedOutcome): Boolean = outcome.reason == OutcomeRe
 enum class EndedRoute { DateEnded, PartnerCancelled, PartnerEnded, Land }
 
 /**
- * ONE decision for every way an end reaches a person (the Date screen's read, the chat's poll and its 409 re-read):
- * the chat's own end is G, a cancel by the other person is H, a Date 06 end by the other person is Date 08 (the server
+ * ONE decision for every way an end reaches a person (the Date screen's read, the chat's poll and its 409 re-read).
+ * The +2 h switch comes FIRST (Date 09, SHOWUP-200): nobody ended it, so both people land on Date 08's screen, whatever
+ * [EndedOutcome.endedByYou] or [EndedOutcome.partnerScreen] say -- the unknown-reason fallback below is Date 02's G.
+ * Then: the chat's own end is G, a cancel by the other person is H, a Date 06 end by the other person is Date 08 (the server
  * sends [EndedOutcome.partnerScreen] only to the match; an older server sends none, so that end lands), everything
  * else -- the canceller's own cancel and Date 06's own end -- lands (flow 10 plugs in there).
  */
 fun endedRoute(outcome: EndedOutcome): EndedRoute = when {
+    outcome.reason == OutcomeReason.TimedOut -> EndedRoute.PartnerEnded
     outcome.reason == OutcomeReason.Chat -> EndedRoute.DateEnded
     cancelledOnYou(outcome) -> EndedRoute.PartnerCancelled
     outcome.partnerScreen != null && !outcome.endedByYou -> EndedRoute.PartnerEnded

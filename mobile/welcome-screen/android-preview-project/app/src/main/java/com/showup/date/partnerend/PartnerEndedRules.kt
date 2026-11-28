@@ -7,10 +7,14 @@
  */
 package com.showup.date.partnerend
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.showup.date.PartnerScreen
 import com.showup.date.cancel.Run
+import com.showup.designsystem.Orange
+import com.showup.designsystem.Purple
+import com.showup.designsystem.SuccessFg
 import com.showup.profile.ProfileScreen
 import com.showup.welcome.BrandIcon
 
@@ -22,7 +26,14 @@ enum class RowAccent { Orange, Violet }
 /** The badge disc's colour: orange for the two accountability frames, green for C's check, violet for the clock of D. */
 enum class PartnerBadgeTone { Orange, Success, Violet }
 
-/** What stays equal across the three payloads. */
+/** The badge disc's fill for [tone]: orange, the success green, or violet (the `Purple` token). */
+fun partnerBadgeColor(tone: PartnerBadgeTone): Color = when (tone) {
+    PartnerBadgeTone.Orange -> Orange
+    PartnerBadgeTone.Success -> SuccessFg
+    PartnerBadgeTone.Violet -> Purple
+}
+
+/** What stays equal across the four payloads. */
 object PartnerEndedLayout {
     val HeroRadius = 28.dp
     val AvatarSize = 76.dp

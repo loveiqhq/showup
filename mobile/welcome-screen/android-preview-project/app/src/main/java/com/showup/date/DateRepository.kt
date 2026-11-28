@@ -80,6 +80,12 @@ interface DateStore {
      * check in first for the two problem reasons.
      */
     suspend fun partnerEnds(reason: EndReason): Result<Boolean> = Result.failure(UnsupportedOperationException("partnerEnds"))
+
+    /**
+     * Debug only (Date 09, SHOWUP-200): the +2 h switch closes the viewer's date. Only the demo carries it: the real
+     * server's switch is its own sweep, and a dev route would be a second way to write the same row.
+     */
+    suspend fun timesOut(): Result<Boolean> = Result.failure(UnsupportedOperationException("timesOut"))
 }
 
 class DateRepository(private val api: ShowUpApi) : DateStore {

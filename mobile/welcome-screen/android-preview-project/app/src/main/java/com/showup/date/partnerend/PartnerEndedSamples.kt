@@ -14,7 +14,6 @@ object PartnerEndedSamples {
     /** The kit's `meetTime`, as a 24 h clock draws it. */
     private const val SAMPLE_TIME = "19:00"
 
-
     @Composable
     fun frame(screen: PartnerScreen, scroll: ScrollState? = null) =
         PartnerEndedScreen(screen, "Leonie", null, SAMPLE_TIME, scroll ?: rememberScrollState()) {}

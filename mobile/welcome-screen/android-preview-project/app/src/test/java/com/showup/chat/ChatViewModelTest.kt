@@ -532,6 +532,22 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun `the Date screen finding the switch first drops the draft without an outcome of the chat's own (SHOWUP-200)`() = chatTest {
+        store.thread = Outcome.Ok(listOf(theirs("t1", ChatReason.CantMakeIt)))
+        val vm = opened()
+        vm.pick(ChatReason.OnMyWay, ChipSurface.Dock)
+        vm.edit("On my way, nearly there")
+        vm.openEndSheet()
+        vm.discardForPartnerEnd()
+        assertEquals("", vm.ui.value.draft)
+        assertNull(vm.ui.value.selected)
+        assertEquals(Guide.None, vm.ui.value.guide)
+        assertFalse(vm.ui.value.sending)
+        assertFalse(vm.ui.value.endSheet)
+        assertNull("the chat has not routed anything itself", vm.ui.value.outcome)
+    }
+
+    @Test
     fun `a 409 on End date shows the outcome the next date read brings`() = chatTest {
         store.thread = Outcome.Ok(listOf(theirs("t1", ChatReason.CantMakeIt)))
         store.end = EndResult.AlreadyEnded

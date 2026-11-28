@@ -7,6 +7,9 @@ package com.showup.date.partnerend
 
 import androidx.compose.ui.unit.dp
 import com.showup.date.PartnerScreen
+import com.showup.designsystem.Orange
+import com.showup.designsystem.Purple
+import com.showup.designsystem.SuccessFg
 import com.showup.profile.ProfileScreen
 import com.showup.welcome.BrandIcon
 import org.junit.Assert.assertEquals
@@ -67,5 +70,12 @@ class PartnerEndedRulesTest {
             val p = partnerEndedPayload(s)
             assertEquals(p.rowIcons.size, p.rows.size)
         }
+    }
+
+    @Test
+    fun `the badge disc takes its colour from the tone, one token each`() {
+        assertEquals(Orange, partnerBadgeColor(PartnerBadgeTone.Orange))
+        assertEquals(SuccessFg, partnerBadgeColor(PartnerBadgeTone.Success))
+        assertEquals(Purple, partnerBadgeColor(PartnerBadgeTone.Violet))
     }
 }

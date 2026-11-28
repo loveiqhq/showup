@@ -93,15 +93,21 @@ fun demoSteps(frame: String): List<DemoStep> = when (frame) {
  * is reached by the app's own routing -- the same call as the developer menu's. `199A-chat` waits in the chat and
  * lets her end it three seconds later: the poll finds it, as it would for a real match.
  */
-class DemoPartnerEnd(val reason: EndReason, val afterMs: Long)
+class DemoPartnerEnd(val reason: EndReason?, val afterMs: Long) {
+    /** No reason: nobody ends it, the +2 h switch does (SHOWUP-200, Date 09). */
+    val timesOut: Boolean get() = reason == null
+}
 
-val PARTNER_END_FRAMES: Set<String> = setOf("199A", "199B", "199C", "199A-chat")
+val PARTNER_END_FRAMES: Set<String> = setOf("199A", "199B", "199C", "199A-chat", "200", "200-chat")
 
 fun demoPartnerEnd(frame: String): DemoPartnerEnd? = when (frame) {
     "199A" -> DemoPartnerEnd(EndReason.PartnerNoShow, 0)
     "199B" -> DemoPartnerEnd(EndReason.Uncomfortable, 0)
     "199C" -> DemoPartnerEnd(EndReason.Met, 0)
     "199A-chat" -> DemoPartnerEnd(EndReason.PartnerNoShow, 3_000)
+    // SHOWUP-200: the switch lands on the Date screen at once, or three seconds into the chat (the draft goes).
+    "200" -> DemoPartnerEnd(null, 0)
+    "200-chat" -> DemoPartnerEnd(null, 3_000)
     else -> null
 }
 
@@ -112,7 +118,7 @@ val DEV_LIVE_FRAMES: Set<String> =
 fun demoLanding(frame: String): DemoLanding = when (frame) {
     "A", "K" -> DemoLanding.TimePicker
     "B", "M", "N" -> DemoLanding.PlacePicker
-    "C", "F", "H", "199A-chat" -> DemoLanding.Chat
+    "C", "F", "H", "199A-chat", "200-chat" -> DemoLanding.Chat
     else -> DemoLanding.DateScreen
 }
 
@@ -399,6 +405,19 @@ class DevDateDemo(
                     EndReason.PartnerNoShow -> PartnerScreen.YouNoShowed
                     EndReason.Uncomfortable -> PartnerScreen.DateEndedDiscomfort
                 },
+            )
+            endSeen = false
+            true
+        },
+    )
+
+    override suspend fun timesOut(): Result<Boolean> = Result.success(
+        locked {
+            if (over) return@locked false
+            // What the server's +2 h switch writes: no ender, the payload for both, the meet time for `{time}`.
+            ended = EndedOutcome(
+                DEMO_DATE_ID, DateSamples.DATE.match.name, endedByYou = false,
+                reason = OutcomeReason.TimedOut, partnerScreen = PartnerScreen.DateTimedOut, meetAt = meetAt,
             )
             endSeen = false
             true
