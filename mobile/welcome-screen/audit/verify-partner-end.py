@@ -284,7 +284,7 @@ for spelling in ('val e = "date_ended"', "val e = DATE_ENDED", "dateEnded(x)", "
           fires_date_ended(spelling, strict=False))
 check("the routing check accepts a route case, its constructor and the Android route (mutation)",
       not fires_date_ended("return .dateEnded(outcome, photoURL: u)\ncase .dateEnded, .partnerCancelled:\n"
-                           "val r = AppRoute.DateEnded(1)\ncomposable<AppRoute.DateEnded>(\n", strict=False))
+                           "val r = AppRoute.DateEnded(1)\ndata class DateEnded(\ncase dateEnded(EndedOutcome)\ncomposable<AppRoute.DateEnded>(\n", strict=False))
 
 print("partner-end conformance: %d checks" % count)
 if failures:
