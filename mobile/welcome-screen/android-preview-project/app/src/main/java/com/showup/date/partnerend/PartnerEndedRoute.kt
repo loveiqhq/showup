@@ -15,12 +15,17 @@ import androidx.navigation.NavController
 import com.showup.AppRoute
 import com.showup.date.PartnerScreen
 
+/** One value per process: what a saved flag is compared with to tell a rotation from a restore after process death. */
+internal var partnerEndedProcessId: String = java.util.UUID.randomUUID().toString()
+
 /**
  * The screen with its destination's duties. Back is consumed, predictive back included: the date is over and the
  * person owes a review, so there is nothing to go back to and nowhere else to go. There is no tab bar either.
  *
- * [onShown] runs once per showing. It is saved, so a rotation does not count as a second view, while a new showing
- * (another route entry, or the same screen after a restart) does.
+ * [onShown] runs once per showing. A rotation does not count as a second view, while a new showing (another route
+ * entry) or the same screen after the process was killed and restored does ("each time the screen is shown, including
+ * when B reopens the app"). The flag saved across a configuration change is the id of the process that reported, so a
+ * restore in a new process finds a stranger's id and reports again.
  */
 @Composable
 fun PartnerEndedRoute(
@@ -30,10 +35,10 @@ fun PartnerEndedRoute(
     onShown: () -> Unit,
     onProceed: () -> Unit,
 ) {
-    var reported by rememberSaveable { mutableStateOf(false) }
+    var reportedBy by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        if (!reported) {
-            reported = true
+        if (reportedBy != partnerEndedProcessId) {
+            reportedBy = partnerEndedProcessId
             onShown()
         }
     }

@@ -62,10 +62,29 @@ def strip_comments(src):
     return re.sub(r"//[^\n]*|/\*.*?\*/", "", src, flags=re.S)
 
 
+# A line that holds an identifier, not words a person reads: a test tag, an accessibility id, a screen id.
+NON_COPY = re.compile(r"testTag|accessibilityIdentifier|screen_?id|\bid\s*[:=]|\bTAG\b", re.I)
+
+
+def copy_literals(source):
+    """The copy's string literals in file order, comments removed, lines of identifiers left out."""
+    out = []
+    for line in strip_comments(source).split("\n"):
+        if not NON_COPY.search(line):
+            out += re.findall(r'"((?:[^"\\]|\\.)*)"', line)
+    return out
+
+
 def literal_stream(source):
-    """Every string literal, comments removed, in file order and joined with nothing between: a bold run is its own
-    constant, and the pieces read in order are the ticket's string."""
-    return "".join(re.findall(r'"((?:[^"\\]|\\.)*)"', strip_comments(source)))
+    """The literals joined with nothing between: a bold run is its own constant, and the pieces read in order are the
+    ticket's string."""
+    return "".join(copy_literals(source))
+
+
+def words_stream(source):
+    """The literals joined with a newline, for the word rules: a run that is a word on its own reads as one, and two
+    literals never fuse into a word neither holds."""
+    return "\n".join(copy_literals(source))
 
 
 def app_files(root, suffix, only=None):
@@ -95,13 +114,19 @@ def group_of(src, start, end):
     """The literals between two `// X .` section comments of a copy file, cut before comments are stripped."""
     a = src.index(start)
     b = src.index(end, a) if end else len(src)
-    return literal_stream(src[a:b])
+    return src[a:b]
 
 
 def banned_in(text, group):
+    """`text` is a words_stream, a ticket section (markdown), or the literals fused."""
     if group == "B":
         return [m.group(0) for m in PRONOUN.finditer(text)] + [w for w in B_BANNED if w in text]
     return re.findall(r"\d", text) + [w for w in A_BANNED if w in text]
+
+
+def rules_hits(region_src, group):
+    """Both readings of a copy region: literals apart (newline) and literals fused (as the screen draws them)."""
+    return banned_in(words_stream(region_src), group) + banned_in(literal_stream(region_src), group)
 
 
 def decls(src, kind):
@@ -125,9 +150,19 @@ def ids_missing(src, kind):
     return out
 
 
-def fires_date_ended(src):
+DATE_ENDED_ANY = re.compile(r"\bdate_?ended\b", re.I)
+# In the routing files `.dateEnded(...)` / `AppRoute.DateEnded` is a route to the Date 06 screen, not an event, so only
+# the spellings an event takes count there: the literal, UPPER_SNAKE, a builder, or a tracker call that names it
+# (a `case dateEnded(` / `class DateEnded(` declaration is the route itself).
+DATE_ENDED_EVENT = re.compile(
+    r'"date_ended"|\bDATE_ENDED\b|\b(?:fun|func) dateEnded\b|(?-i:(?<![.\w])(?<!case )(?<!class )dateEnded\()'
+    r"|(?:Analytics|Events?)\.dateEnded\b|\b(?:report|track|fire|emit|log)\w*\([^)]*\bdate_?ended\b", re.I)
+
+
+def fires_date_ended(src, strict=True):
+    """strict: Date 08's own files, where any spelling of the event name is wrong. Otherwise a routing file."""
     code = strip_comments(src)
-    return bool(re.search(r'"date_ended"', code) or re.search(r"\b(?:fun|func) dateEnded\b", code))
+    return bool((DATE_ENDED_ANY if strict else DATE_ENDED_EVENT).search(code))
 
 
 # the sources
@@ -165,10 +200,14 @@ kt_b = group_of(kt_copy_src, "// B ·", "// C ·")
 sw_b = group_of(sw_copy_src, "// B ·", "// C ·")
 check("B's sections were found in every source", all(len(x) > 200 for x in (t_b, kt_b, sw_b)))
 check("A's sections were found in every source", all(len(x) > 200 for x in (t_a, kt_a, sw_a)))
-for label, text in (("ticket", t_b), ("Android", kt_b), ("iOS", sw_b)):
-    check("B on %s holds no gendered pronoun and no 'unsafe'" % label, not banned_in(text, "B"))
-for label, text in (("ticket", t_a), ("Android", kt_a), ("iOS", sw_a)):
-    check("A on %s holds no digit, no 'less visible', no 'lose App access'" % label, not banned_in(text, "A"))
+check("B on the ticket holds no gendered pronoun and no 'unsafe'", not banned_in(t_b, "B"))
+check("A on the ticket holds no digit, no 'less visible', no 'lose App access'", not banned_in(t_a, "A"))
+for label, text in (("Android", kt_b), ("iOS", sw_b)):
+    check("B on %s holds no gendered pronoun and no 'unsafe' (literals apart and fused)" % label,
+          not rules_hits(text, "B"))
+for label, text in (("Android", kt_a), ("iOS", sw_a)):
+    check("A on %s holds no digit, no 'less visible', no 'lose App access' (literals apart and fused)" % label,
+          not rules_hits(text, "A"))
 
 # one screen, the section 11 ids, no server event
 kt_files = app_files(KT_ROOT, ".kt")
@@ -188,8 +227,19 @@ kt_d8 = "\n".join(read(p) for p in app_files(KT_DIR, ".kt"))
 sw_d8 = "\n".join(read(p) for p in app_files(SW, ".swift", lambda n: n.startswith("PartnerEnded")))
 check("Android: Date 08 code was found (%d characters)" % len(kt_d8), len(kt_d8) > 2000)
 check("iOS: Date 08 code was found (%d characters)" % len(sw_d8), len(sw_d8) > 2000)
+# The routing files send a partner's end here, so a date_ended fired from them is Date 08's too; both sets mirror.
+KT_ROUTING = [os.path.join(KT_ROOT, *q.split("/")) for q in
+              ("AppRoute.kt", "MainActivity.kt", "chat/ChatRouting.kt", "date/cancel/CancelRules.kt")]
+SW_ROUTING = [os.path.join(SW, n) for n in
+              ("AppRoute.swift", "ShowUpWelcomeApp.swift", "ChatRouting.swift", "CancelRules.swift")]
+kt_rt = chr(10).join(read(q) for q in KT_ROUTING)
+sw_rt = chr(10).join(read(q) for q in SW_ROUTING)
+check("both routing sets were found (%d / %d characters)" % (len(kt_rt), len(sw_rt)),
+      len(kt_rt) > 5000 and len(sw_rt) > 5000)
 check("Android: Date 08 never fires date_ended", not fires_date_ended(kt_d8))
 check("iOS: Date 08 never fires date_ended", not fires_date_ended(sw_d8))
+check("Android: the routing files never fire date_ended", not fires_date_ended(kt_rt, strict=False))
+check("iOS: the routing files never fire date_ended", not fires_date_ended(sw_rt, strict=False))
 
 # it can fail: one negative self-test per group
 victim = "Thank you for being real"
@@ -204,10 +254,18 @@ check("the copy check reports a missing placeholder (mutation)",
       any("ended the date, saying" in m for m in
           missing_from(strings, kt_copy.replace("%s ended the date, saying", "ended the date, saying"), "Android")))
 check("the pronoun check reports 'she' but not 'the' (mutation)",
-      banned_in(kt_b + " she said", "B") == ["she"] and not banned_in("the other one", "B"))
-check("the B check reports 'unsafe' (mutation)", banned_in(sw_b + " It was unsafe.", "B") == ["unsafe"])
+      "she" in rules_hits(kt_b + '\nconst val X = "so she said"\n', "B")
+      and not rules_hits('const val X = "the other one"', "B"))
+check("the pronoun check reports a pronoun that sits across two literals (mutation)",
+      "he" in rules_hits('listOf(p("t"), p("he"))', "B") and "his" in rules_hits('listOf(p("hi"), p("s"))', "B"))
+check("the B check reports 'unsafe' (mutation)", "unsafe" in rules_hits(sw_b + '\nlet x = "It was unsafe."\n', "B"))
 check("the A check reports a digit and 'less visible' (mutation)",
-      banned_in(kt_a + " in 3 days", "A") == ["3"] and banned_in(sw_a + " less visible", "A") == ["less visible"])
+      "3" in rules_hits(kt_a + '\nconst val X = "in 3 days"\n', "A")
+      and "less visible" in rules_hits(sw_a + '\nlet x = "less visible"\n', "A"))
+check("the A check ignores a digit in a test tag, an accessibility id or a screen id (mutation)",
+      not rules_hits(kt_a + '\nModifier.testTag("a1b2")\n', "A")
+      and not rules_hits(sw_a + '\n.accessibilityIdentifier("step3")\n', "A")
+      and not rules_hits(kt_a + '\nval screenId = "s9"\n', "A"))
 check("the single-screen check reports a second PartnerEndedScreen (mutation)",
       decls(kt_all + "\nfun PartnerEndedScreen(x: Int) {}\n", "kt") == 2
       and decls(sw_all + "\nstruct PartnerEndedScreen: View {}\n", "sw") == 2)
@@ -217,6 +275,16 @@ check("the id check reports a missing id (mutation)",
 check("the date_ended check reports one fired and ignores a comment (mutation)",
       fires_date_ended(kt_d8 + '\nval e = "date_ended"\n') and fires_date_ended(sw_d8 + "\nfunc dateEnded() {}\n")
       and not fires_date_ended('// "date_ended" is the server\'s\n'))
+for spelling in ('val e = "date_ended"', "val e = DATE_ENDED", "tracker.dateEnded(x)", "dateEnded(x)",
+                 "func dateEnded() {}", "fun dateEnded() {}", "analytics.report(.dateEnded)", "Events.dateEnded"):
+    check("the date_ended check reports %r in Date 08 code (mutation)" % spelling, fires_date_ended(spelling))
+for spelling in ('val e = "date_ended"', "val e = DATE_ENDED", "dateEnded(x)", "func dateEnded() {}",
+                 "analytics.report(.dateEnded)", "Events.dateEnded"):
+    check("the date_ended check reports %r in a routing file (mutation)" % spelling,
+          fires_date_ended(spelling, strict=False))
+check("the routing check accepts a route case, its constructor and the Android route (mutation)",
+      not fires_date_ended("return .dateEnded(outcome, photoURL: u)\ncase .dateEnded, .partnerCancelled:\n"
+                           "val r = AppRoute.DateEnded(1)\ndata class DateEnded(\ncase dateEnded(EndedOutcome)\ncomposable<AppRoute.DateEnded>(\n", strict=False))
 
 print("partner-end conformance: %d checks" % count)
 if failures:

@@ -56,8 +56,9 @@ B's *ended, review pending* state is the ended outcome while B's end-seen stamp 
   Date 07's `date_cancelled`: A's first name only, never the reason, a place or a time (a lock screen is public).
   EN title `{name} ended your date` (no name: `Your date was ended`), body `Open Show Up to see what happens next.`;
   DE title `{name} hat euer Date beendet` (no name: `Dein Date wurde beendet`), body
-  `Öffne Show Up, um zu sehen, wie es weitergeht.` (Date 07's body, written once). Category `engagement`, like every other date push; Esma is asking Philipp whether
-  the cancel push should always arrive, and that answer applies to this one too. A failed push never fails the end.
+  `Öffne Show Up, um zu sehen, wie es weitergeht.` (Date 07's body, written once). Always delivered (Philipp, 27 Nov 2026: "those should always get through,
+  definitely"): this kind and Date 07's `date_cancelled` are critical types, category `essential`, so no toggle
+  suppresses them; a blocked account or a phone with notifications off still skips them. A failed push never fails the end.
   - Costs if wrong: one catalog entry and one category.
 - **R4 — One new `PartnerEndedScreen`, not Date 02 / 07's `DateEndedScreen`.** Rule one says reuse first; the two
   differ in nearly every number (avatar 76 vs 72, badge 30 vs 28, headline 27 vs 26, tile 36 / 12 vs 34 / 11, row text

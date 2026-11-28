@@ -1121,7 +1121,11 @@ private struct TutorialFlow: View {
         // is up, and an outcome not yet seen is shown before anything else.
         .onAppear { dateModel.onScreen(true) }
         .onDisappear { dateModel.onScreen(false) }
-        .onChange(of: dateModel.state.ended) { _, ended in
+        .onChange(of: dateModel.state.ended, initial: true) { _, ended in
+            // `initial: true`: this view is new each time the flow returns to the Date screen (`.id(screen.rawValue)`), and a
+            // Settings read may have stored the end meanwhile -- nobody was listening, so it is routed on appear. A second
+            // call for the same end is harmless: `partnerEndedOnce` / `landedOnce` guard Date 08 and the landing, and G / H
+            // only re-set the path they already hold.
             // `from` is read from the stack (`endFoundFrom`): the chat when it is over this screen -- this read also runs
             // on a return to the foreground under it, racing the chat's own -- nil when this screen was on top. Nil, G
             // and H read it as the Date screen, and whether Date 08's read was the launch's is decided from the held
@@ -1361,7 +1365,7 @@ private struct TutorialFlow: View {
         case .dateEnded, .partnerCancelled: showOutcome(ended, from: from ?? .dateScreen)
         case .partnerEnded(let screen):
             // Once per ended date: the chat's poll and the Date screen's read can both see one end.
-            guard partnerEndedOnce.first(ended.dateId) else { return }
+            guard let screen = partnerEndedToShow(ended, once: &partnerEndedOnce) else { return }
             showPartnerEnded(ended, screen: screen,
                              from: partnerEndedReferrer(heldDate: dateModel.state.date, from: from))
         case .land: landAfterEnd(ended)

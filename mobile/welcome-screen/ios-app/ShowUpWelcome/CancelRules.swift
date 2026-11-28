@@ -62,6 +62,14 @@ func endedRoute(_ outcome: EndedOutcome) -> EndedRoute {
     return .land
 }
 
+/// Date 08's once-per-ended-date gate, in one place for the Date screen's hook. The hook runs on appear (an end a
+/// Settings read stored before the Date screen existed) and on every change, so it sees one end several times: the
+/// screen to show the first time, nil after.
+func partnerEndedToShow(_ outcome: EndedOutcome, once: inout LandedOnce) -> PartnerScreen? {
+    guard case .partnerEnded(let screen) = endedRoute(outcome), once.first(outcome.dateId) else { return nil }
+    return screen
+}
+
 // `CancelUi` has members named `changeClosed` and `showMessage`, which hide the free functions inside the type (as
 // `pastMeet` does for `DateEndUi`); it calls these.
 func cancelChangeClosed(_ change: DateChange?, now: Date) -> Bool { changeClosed(change, now: now) }
